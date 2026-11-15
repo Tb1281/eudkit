@@ -12,7 +12,7 @@ use eudkit::plan::{BuildPlan, PlanEntry};
 use eudkit::{
     AssemblyOptions, CompilePlanOptions, FrontendWarning, PipelineError,
     compile_plan_with_warnings, compile_prepared_with_options, is_json_hir, prepare_source,
-    rebase_entry_paths, relative_path, synth_hir,
+    prepare_source_with_folds, rebase_entry_paths, relative_path, synth_hir,
 };
 
 const PLAN_OUT_REQUIRES_FRONTEND: &str =
@@ -359,8 +359,9 @@ fn dump_ir(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     let loops = parsed.loops;
     let execute = parsed.execute;
     let no_warnings = parsed.no_warnings;
+    let explain_folds = parsed.explain_folds;
 
-    let prepared = prepare_source(&source, frontend, None)?;
+    let prepared = prepare_source_with_folds(&source, frontend, explain_folds)?;
     print_warnings(&prepared.warnings, no_warnings, None);
     let report = prepared.dump_report(execute.then_some(loops))?;
     if json {

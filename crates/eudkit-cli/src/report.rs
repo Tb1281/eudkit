@@ -2,6 +2,7 @@
 
 use eudkit_lir::{ExecutedCost, LirDocument, LirItem, StaticCost};
 use eudkit_opt::cell::StoragePlan;
+use eudkit_opt::folds::{FoldEvent, FoldLog};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -50,6 +51,26 @@ impl PackingEntry {
     }
 }
 
+/// One optimizer fold rendered for the `dump-ir` report.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FoldEntry {
+    pub kind: String,
+    pub site: String,
+    pub before: String,
+    pub after: String,
+}
+
+impl FoldEntry {
+    fn from_event(event: &FoldEvent) -> Self {
+        Self {
+            kind: event.kind.as_str().to_string(),
+            site: event.site.clone(),
+            before: event.before.clone(),
+            after: event.after.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DumpReport {
     pub static_cost: StaticCost,
@@ -61,6 +82,10 @@ pub struct DumpReport {
     pub pre_assembly: bool,
     pub storage: StorageSummary,
     pub packing: Vec<PackingEntry>,
+    /// Present only for `dump-ir --explain-folds`; absent (not just empty)
+    /// otherwise, so default JSON stays byte-identical.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub folds: Option<Vec<FoldEntry>>,
 }
 
 impl DumpReport {
@@ -70,6 +95,7 @@ impl DumpReport {
         total_vars: usize,
         storage: &StoragePlan,
         lir: &LirDocument,
+        folds: Option<&FoldLog>,
     ) -> Self {
         let mut packing = Vec::new();
         for (idx, item) in lir.module.items.iter().enumerate() {
@@ -83,6 +109,12 @@ impl DumpReport {
             pre_assembly: true,
             storage: StorageSummary::new(total_vars, storage),
             packing,
+            folds: folds.map(|log| {
+                log.events()
+                    .iter()
+                    .map(FoldEntry::from_event)
+                    .collect::<Vec<_>>()
+            }),
         }
     }
 
@@ -125,6 +157,15 @@ impl DumpReport {
                 a = entry.actions,
                 ad = entry.action_density * 100.0
             ));
+        }
+        if let Some(folds) = &self.folds {
+            out.push_str(&format!("Folds: {} event(s)\n", folds.len()));
+            for entry in folds {
+                out.push_str(&format!(
+                    "  [{}] {}: {} -> {}\n",
+                    entry.kind, entry.site, entry.before, entry.after
+                ));
+            }
         }
         out
     }

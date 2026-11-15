@@ -189,6 +189,7 @@ pub struct DumpIrArgs {
     pub loops: usize,
     pub execute: bool,
     pub no_warnings: bool,
+    pub explain_folds: bool,
 }
 
 impl Default for DumpIrArgs {
@@ -200,6 +201,7 @@ impl Default for DumpIrArgs {
             loops: 1,
             execute: true,
             no_warnings: false,
+            explain_folds: false,
         }
     }
 }
@@ -250,6 +252,16 @@ fn dump_ir_specs() -> Vec<FlagSpec<DumpIrArgs>> {
             help: "Skip execution; report static cost only.",
             apply: |state, _| {
                 state.execute = false;
+                Ok(FlagOutcome::Continue)
+            },
+        },
+        FlagSpec {
+            names: &["--explain-folds"],
+            takes_value: false,
+            value_name: None,
+            help: "Explain condition/gate folds in the report (default: cost only).",
+            apply: |state, _| {
+                state.explain_folds = true;
                 Ok(FlagOutcome::Continue)
             },
         },
@@ -573,7 +585,7 @@ pub fn help_text() -> String {
         "eudkit unified TypeScript/Python compiler\n\n\
          Usage:\n\
          {}\
-         eudkit dump-ir <source.ts|source.py|module.hir.json> [--frontend ts|py] [--json] [--loops N] [--no-exec] [--no-warnings]\n\
+         eudkit dump-ir <source.ts|source.py|module.hir.json> [--frontend ts|py] [--json] [--loops N] [--no-exec] [--no-warnings] [--explain-folds]\n\
          eudkit synth <source.ts|source.py> [--frontend ts|py] [--out <hir.json>] [--compact] [--no-warnings]\n\
          eudkit doctor [--json]\n\
          eudkit init [<dir>] [--ts|--py]\n\
@@ -637,7 +649,7 @@ pub fn command_help_text(command: &str) -> String {
             out.push_str(
                 "eudkit dump-ir: lower a source to HIR and report cost, storage, and packing\n\n\
                  Usage:\n\
-                 eudkit dump-ir <source.ts|source.py|module.hir.json> [--frontend ts|py] [--json] [--loops <N>] [--no-exec] [--no-warnings]\n\n\
+                 eudkit dump-ir <source.ts|source.py|module.hir.json> [--frontend ts|py] [--json] [--loops <N>] [--no-exec] [--no-warnings] [--explain-folds]\n\n\
                  Flags:\n",
             );
             push_command_flags(&mut out, command, &dump_ir_specs());
@@ -797,6 +809,7 @@ mod tests {
             "3",
             "--no-exec",
             "--no-warnings",
+            "--explain-folds",
         ]))
         .unwrap()
         .unwrap();
@@ -806,12 +819,14 @@ mod tests {
         assert_eq!(parsed.loops, 3);
         assert!(!parsed.execute);
         assert!(parsed.no_warnings);
+        assert!(parsed.explain_folds);
 
         let parsed = parse_dump_ir(&args(&["demo.py"])).unwrap().unwrap();
         assert!(!parsed.json);
         assert_eq!(parsed.loops, 1);
         assert!(parsed.execute);
         assert!(!parsed.no_warnings);
+        assert!(!parsed.explain_folds);
     }
 
     #[test]
@@ -962,6 +977,11 @@ mod tests {
         );
         assert!(dump_ir.contains("--loops"), "{dump_ir}");
         assert!(dump_ir.contains("--no-exec"), "{dump_ir}");
+        assert!(dump_ir.contains("--explain-folds"), "{dump_ir}");
+        assert!(
+            dump_ir.contains("Explain condition/gate folds in the report (default: cost only)."),
+            "{dump_ir}"
+        );
         assert!(!dump_ir.contains("--basemap"), "{dump_ir}");
         assert!(!dump_ir.contains("eudkit compile <"), "{dump_ir}");
 

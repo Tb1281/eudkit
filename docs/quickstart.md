@@ -220,6 +220,18 @@ Useful fields:
 | `storage` | `Var` cells, `TriggerPage` slots/pages, dword/bit cells |
 | `packing` | how conditions/actions were packed into triggers |
 
+Add `--explain-folds` to append the optimizer's fold log: condition fusion,
+constant-gate opening, dead-gate removal, sibling `when` merges, and
+16-condition chunking.
+
+```sh
+./target/debug/eudkit dump-ir /tmp/quickstart-hello.hir.json --explain-folds
+```
+
+The text report ends with a `Folds:` block. With `--json` the same events
+appear under the `folds` key (`kind`, `site`, `before`, `after`). The key is
+omitted unless the flag is present, so default JSON is unchanged.
+
 The simulator executes a model of the generated triggers; it is not StarCraft.
 It is the fastest way to catch a branch that never fires or a `Var` that never
 changes before opening the game.

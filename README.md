@@ -177,6 +177,7 @@ Compile it with the same command shape:
 Open `hello.scx` in StarCraft: Remastered to see the generated trigger. To
 inspect the HIR without writing a map, run `./target/release/eudkit synth
 hello.py` (or `hello.ts`); `dump-ir` prints a readable form with cost data.
+Add `--explain-folds` to append the optimizer's condition/gate fold log.
 
 For the full first-run path, including basemap choice and in-game checks, see
 [docs/quickstart.md](docs/quickstart.md) and

@@ -1,0 +1,24 @@
+Source: crates/eudkit-cli/tests/fixtures/explain_folds.hir.json
+Packing: 7 trigger node(s), 1 blob dword(s)
+Static cost: 7T static (19C, 10A, 16860 bytes)
+Cost stage: pre-assembly (excludes the map-build once-per-tick gate)
+Executed cost: 7T executed (19C, 9A per loop)
+Storage: 0 TriggerPage slot(s) in 0 page(s); 0 dword cell(s); 1 bit cell(s) in 1 dword(s) (4 bytes)
+Packing density:
+  trigger[0] 1/16C (6.2%) 1/64A (1.6%)
+  trigger[1] 1/16C (6.2%) 3/64A (4.7%)
+  trigger[2] 0/16C (0.0%) 1/64A (1.6%)
+  trigger[3] 16/16C (100.0%) 1/64A (1.6%)
+  trigger[4] 1/16C (6.2%) 1/64A (1.6%)
+  trigger[5] 0/16C (0.0%) 1/64A (1.6%)
+  trigger[6] 0/16C (0.0%) 2/64A (3.1%)
+Folds: 6 event(s)
+  [cond-fold] when#0: AtLeast(15,p0,u0,0x00000000,5) & AtLeast(15,p0,u0,0x00000000,10) -> AtLeast(15,p0,u0,0x00000000,10)
+  [chunk] when#4: 17 conditions -> 2 chunks of <=16
+  [chunk] when#5: 17 conditions -> 2 chunks of <=16
+  [merge] when#2: 1 condition -> 1 condition, 3 statements
+  [gate-open] when#3: Always -> opened
+  [gate-drop] when#6: AtLeast(15,p0,u0,0x00000000,2) & AtLeast(15,p0,u1,0x00000000,2) & AtLeast(15,p0,u2,0x00000000,2) & AtLeast(15,p0,u3,0x00000000,2) & AtLeast(15,p0,u4,0x00000000,2) & AtLeast(15,p0,u5,0x00000000,2) & AtLeast(15,p0,u6,0x00000000,2) & AtLeast(15,p0,u7,0x00000000,2) & AtLeast(15,p0,u8,0x00000000,2) & AtLeast(15,p0,u9,0x00000000,2) & AtLeast(15,p0,u10,0x00000000,2) & AtLeast(15,p0,u11,0x00000000,2) & AtLeast(15,p0,u12,0x00000000,2) & AtLeast(15,p0,u13,0x00000000,2) & AtLeast(15,p0,u14,0x00000000,2) & AtLeast(15,p0,u15,0x00000000,2) & AtLeast(15,p0,u16,0x00000000,2) -> dropped
+
+Allocations:
+  var[0] init=0x1: BitCell(dword=0, bit=0)

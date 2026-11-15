@@ -1,0 +1,123 @@
+{
+  "static_cost": {
+    "triggers": 7,
+    "conditions": 19,
+    "actions": 10,
+    "trigger_bytes": 16856,
+    "blob_bytes": 4,
+    "total_bytes": 16860
+  },
+  "executed_cost": {
+    "triggers": 7,
+    "conditions": 19,
+    "actions": 9,
+    "visited_items": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ]
+  },
+  "pre_assembly": true,
+  "storage": {
+    "total_vars": 1,
+    "trigger_page_slots": 0,
+    "trigger_pages": 0,
+    "dword_cells": 0,
+    "bit_cells": 1,
+    "cell_dwords": 1,
+    "cell_bytes": 4
+  },
+  "packing": [
+    {
+      "item": 0,
+      "conditions": 1,
+      "actions": 1,
+      "condition_density": 0.0625,
+      "action_density": 0.015625
+    },
+    {
+      "item": 1,
+      "conditions": 1,
+      "actions": 3,
+      "condition_density": 0.0625,
+      "action_density": 0.046875
+    },
+    {
+      "item": 2,
+      "conditions": 0,
+      "actions": 1,
+      "condition_density": 0.0,
+      "action_density": 0.015625
+    },
+    {
+      "item": 3,
+      "conditions": 16,
+      "actions": 1,
+      "condition_density": 1.0,
+      "action_density": 0.015625
+    },
+    {
+      "item": 4,
+      "conditions": 1,
+      "actions": 1,
+      "condition_density": 0.0625,
+      "action_density": 0.015625
+    },
+    {
+      "item": 5,
+      "conditions": 0,
+      "actions": 1,
+      "condition_density": 0.0,
+      "action_density": 0.015625
+    },
+    {
+      "item": 6,
+      "conditions": 0,
+      "actions": 2,
+      "condition_density": 0.0,
+      "action_density": 0.03125
+    }
+  ],
+  "folds": [
+    {
+      "kind": "cond-fold",
+      "site": "when#0",
+      "before": "AtLeast(15,p0,u0,0x00000000,5) & AtLeast(15,p0,u0,0x00000000,10)",
+      "after": "AtLeast(15,p0,u0,0x00000000,10)"
+    },
+    {
+      "kind": "chunk",
+      "site": "when#4",
+      "before": "17 conditions",
+      "after": "2 chunks of <=16"
+    },
+    {
+      "kind": "chunk",
+      "site": "when#5",
+      "before": "17 conditions",
+      "after": "2 chunks of <=16"
+    },
+    {
+      "kind": "merge",
+      "site": "when#2",
+      "before": "1 condition",
+      "after": "1 condition, 3 statements"
+    },
+    {
+      "kind": "gate-open",
+      "site": "when#3",
+      "before": "Always",
+      "after": "opened"
+    },
+    {
+      "kind": "gate-drop",
+      "site": "when#6",
+      "before": "AtLeast(15,p0,u0,0x00000000,2) & AtLeast(15,p0,u1,0x00000000,2) & AtLeast(15,p0,u2,0x00000000,2) & AtLeast(15,p0,u3,0x00000000,2) & AtLeast(15,p0,u4,0x00000000,2) & AtLeast(15,p0,u5,0x00000000,2) & AtLeast(15,p0,u6,0x00000000,2) & AtLeast(15,p0,u7,0x00000000,2) & AtLeast(15,p0,u8,0x00000000,2) & AtLeast(15,p0,u9,0x00000000,2) & AtLeast(15,p0,u10,0x00000000,2) & AtLeast(15,p0,u11,0x00000000,2) & AtLeast(15,p0,u12,0x00000000,2) & AtLeast(15,p0,u13,0x00000000,2) & AtLeast(15,p0,u14,0x00000000,2) & AtLeast(15,p0,u15,0x00000000,2) & AtLeast(15,p0,u16,0x00000000,2)",
+      "after": "dropped"
+    }
+  ]
+}

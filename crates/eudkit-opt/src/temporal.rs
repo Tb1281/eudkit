@@ -28,6 +28,7 @@ use eudkit_lir::{
 };
 
 use crate::facts::{ActEffects, FULL_MASK, MOD_SET_TO};
+use crate::folds::{self, FoldLog};
 use crate::scheduler::{BlockKind, BlockScheduler, CellMap};
 
 /// Desugar `HirUntil` into exactly today's DSL shape (C11-02): one latch
@@ -630,6 +631,21 @@ fn unconditional_act_blocks(stmt: &HirStmt, refs: &TriggerRefs) -> Option<Vec<Hi
     }
 }
 
+/// A statement plus the gate site the optimizer assigned when it entered the
+/// node. Non-gate statements carry `None`; the site is only consumed by the
+/// sibling-merge and packing steps, which must report where a transform
+/// happened without adding a field to HIR.
+struct SiteStmt {
+    stmt: HirStmt,
+    site: Option<u32>,
+}
+
+impl SiteStmt {
+    fn new(stmt: HirStmt, site: Option<u32>) -> Self {
+        Self { stmt, site }
+    }
+}
+
 /// Re-emit a drained run as bare acts so the normal act packer can join the
 /// moved acts into one trigger.
 ///
@@ -637,14 +653,14 @@ fn unconditional_act_blocks(stmt: &HirStmt, refs: &TriggerRefs) -> Option<Vec<Hi
 /// lowering, so its acts behave like bare acts there; emitting them as
 /// `HirStmt::Act` is exactly what makes two separated runs pack into one
 /// `Trigger` (`5/3/5` → `2/1/5`). The run's relative order is preserved.
-fn unpack_run(run: Vec<HirStmt>, refs: &TriggerRefs) -> Vec<HirStmt> {
+fn unpack_run(run: Vec<SiteStmt>, refs: &TriggerRefs) -> Vec<SiteStmt> {
     let mut out = Vec::with_capacity(run.len());
-    for stmt in run {
-        match stmt {
+    for entry in run {
+        match entry.stmt {
             HirStmt::Trigger(trig) if trig.is_unpackable(refs) => {
-                out.extend(trig.acts.into_iter().map(HirStmt::Act));
+                out.extend(trig.acts.into_iter().map(|act| SiteStmt::new(HirStmt::Act(act), None)));
             }
-            other => out.push(other),
+            other => out.push(SiteStmt::new(other, entry.site)),
         }
     }
     out
@@ -658,7 +674,7 @@ fn unpack_run(run: Vec<HirStmt>, refs: &TriggerRefs) -> Vec<HirStmt> {
 /// narrow proof fails. `w2`'s flat-body/empty-`else` precondition is the
 /// caller's; this function re-checks it so the contract is local.
 fn try_backward_merge(
-    merged: &mut Vec<HirStmt>,
+    merged: &mut Vec<SiteStmt>,
     w2: &HirWhen,
     cells: &CellMap,
     refs: &TriggerRefs,
@@ -668,7 +684,7 @@ fn try_backward_merge(
         return Ok(false);
     }
     let mut run_start = merged.len();
-    while run_start > 0 && is_unconditional_act_stmt(&merged[run_start - 1], refs) {
+    while run_start > 0 && is_unconditional_act_stmt(&merged[run_start - 1].stmt, refs) {
         run_start -= 1;
     }
     // An empty run is the existing adjacent-merge path, not this one.
@@ -678,7 +694,7 @@ fn try_backward_merge(
     let Some(w1_idx) = run_start.checked_sub(1) else {
         return Ok(false);
     };
-    let HirStmt::When(w1) = &merged[w1_idx] else {
+    let HirStmt::When(w1) = &merged[w1_idx].stmt else {
         return Ok(false);
     };
     if !w1.else_body.is_empty()
@@ -706,8 +722,8 @@ fn try_backward_merge(
 
     // Every run act must commute with every earlier-body act and avoid every
     // gate storage key (external cell, switch, or paged gate variable).
-    for stmt in &merged[run_start..] {
-        let Some(acts) = unconditional_act_blocks(stmt, refs) else {
+    for entry in &merged[run_start..] {
+        let Some(acts) = unconditional_act_blocks(&entry.stmt, refs) else {
             return Ok(false);
         };
         for act in &acts {
@@ -732,7 +748,12 @@ fn try_backward_merge(
     // Proof holds: drain the run and the earlier sibling, merge, then re-append
     // the run ahead of the merged gate in its original relative order.
     let run = merged.split_off(w1_idx + 1);
-    let Some(HirStmt::When(mut merged_when)) = merged.pop() else {
+    let Some(entry) = merged.pop() else {
+        return Err(HirError::OptimizerInvariant(
+            "backward merge expected a When at w1_idx",
+        ));
+    };
+    let HirStmt::When(mut merged_when) = entry.stmt else {
         return Err(HirError::OptimizerInvariant(
             "backward merge expected a When at w1_idx",
         ));
@@ -740,7 +761,7 @@ fn try_backward_merge(
     merged_when.body.extend(w2.body.clone());
     reschedule_merged_body(&mut merged_when.body, cells, next_id)?;
     merged.extend(unpack_run(run, refs));
-    merged.push(HirStmt::When(merged_when));
+    merged.push(SiteStmt::new(HirStmt::When(merged_when), entry.site));
     Ok(true)
 }
 
@@ -800,13 +821,25 @@ fn extract_leaf_acts(stmts: &[HirStmt]) -> Vec<HirAct> {
     acts
 }
 
-fn flatten_nested_when(mut w: HirWhen) -> HirWhen {
+/// Fuse `conds` and record the change when a [`FoldLog`] is recording.
+fn fuse_conds(
+    conds: &[HirCond],
+    prefix: &str,
+    site: u32,
+    log: &mut FoldLog,
+) -> Vec<HirCond> {
+    let fused = fuse_and_dedup_conditions(conds);
+    folds::record_cond_fold(log, prefix, site, conds, &fused);
+    fused
+}
+
+fn flatten_nested_when(mut w: HirWhen, site: u32, log: &mut FoldLog) -> HirWhen {
     while w.else_body.is_empty() && w.body.len() == 1 {
         if let HirStmt::When(inner) = &w.body[0] {
             if inner.else_body.is_empty() {
                 let mut combined = w.conds.clone();
                 combined.extend(inner.conds.clone());
-                let fused = fuse_and_dedup_conditions(&combined);
+                let fused = fuse_conds(&combined, "when", site, log);
                 if fused.len() <= COND_COUNT {
                     w = HirWhen {
                         conds: fused,
@@ -850,15 +883,18 @@ fn reschedule_merged_body(
 /// and cross-statement merging match the baseline pipeline.
 fn optimize_when_node(
     mut w: HirWhen,
+    site: u32,
     cells: &CellMap,
     refs: &TriggerRefs,
     next_id: &mut usize,
+    log: &mut FoldLog,
 ) -> Result<HirWhen, HirError> {
-    w = flatten_nested_when(w);
-    w.conds = fuse_and_dedup_conditions(&w.conds);
-    w.body = optimize_stmts(w.body, BlockKind::Body, cells, refs, next_id)?;
-    w.else_body = optimize_stmts(w.else_body, BlockKind::Body, cells, refs, next_id)?;
-    w = flatten_nested_when(w);
+    w = flatten_nested_when(w, site, log);
+    w.conds = fuse_conds(&w.conds, "when", site, log);
+    w.body = optimize_stmts(w.body, BlockKind::Body, cells, refs, next_id, log)?;
+    w.else_body = optimize_stmts(w.else_body, BlockKind::Body, cells, refs, next_id, log)?;
+    w = flatten_nested_when(w, site, log);
+    folds::record_chunk(log, "when", site, &w.conds);
     Ok(w)
 }
 
@@ -928,8 +964,10 @@ pub(crate) fn optimize_stmts(
     cells: &CellMap,
     refs: &TriggerRefs,
     next_id: &mut usize,
+    log: &mut FoldLog,
 ) -> Result<Vec<HirStmt>, HirError> {
-    let list = optimize_list(stmts, cells, refs, next_id)?;
+    let entries = optimize_list(stmts, cells, refs, next_id, log)?;
+    let list: Vec<HirStmt> = entries.into_iter().map(|entry| entry.stmt).collect();
     BlockScheduler::new(cells, kind, next_id).schedule(&list)
 }
 
@@ -941,23 +979,32 @@ fn optimize_list(
     cells: &CellMap,
     refs: &TriggerRefs,
     next_id: &mut usize,
-) -> Result<Vec<HirStmt>, HirError> {
-    let mut processed = Vec::with_capacity(stmts.len());
+    log: &mut FoldLog,
+) -> Result<Vec<SiteStmt>, HirError> {
+    let mut processed: Vec<SiteStmt> = Vec::with_capacity(stmts.len());
 
     for stmt in stmts {
         match stmt {
             HirStmt::When(w) => {
-                processed.push(HirStmt::When(optimize_when_node(w, cells, refs, next_id)?));
+                let site = log.next_site();
+                processed.push(SiteStmt::new(
+                    HirStmt::When(optimize_when_node(w, site, cells, refs, next_id, log)?),
+                    Some(site),
+                ));
             }
             HirStmt::Once(mut o) => {
-                o.conds = fuse_and_dedup_conditions(&o.conds);
-                o.body = optimize_stmts(o.body, BlockKind::Body, cells, refs, next_id)?;
-                processed.push(HirStmt::Once(o));
+                let site = log.next_site();
+                o.conds = fuse_conds(&o.conds, "once", site, log);
+                o.body = optimize_stmts(o.body, BlockKind::Body, cells, refs, next_id, log)?;
+                folds::record_chunk(log, "once", site, &o.conds);
+                processed.push(SiteStmt::new(HirStmt::Once(o), Some(site)));
             }
             HirStmt::While(mut wh) => {
-                wh.conds = fuse_and_dedup_conditions(&wh.conds);
-                wh.body = optimize_stmts(wh.body, BlockKind::Body, cells, refs, next_id)?;
-                processed.push(HirStmt::While(wh));
+                let site = log.next_site();
+                wh.conds = fuse_conds(&wh.conds, "while", site, log);
+                wh.body = optimize_stmts(wh.body, BlockKind::Body, cells, refs, next_id, log)?;
+                folds::record_chunk(log, "while", site, &wh.conds);
+                processed.push(SiteStmt::new(HirStmt::While(wh), Some(site)));
             }
             // C11-02: desugar to the raw 2-when shape, then run the whens
             // through the list passes so they receive exactly the processing
@@ -969,7 +1016,7 @@ fn optimize_list(
             // block it is spliced into.
             HirStmt::Until(u) => {
                 let raw = desugar_until(u);
-                let desugared = optimize_list(raw, cells, refs, next_id)?;
+                let desugared = optimize_list(raw, cells, refs, next_id, log)?;
                 processed.extend(desugared);
             }
             HirStmt::Edge(mut e) => {
@@ -978,15 +1025,19 @@ fn optimize_list(
                 // gates then get the same flatten/fuse treatment as
                 // DSL-emitted whens. Packing and merging run on the full
                 // list afterwards, as in the baseline pipeline.
-                e.body = optimize_stmts(e.body, BlockKind::Body, cells, refs, next_id)?;
+                e.body = optimize_stmts(e.body, BlockKind::Body, cells, refs, next_id, log)?;
                 for stmt in desugar_edge(&e) {
                     match stmt {
                         HirStmt::When(w) => {
-                            processed.push(HirStmt::When(optimize_when_node(
-                                w, cells, refs, next_id,
-                            )?));
+                            let site = log.next_site();
+                            processed.push(SiteStmt::new(
+                                HirStmt::When(optimize_when_node(
+                                    w, site, cells, refs, next_id, log,
+                                )?),
+                                Some(site),
+                            ));
                         }
-                        other => processed.push(other),
+                        other => processed.push(SiteStmt::new(other, None)),
                     }
                 }
             }
@@ -997,7 +1048,7 @@ fn optimize_list(
                 // whens is a no-op (single cond; body starts with an act
                 // or has length >= 2), so skipping the When-arm pass is
                 // safe; the byte-identity tests pin this.
-                e.body = optimize_stmts(e.body, BlockKind::Body, cells, refs, next_id)?;
+                e.body = optimize_stmts(e.body, BlockKind::Body, cells, refs, next_id, log)?;
                 let mut desugared = desugar_every(e);
                 let iadd = match desugared.remove(0) {
                     HirStmt::Act(a) => a,
@@ -1020,25 +1071,38 @@ fn optimize_list(
                 // its own trigger downstream, as a fresh act run would.
                 let can_merge = matches!(
                     processed.last(),
-                    Some(HirStmt::Trigger(t)) if t.unpack_shape() && t.acts.len() < ACT_COUNT
+                    Some(SiteStmt { stmt: HirStmt::Trigger(t), .. })
+                        if t.unpack_shape() && t.acts.len() < ACT_COUNT
                 );
                 if can_merge {
-                    if let Some(HirStmt::Trigger(t)) = processed.last_mut() {
+                    if let Some(SiteStmt {
+                        stmt: HirStmt::Trigger(t),
+                        ..
+                    }) = processed.last_mut()
+                    {
                         t.acts.push(iadd);
                     }
                 } else {
-                    processed.push(HirStmt::Act(iadd));
+                    processed.push(SiteStmt::new(HirStmt::Act(iadd), None));
                 }
-                processed.push(fire);
+                let site = log.next_site();
+                processed.push(SiteStmt::new(fire, Some(site)));
             }
             HirStmt::After(mut a) => {
                 // After desugars to whens only (no bare act), so no
                 // merge-backward applies; the produced whens flow through
                 // merge/pack below exactly like the DSL-emitted ones.
-                a.body = optimize_stmts(a.body, BlockKind::Body, cells, refs, next_id)?;
-                processed.extend(desugar_after(a));
+                a.body = optimize_stmts(a.body, BlockKind::Body, cells, refs, next_id, log)?;
+                for stmt in desugar_after(a) {
+                    let site = matches!(
+                        stmt,
+                        HirStmt::When(_) | HirStmt::Once(_) | HirStmt::While(_)
+                    )
+                    .then(|| log.next_site());
+                    processed.push(SiteStmt::new(stmt, site));
+                }
             }
-            other => processed.push(other),
+            other => processed.push(SiteStmt::new(other, None)),
         }
     }
 
@@ -1088,22 +1152,28 @@ fn optimize_list(
     // triggers as it needs. A `VarStore` with `dst_trigger` under a paged gate
     // is safe but reads as surprising: a paged gate reads only paged storage,
     // so it cannot observe a trigger field the store writes.
-    let mut merged: Vec<HirStmt> = Vec::with_capacity(processed.len());
-    for stmt in processed {
+    let mut merged: Vec<SiteStmt> = Vec::with_capacity(processed.len());
+    for entry in processed {
+        let SiteStmt { stmt, site } = entry;
         let can_merge = match &stmt {
             HirStmt::When(w2) if w2.else_body.is_empty() && is_flat_body(&w2.body) => {
                 let mut joined = false;
-                if let Some(HirStmt::When(w1)) = merged.last_mut() {
-                    if w1.else_body.is_empty()
-                        && flat_siblings_mergeable(&w1.body, &w2.body, &w1.conds, &w2.conds)
-                    {
-                        w1.body.extend(w2.body.clone());
-                        joined = true;
+                let mut merged_counts = None;
+                if let Some(previous) = merged.last_mut() {
+                    if let HirStmt::When(w1) = &mut previous.stmt {
+                        if w1.else_body.is_empty()
+                            && flat_siblings_mergeable(&w1.body, &w2.body, &w1.conds, &w2.conds)
+                        {
+                            w1.body.extend(w2.body.clone());
+                            reschedule_merged_body(&mut w1.body, cells, next_id)?;
+                            merged_counts = Some((w1.conds.len(), w1.body.len()));
+                            joined = true;
+                        }
                     }
                 }
                 if joined {
-                    if let Some(HirStmt::When(w1)) = merged.last_mut() {
-                        reschedule_merged_body(&mut w1.body, cells, next_id)?;
+                    if let (Some(site), Some((conditions, statements))) = (site, merged_counts) {
+                        folds::record_merge(log, "when", site, conditions, statements);
                     }
                 } else {
                     // Cycle 3 #02: `when(G){A}; X; when(G){B}` → `X; when(G){A;B}`
@@ -1115,15 +1185,20 @@ fn optimize_list(
             }
             HirStmt::Once(o2) if is_flat_body(&o2.body) => {
                 let mut joined = false;
-                if let Some(HirStmt::Once(o1)) = merged.last_mut() {
-                    if flat_siblings_mergeable(&o1.body, &o2.body, &o1.conds, &o2.conds) {
-                        o1.body.extend(o2.body.clone());
-                        joined = true;
+                let mut merged_counts = None;
+                if let Some(previous) = merged.last_mut() {
+                    if let HirStmt::Once(o1) = &mut previous.stmt {
+                        if flat_siblings_mergeable(&o1.body, &o2.body, &o1.conds, &o2.conds) {
+                            o1.body.extend(o2.body.clone());
+                            reschedule_merged_body(&mut o1.body, cells, next_id)?;
+                            merged_counts = Some((o1.conds.len(), o1.body.len()));
+                            joined = true;
+                        }
                     }
                 }
                 if joined {
-                    if let Some(HirStmt::Once(o1)) = merged.last_mut() {
-                        reschedule_merged_body(&mut o1.body, cells, next_id)?;
+                    if let (Some(site), Some((conditions, statements))) = (site, merged_counts) {
+                        folds::record_merge(log, "once", site, conditions, statements);
                     }
                 }
                 joined
@@ -1132,13 +1207,14 @@ fn optimize_list(
         };
 
         if !can_merge {
-            merged.push(stmt);
+            merged.push(SiteStmt { stmt, site });
         }
     }
 
     // Step 4: Pack leaf When (preserved: true) and Once (preserved: false) blocks into Trigger (16C, 64A)
-    let mut packed: Vec<HirStmt> = Vec::with_capacity(merged.len());
-    for stmt in merged {
+    let mut packed: Vec<SiteStmt> = Vec::with_capacity(merged.len());
+    for entry in merged {
+        let SiteStmt { stmt, site } = entry;
         match stmt {
             HirStmt::When(w) => {
                 if w.else_body.is_empty()
@@ -1146,13 +1222,23 @@ fn optimize_list(
                     && is_leaf_body(&w.body)
                     && w.body.len() <= ACT_COUNT
                 {
+                    // A 0-condition leaf gate lowers to an unconditional
+                    // trigger: there is no gate test left to perform. That is
+                    // the optimizer-visible constant-gate opening this report
+                    // calls GateOpen. An explicit `[Always]` still carries a
+                    // real condition slot, so it is not reported as opened.
+                    if w.conds.is_empty() {
+                        if let Some(site) = site {
+                            folds::record_gate_open(log, "when", site, &w.conds);
+                        }
+                    }
                     let acts = extract_leaf_acts(&w.body);
                     let trig_id = *next_id;
                     *next_id += 1;
                     let trig = HirTrigger::new(trig_id, w.conds, acts, true)?;
-                    packed.push(HirStmt::Trigger(trig));
+                    packed.push(SiteStmt::new(HirStmt::Trigger(trig), site));
                 } else {
-                    packed.push(HirStmt::When(w));
+                    packed.push(SiteStmt::new(HirStmt::When(w), site));
                 }
             }
             HirStmt::Once(o) => {
@@ -1165,12 +1251,12 @@ fn optimize_list(
                     *next_id += 1;
                     // Once leaf emits with preserved: false (flags: 0), permanently self-disabling on first execution
                     let trig = HirTrigger::new(trig_id, o.conds, acts, false)?;
-                    packed.push(HirStmt::Trigger(trig));
+                    packed.push(SiteStmt::new(HirStmt::Trigger(trig), site));
                 } else {
-                    packed.push(HirStmt::Once(o));
+                    packed.push(SiteStmt::new(HirStmt::Once(o), site));
                 }
             }
-            other => packed.push(other),
+            other => packed.push(SiteStmt::new(other, site)),
         }
     }
 
@@ -1192,15 +1278,15 @@ fn optimize_list(
 /// can expose adjacent act runs that lowering then packs into fewer triggers.
 /// Trigger ids are never renumbered, so surviving ids keep their gaps exactly
 /// as other dead-code transformations leave them.
-pub(crate) fn drop_dead_triggers(module: &mut HirModule) {
+pub(crate) fn drop_dead_triggers(module: &mut HirModule, log: &mut FoldLog) {
     let refs = TriggerRefs::from_module(module);
-    module.stmts = drop_dead_gates(std::mem::take(&mut module.stmts), &refs);
+    module.stmts = drop_dead_gates(std::mem::take(&mut module.stmts), &refs, log);
     for func in &mut module.funcs {
-        func.body = drop_dead_gates(std::mem::take(&mut func.body), &refs);
+        func.body = drop_dead_gates(std::mem::take(&mut func.body), &refs, log);
     }
 }
 
-fn drop_dead_gates(stmts: Vec<HirStmt>, refs: &TriggerRefs) -> Vec<HirStmt> {
+fn drop_dead_gates(stmts: Vec<HirStmt>, refs: &TriggerRefs, log: &mut FoldLog) -> Vec<HirStmt> {
     stmts
         .into_iter()
         .filter_map(|stmt| match stmt {
@@ -1216,17 +1302,25 @@ fn drop_dead_gates(stmts: Vec<HirStmt>, refs: &TriggerRefs) -> Vec<HirStmt> {
                 }
             }
             HirStmt::When(mut w) => {
-                w.body = drop_dead_gates(w.body, refs);
-                w.else_body = drop_dead_gates(w.else_body, refs);
+                w.body = drop_dead_gates(w.body, refs, log);
+                w.else_body = drop_dead_gates(w.else_body, refs, log);
                 if w.body.is_empty() && w.else_body.is_empty() {
+                    if log.is_enabled() {
+                        let site = log.next_site();
+                        folds::record_gate_drop(log, "when", site, &w.conds);
+                    }
                     None
                 } else {
                     Some(HirStmt::When(w))
                 }
             }
             HirStmt::Once(mut o) => {
-                o.body = drop_dead_gates(o.body, refs);
+                o.body = drop_dead_gates(o.body, refs, log);
                 if o.body.is_empty() {
+                    if log.is_enabled() {
+                        let site = log.next_site();
+                        folds::record_gate_drop(log, "once", site, &o.conds);
+                    }
                     None
                 } else {
                     Some(HirStmt::Once(o))
@@ -1235,23 +1329,23 @@ fn drop_dead_gates(stmts: Vec<HirStmt>, refs: &TriggerRefs) -> Vec<HirStmt> {
             // A `while` with an empty body is a spin-wait on external state;
             // keep it even though it has no acts.
             HirStmt::While(mut w) => {
-                w.body = drop_dead_gates(w.body, refs);
+                w.body = drop_dead_gates(w.body, refs, log);
                 Some(HirStmt::While(w))
             }
             HirStmt::Until(mut u) => {
-                u.body = drop_dead_gates(u.body, refs);
+                u.body = drop_dead_gates(u.body, refs, log);
                 Some(HirStmt::Until(u))
             }
             HirStmt::Edge(mut e) => {
-                e.body = drop_dead_gates(e.body, refs);
+                e.body = drop_dead_gates(e.body, refs, log);
                 Some(HirStmt::Edge(e))
             }
             HirStmt::Every(mut e) => {
-                e.body = drop_dead_gates(e.body, refs);
+                e.body = drop_dead_gates(e.body, refs, log);
                 Some(HirStmt::Every(e))
             }
             HirStmt::After(mut a) => {
-                a.body = drop_dead_gates(a.body, refs);
+                a.body = drop_dead_gates(a.body, refs, log);
                 Some(HirStmt::After(a))
             }
             other => Some(other),
@@ -1277,7 +1371,14 @@ mod tests {
     ) -> Result<Vec<HirStmt>, HirError> {
         let cells = CellMap::from_stmts(&stmts);
         let refs = TriggerRefs::from_stmts(&stmts);
-        optimize_stmts(stmts, BlockKind::Body, &cells, &refs, next_id)
+        optimize_stmts(
+            stmts,
+            BlockKind::Body,
+            &cells,
+            &refs,
+            next_id,
+            &mut FoldLog::disabled(),
+        )
     }
 
     /// Latch condition `latch == 1`, exactly as the DSL `active.eq(1)` encodes it:
@@ -3258,7 +3359,7 @@ mod tests {
             ],
             Vec::new(),
         );
-        drop_dead_triggers(&mut module);
+        drop_dead_triggers(&mut module, &mut FoldLog::disabled());
         assert_eq!(trigger_ids(&module.stmts), vec![1]);
     }
 
@@ -3272,7 +3373,7 @@ mod tests {
             vec![HirStmt::Trigger(with_prev), HirStmt::Trigger(with_next)],
             Vec::new(),
         );
-        drop_dead_triggers(&mut module);
+        drop_dead_triggers(&mut module, &mut FoldLog::disabled());
         assert_eq!(trigger_ids(&module.stmts), vec![0, 1]);
     }
 
@@ -3284,7 +3385,7 @@ mod tests {
             vec![HirStmt::Trigger(empty_trigger(0)), HirStmt::Trigger(live)],
             Vec::new(),
         );
-        drop_dead_triggers(&mut module);
+        drop_dead_triggers(&mut module, &mut FoldLog::disabled());
         assert_eq!(trigger_ids(&module.stmts), vec![0, 1]);
     }
 
@@ -3301,7 +3402,7 @@ mod tests {
             eudkit_hir::HirBlob::zeroed(4)
                 .with_relocs(vec![eudkit_hir::HirBlobReloc::trigger(0, 3, 0, 4)]),
         ];
-        drop_dead_triggers(&mut module);
+        drop_dead_triggers(&mut module, &mut FoldLog::disabled());
         assert_eq!(
             trigger_ids(&module.stmts),
             vec![3, 4],
@@ -3318,7 +3419,7 @@ mod tests {
             ],
             Vec::new(),
         );
-        drop_dead_triggers(&mut module);
+        drop_dead_triggers(&mut module, &mut FoldLog::disabled());
         assert_eq!(trigger_ids(&module.stmts), vec![0]);
         assert!(matches!(&module.stmts[1], HirStmt::VarStore(s) if s.dst_trigger == Some(0)));
     }
@@ -3336,7 +3437,7 @@ mod tests {
                 vec![HirStmt::Trigger(empty_trigger(5))],
             )],
         );
-        drop_dead_triggers(&mut module);
+        drop_dead_triggers(&mut module, &mut FoldLog::disabled());
         assert_eq!(trigger_ids(&module.funcs[0].body), vec![5]);
     }
 
@@ -3349,7 +3450,7 @@ mod tests {
             ],
             Vec::new(),
         );
-        drop_dead_triggers(&mut module);
+        drop_dead_triggers(&mut module, &mut FoldLog::disabled());
         assert_eq!(module.stmts.len(), 1);
         assert!(matches!(&module.stmts[0], HirStmt::Act(_)));
     }
@@ -3363,7 +3464,7 @@ mod tests {
             ],
             Vec::new(),
         );
-        drop_dead_triggers(&mut module);
+        drop_dead_triggers(&mut module, &mut FoldLog::disabled());
         assert_eq!(module.stmts.len(), 1);
         assert!(matches!(&module.stmts[0], HirStmt::Act(_)));
     }
@@ -3377,7 +3478,7 @@ mod tests {
             ))],
             Vec::new(),
         );
-        drop_dead_triggers(&mut module);
+        drop_dead_triggers(&mut module, &mut FoldLog::disabled());
         assert!(matches!(&module.stmts[0], HirStmt::While(w) if w.body.is_empty()));
     }
 
@@ -3410,7 +3511,7 @@ mod tests {
             ],
             Vec::new(),
         );
-        drop_dead_triggers(&mut module);
+        drop_dead_triggers(&mut module, &mut FoldLog::disabled());
         assert_eq!(module.stmts.len(), 1, "only the non-empty gate survives");
         match &module.stmts[0] {
             HirStmt::When(w) => {
@@ -3433,7 +3534,7 @@ mod tests {
             ],
             Vec::new(),
         );
-        drop_dead_triggers(&mut module);
+        drop_dead_triggers(&mut module, &mut FoldLog::disabled());
         assert_eq!(trigger_ids(&module.stmts), vec![5, 7]);
     }
 }
