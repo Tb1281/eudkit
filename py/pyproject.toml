@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eudkit"
+version = "3.0.0"
+description = "eudkit — Trigger (16C, 64A) EUD compiler and unified DSL"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+readme = "README.md"
+
+[project.urls]
+Repository = "https://github.com/Tb1281/eudkit"
+
+[tool.setuptools]
+packages = ["eudkit"]
+package-dir = {"eudkit" = "."}
+
+[tool.setuptools.package-data]
+eudkit = ["schema/layouts/*.json", "schema/stock-rows.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

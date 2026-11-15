@@ -1,0 +1,17 @@
+/target/
+/crates/target/
+editors/zed/target/
+__pycache__/
+*.pyc
+.pytest_cache/
+node_modules/
+dist/
+*.vsix
+*.tgz
+*.whl
+packaging-dist/
+py/build/
+*.egg-info/
+.build/
+.worktrees/
+.venv/

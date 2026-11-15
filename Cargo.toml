@@ -1,0 +1,23 @@
+[workspace]
+members = [
+    "crates/eudkit-hir",
+    "crates/eudkit-opt",
+    "crates/eudkit-lower",
+    "crates/eudkit-lir",
+    "crates/eudkit-map",
+    "crates/eudkit-cli",
+    "crates/eudkit-lsp",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.3.0"
+authors = ["Tb1281 <Tb1281@users.noreply.github.com>"]
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/Tb1281/eudkit"
+publish = false
+rust-version = "1.85.0"
+
+[workspace.dependencies]
+stormlib = { git = "https://github.com/Tb1281/stormlib-rs.git" }

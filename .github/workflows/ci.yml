@@ -1,0 +1,181 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    name: Rust
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build workspace
+        run: cargo build --workspace -j 2
+      - name: Test workspace
+        run: cargo test --workspace -j 2
+      - name: Test map bridge
+        run: cargo test -p eudkit-lower --test map_bridge -j 2
+
+  typescript:
+    name: TypeScript
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ts/package-lock.json
+      - name: Install dependencies
+        working-directory: ts
+        run: npm ci
+      - name: Build workspace
+        run: cargo build --workspace -j 2
+      - name: Typecheck
+        working-directory: ts
+        run: npm run typecheck
+      - name: Test
+        working-directory: ts
+        run: npm test
+
+  python:
+    name: Python
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build workspace
+        run: cargo build --workspace -j 2
+      - name: Test Python
+        run: PYTHONPATH=. python3 -m unittest discover -s py/tests -p 'test_*.py' -t .
+
+  packaging:
+    name: Packaging
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ts/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check versions
+        run: python3 scripts/check_versions.py
+      - name: Test bundle tooling
+        run: python3 -m unittest scripts/test_package_bundle.py
+      - name: Build release binaries
+        run: cargo build --release -p eudkit -p eudkit-lsp -j 2
+      - name: Build TypeScript
+        working-directory: ts
+        run: npm ci && npm run build
+      - name: Assemble and verify native bundle
+        run: |
+          VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('Cargo.toml', 'rb'))['workspace']['package']['version'])" | tr -d '\r')
+          python3 scripts/package_bundle.py \
+            --version "$VERSION" \
+            --target x86_64-unknown-linux-gnu \
+            --bin-dir target/release \
+            --repo-root . \
+            --out-dir packaging-dist \
+            --verify
+      - name: Smoke-test bundle
+        run: |
+          mkdir -p "$RUNNER_TEMP/unpacked"
+          tar -xzf packaging-dist/*.tar.gz -C "$RUNNER_TEMP/unpacked"
+          BUNDLE=$(find "$RUNNER_TEMP/unpacked" -mindepth 1 -maxdepth 1 -type d | head -n 1)
+          cd "$BUNDLE"
+          ./bin/eudkit doctor
+          ./bin/eudkit init "$RUNNER_TEMP/project" --ts
+          ./bin/eudkit compile "$RUNNER_TEMP/project/main.ts" \
+            --basemap "$RUNNER_TEMP/project/basemap.scx" \
+            --out "$RUNNER_TEMP/project/main.scx"
+          test -f "$RUNNER_TEMP/project/main.scx"
+          python3 - ./bin/eudkit-lsp <<'PY'
+          import json
+          import subprocess
+          import sys
+
+          lsp = sys.argv[1]
+
+          def frame(message):
+              body = json.dumps(message).encode("utf-8")
+              return f"Content-Length: {len(body)}\r\n\r\n".encode("utf-8") + body
+
+          messages = b"".join(
+              [
+                  frame({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}),
+                  frame({"jsonrpc": "2.0", "id": 2, "method": "shutdown", "params": None}),
+                  frame({"jsonrpc": "2.0", "method": "exit", "params": None}),
+              ]
+          )
+          result = subprocess.run([lsp], input=messages, stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE, timeout=30)
+          output = result.stdout.decode("utf-8", "replace")
+          if result.returncode != 0:
+              sys.stderr.write(result.stderr.decode("utf-8", "replace"))
+              raise SystemExit(f"eudkit-lsp exited {result.returncode}")
+          if '"serverInfo"' not in output:
+              raise SystemExit(f"eudkit-lsp handshake missing serverInfo: {output!r}")
+          print("lsp handshake ok")
+          PY
+      - name: Test npm package
+        working-directory: ts
+        run: |
+          npm pack
+          node ../scripts/smoke_npm.mjs "$(ls eudkit-*.tgz | head -n 1)"
+      - name: Build and test Python distributions
+        run: |
+          python3 -m pip install --upgrade "build==1.2.2" "twine==6.1.0" "setuptools>=68" wheel
+          python3 -m build --no-isolation ./py --outdir "$RUNNER_TEMP/python-dist"
+          python3 -m twine check "$RUNNER_TEMP"/python-dist/*
+          test -n "$(find "$RUNNER_TEMP/python-dist" -name '*.tar.gz' -print -quit)"
+          test -n "$(find "$RUNNER_TEMP/python-dist" -name '*.whl' -print -quit)"
+          python3 -m venv "$RUNNER_TEMP/py-venv"
+          "$RUNNER_TEMP/py-venv/bin/python" -m pip install --no-deps "$RUNNER_TEMP"/python-dist/*.whl
+          "$RUNNER_TEMP/py-venv/bin/python" -c "import eudkit; print('python import ok')"
+      - name: Test VS Code extension
+        working-directory: editors/vscode
+        run: |
+          npm ci
+          node --test test_extension.mjs
+          npx --yes @vscode/vsce@4.1.1 package --out eudkit-vscode.vsix
+      - name: Build and package Zed extension
+        run: |
+          rustup target add wasm32-wasip2
+          (cd editors/zed && cargo build --release --target wasm32-wasip2)
+          VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('Cargo.toml', 'rb'))['workspace']['package']['version'])" | tr -d '\r')
+          WASM=$(find editors/zed/target/wasm32-wasip2/release -maxdepth 1 -type f -name '*.wasm' | head -n 1)
+          test -n "$WASM"
+          STAGE="$RUNNER_TEMP/zed-package/eudkit-zed-${VERSION}"
+          mkdir -p "$STAGE/src" packaging-dist
+          cp editors/zed/extension.toml "$STAGE/"
+          cp "$WASM" "$STAGE/extension.wasm"
+          cp editors/zed/Cargo.toml editors/zed/Cargo.lock "$STAGE/"
+          cp -R editors/zed/src/. "$STAGE/src/"
+          cp editors/zed/LICENSE editors/zed/README.md "$STAGE/"
+          tar -czf "packaging-dist/eudkit-zed-${VERSION}.tar.gz" -C "$RUNNER_TEMP/zed-package" \
+            "eudkit-zed-${VERSION}"
+          tar -tzf "packaging-dist/eudkit-zed-${VERSION}.tar.gz" | grep -q "^eudkit-zed-${VERSION}/README.md$"

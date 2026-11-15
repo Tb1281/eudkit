@@ -1,0 +1,18 @@
+{
+    "ungated": {
+        "triggers": 320,
+        "conditions": 253,
+        "actions": 856,
+        "trigger_bytes": 770560,
+        "blob_bytes": 164,
+        "total_bytes": 770724
+    },
+    "gated": {
+        "triggers": 355,
+        "conditions": 286,
+        "actions": 891,
+        "trigger_bytes": 854840,
+        "blob_bytes": 164,
+        "total_bytes": 855004
+    }
+}

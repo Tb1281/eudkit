@@ -1,0 +1,7934 @@
+{
+  "format": 1,
+  "hirVersion": "3.1",
+  "capturedFrom": "hand-written helpers in ts/hir.ts and py/hir.py at master 633ca4c, before any spec-emitter change",
+  "note": "Frozen oracle for the 92 stock and eudkit extension rows (22 conditions + 57 actions + 13 extensions). Each row fixes one argument fixture, its exact HIR JSON key order, and the first diagnostic for each validator plus an all-invalid case that pins validation order. Do not regenerate after an emitter change. UnitProperty boolean-flag diagnostics are not frozen here because the TypeScript and Python frontends word them differently; the language tests assert their accepted domains instead.",
+  "rows": [
+    {
+      "id": "CountdownTimer",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 8
+        }
+      ],
+      "hir": {
+        "locid": 0,
+        "player": 0,
+        "amount": 8,
+        "unit": 0,
+        "comparison": 1,
+        "condtype": 1,
+        "restype": 0,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:comparison",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1010
+            },
+            {
+              "kind": "int",
+              "value": 8
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "comparison must be one of 0, 1, 10, got 1010"
+        },
+        {
+          "case": "param:time",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "time must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1010
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "time must be an integer in 0..4294967295, got 4294967296"
+        }
+      ]
+    },
+    {
+      "id": "Command",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 10
+        },
+        {
+          "kind": "int",
+          "value": 15
+        },
+        {
+          "kind": "int",
+          "value": 22
+        }
+      ],
+      "hir": {
+        "locid": 0,
+        "player": 1,
+        "amount": 15,
+        "unit": 22,
+        "comparison": 10,
+        "condtype": 2,
+        "restype": 0,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:player",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 10
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 22
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "param:comparison",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 1010
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 22
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "comparison must be one of 0, 1, 10, got 1010"
+        },
+        {
+          "case": "param:number",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 10
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 22
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "number must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 10
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 228
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 1010
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 228
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        }
+      ]
+    },
+    {
+      "id": "Bring",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 10
+        },
+        {
+          "kind": "int",
+          "value": 15
+        },
+        {
+          "kind": "int",
+          "value": 22
+        },
+        {
+          "kind": "int",
+          "value": 29
+        }
+      ],
+      "hir": {
+        "locid": 29,
+        "player": 1,
+        "amount": 15,
+        "unit": 22,
+        "comparison": 10,
+        "condtype": 3,
+        "restype": 0,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:player",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 10
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "param:comparison",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 1010
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "comparison must be one of 0, 1, 10, got 1010"
+        },
+        {
+          "case": "param:number",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 10
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "number must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 10
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 10
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 1010
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "Accumulate",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 10
+        },
+        {
+          "kind": "int",
+          "value": 15
+        },
+        {
+          "kind": "int",
+          "value": 1
+        }
+      ],
+      "hir": {
+        "locid": 0,
+        "player": 1,
+        "amount": 15,
+        "unit": 0,
+        "comparison": 10,
+        "condtype": 4,
+        "restype": 1,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:player",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 10
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 1
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "param:comparison",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 1010
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 1
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "comparison must be one of 0, 1, 10, got 1010"
+        },
+        {
+          "case": "param:number",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 10
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 1
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "number must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "param:resource_type",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 10
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 1002
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "resource type must be one of 0, 1, 2, got 1002"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 1010
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 1002
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        }
+      ]
+    },
+    {
+      "id": "Kills",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 10
+        },
+        {
+          "kind": "int",
+          "value": 15
+        },
+        {
+          "kind": "int",
+          "value": 22
+        }
+      ],
+      "hir": {
+        "locid": 0,
+        "player": 1,
+        "amount": 15,
+        "unit": 22,
+        "comparison": 10,
+        "condtype": 5,
+        "restype": 0,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:player",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 10
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 22
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "param:comparison",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 1010
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 22
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "comparison must be one of 0, 1, 10, got 1010"
+        },
+        {
+          "case": "param:number",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 10
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 22
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "number must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 10
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 228
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 1010
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 228
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        }
+      ]
+    },
+    {
+      "id": "CommandMost",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        }
+      ],
+      "hir": {
+        "locid": 0,
+        "player": 0,
+        "amount": 0,
+        "unit": 1,
+        "comparison": 0,
+        "condtype": 6,
+        "restype": 0,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        }
+      ]
+    },
+    {
+      "id": "CommandMostAt",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 8
+        }
+      ],
+      "hir": {
+        "locid": 8,
+        "player": 0,
+        "amount": 0,
+        "unit": 1,
+        "comparison": 0,
+        "condtype": 7,
+        "restype": 0,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 8
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "MostKills",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        }
+      ],
+      "hir": {
+        "locid": 0,
+        "player": 0,
+        "amount": 0,
+        "unit": 1,
+        "comparison": 0,
+        "condtype": 8,
+        "restype": 0,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        }
+      ]
+    },
+    {
+      "id": "HighestScore",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        }
+      ],
+      "hir": {
+        "locid": 0,
+        "player": 0,
+        "amount": 0,
+        "unit": 0,
+        "comparison": 0,
+        "condtype": 9,
+        "restype": 1,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:score_type",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1007
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "score type must be one of 0, 1, 2, 3, 4, 5, 6, 7, got 1007"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1007
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "score type must be one of 0, 1, 2, 3, 4, 5, 6, 7, got 1007"
+        }
+      ]
+    },
+    {
+      "id": "MostResources",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        }
+      ],
+      "hir": {
+        "locid": 0,
+        "player": 0,
+        "amount": 0,
+        "unit": 0,
+        "comparison": 0,
+        "condtype": 10,
+        "restype": 1,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:resource_type",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1002
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "resource type must be one of 0, 1, 2, got 1002"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1002
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "resource type must be one of 0, 1, 2, got 1002"
+        }
+      ]
+    },
+    {
+      "id": "Switch",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 2
+        }
+      ],
+      "hir": {
+        "locid": 0,
+        "player": 0,
+        "amount": 0,
+        "unit": 0,
+        "comparison": 2,
+        "condtype": 11,
+        "restype": 1,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:switch_id",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 2
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "switch id must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "param:state",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 1003
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "switch state must be one of 2, 3, got 1003"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 1003
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "switch state must be one of 2, 3, got 1003"
+        }
+      ]
+    },
+    {
+      "id": "ElapsedTime",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 8
+        }
+      ],
+      "hir": {
+        "locid": 0,
+        "player": 0,
+        "amount": 8,
+        "unit": 0,
+        "comparison": 1,
+        "condtype": 12,
+        "restype": 0,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:comparison",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1010
+            },
+            {
+              "kind": "int",
+              "value": 8
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "comparison must be one of 0, 1, 10, got 1010"
+        },
+        {
+          "case": "param:time",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "time must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1010
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "time must be an integer in 0..4294967295, got 4294967296"
+        }
+      ]
+    },
+    {
+      "id": "Opponents",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 10
+        },
+        {
+          "kind": "int",
+          "value": 15
+        }
+      ],
+      "hir": {
+        "locid": 0,
+        "player": 1,
+        "amount": 15,
+        "unit": 0,
+        "comparison": 10,
+        "condtype": 14,
+        "restype": 0,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:player",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 10
+            },
+            {
+              "kind": "int",
+              "value": 15
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "param:comparison",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 1010
+            },
+            {
+              "kind": "int",
+              "value": 15
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "comparison must be one of 0, 1, 10, got 1010"
+        },
+        {
+          "case": "param:number",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 10
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "number must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 1010
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        }
+      ]
+    },
+    {
+      "id": "Deaths",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 256
+        },
+        {
+          "kind": "int",
+          "value": 2
+        },
+        {
+          "kind": "int",
+          "value": 1026
+        },
+        {
+          "kind": "int",
+          "value": 13
+        }
+      ],
+      "hir": {
+        "locid": 0,
+        "player": 256,
+        "amount": 1026,
+        "unit": 13,
+        "comparison": 2,
+        "condtype": 15,
+        "restype": 0,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "CommandLeast",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        }
+      ],
+      "hir": {
+        "locid": 0,
+        "player": 0,
+        "amount": 0,
+        "unit": 1,
+        "comparison": 0,
+        "condtype": 16,
+        "restype": 0,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        }
+      ]
+    },
+    {
+      "id": "CommandLeastAt",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 8
+        }
+      ],
+      "hir": {
+        "locid": 8,
+        "player": 0,
+        "amount": 0,
+        "unit": 1,
+        "comparison": 0,
+        "condtype": 17,
+        "restype": 0,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 8
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "LeastKills",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        }
+      ],
+      "hir": {
+        "locid": 0,
+        "player": 0,
+        "amount": 0,
+        "unit": 1,
+        "comparison": 0,
+        "condtype": 18,
+        "restype": 0,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        }
+      ]
+    },
+    {
+      "id": "LowestScore",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        }
+      ],
+      "hir": {
+        "locid": 0,
+        "player": 0,
+        "amount": 0,
+        "unit": 0,
+        "comparison": 0,
+        "condtype": 19,
+        "restype": 1,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:score_type",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1007
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "score type must be one of 0, 1, 2, 3, 4, 5, 6, 7, got 1007"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1007
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "score type must be one of 0, 1, 2, 3, 4, 5, 6, 7, got 1007"
+        }
+      ]
+    },
+    {
+      "id": "LeastResources",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        }
+      ],
+      "hir": {
+        "locid": 0,
+        "player": 0,
+        "amount": 0,
+        "unit": 0,
+        "comparison": 0,
+        "condtype": 20,
+        "restype": 1,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:resource_type",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1002
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "resource type must be one of 0, 1, 2, got 1002"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1002
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "resource type must be one of 0, 1, 2, got 1002"
+        }
+      ]
+    },
+    {
+      "id": "Score",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 2
+        },
+        {
+          "kind": "int",
+          "value": 0
+        },
+        {
+          "kind": "int",
+          "value": 22
+        }
+      ],
+      "hir": {
+        "locid": 0,
+        "player": 1,
+        "amount": 22,
+        "unit": 0,
+        "comparison": 0,
+        "condtype": 21,
+        "restype": 2,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:player",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "int",
+              "value": 0
+            },
+            {
+              "kind": "int",
+              "value": 22
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "param:score_type",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 1007
+            },
+            {
+              "kind": "int",
+              "value": 0
+            },
+            {
+              "kind": "int",
+              "value": 22
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "score type must be one of 0, 1, 2, 3, 4, 5, 6, 7, got 1007"
+        },
+        {
+          "case": "param:comparison",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "int",
+              "value": 1010
+            },
+            {
+              "kind": "int",
+              "value": 22
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "comparison must be one of 0, 1, 10, got 1010"
+        },
+        {
+          "case": "param:number",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "int",
+              "value": 0
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "number must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 1007
+            },
+            {
+              "kind": "int",
+              "value": 1010
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        }
+      ]
+    },
+    {
+      "id": "Always",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [],
+      "hir": {
+        "locid": 0,
+        "player": 0,
+        "amount": 0,
+        "unit": 0,
+        "comparison": 0,
+        "condtype": 22,
+        "restype": 0,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "Never",
+      "section": "conditions",
+      "kind": "condition",
+      "class": "stock",
+      "args": [],
+      "hir": {
+        "locid": 0,
+        "player": 0,
+        "amount": 0,
+        "unit": 0,
+        "comparison": 0,
+        "condtype": 23,
+        "restype": 0,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "Victory",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 0,
+        "acttype": 1,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "Defeat",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 0,
+        "acttype": 2,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "PreserveTrigger",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 0,
+        "acttype": 3,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "Wait",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 287454020
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 287454020,
+        "dest": 0,
+        "value": 0,
+        "unit": 0,
+        "acttype": 4,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "PauseGame",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 0,
+        "acttype": 5,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "UnpauseGame",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 0,
+        "acttype": 6,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "Transmission",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 8
+        },
+        {
+          "kind": "str",
+          "value": "wav_2"
+        },
+        {
+          "kind": "int",
+          "value": 8
+        },
+        {
+          "kind": "int",
+          "value": 29
+        },
+        {
+          "kind": "str",
+          "value": "text_5"
+        },
+        {
+          "kind": "int",
+          "value": 43
+        }
+      ],
+      "hir": {
+        "mask": 8,
+        "strid": 0,
+        "wavid": 0,
+        "time": 29,
+        "dest": 0,
+        "value": 0,
+        "unit": 1,
+        "acttype": 7,
+        "modifier": 8,
+        "flags": 43,
+        "padding": 0,
+        "eudx": 0,
+        "text": "text_5",
+        "wav": "wav_2"
+      },
+      "diagnostics": [
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "str",
+              "value": "wav_2"
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 29
+            },
+            {
+              "kind": "str",
+              "value": "text_5"
+            },
+            {
+              "kind": "int",
+              "value": 43
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "str",
+              "value": "wav_2"
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 29
+            },
+            {
+              "kind": "str",
+              "value": "text_5"
+            },
+            {
+              "kind": "int",
+              "value": 43
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "param:time_modifier",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "str",
+              "value": "wav_2"
+            },
+            {
+              "kind": "int",
+              "value": 1009
+            },
+            {
+              "kind": "int",
+              "value": 29
+            },
+            {
+              "kind": "str",
+              "value": "text_5"
+            },
+            {
+              "kind": "int",
+              "value": 43
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "modifier must be one of 7, 8, 9, got 1009"
+        },
+        {
+          "case": "param:time",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "str",
+              "value": "wav_2"
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "str",
+              "value": "text_5"
+            },
+            {
+              "kind": "int",
+              "value": 43
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "time must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "param:always_display",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "str",
+              "value": "wav_2"
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 29
+            },
+            {
+              "kind": "str",
+              "value": "text_5"
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "always display must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "str",
+              "value": "wav_2"
+            },
+            {
+              "kind": "int",
+              "value": 1009
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "str",
+              "value": "text_5"
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "PlayWAV",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "str",
+          "value": "wav_0"
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 0,
+        "acttype": 8,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0,
+        "wav": "wav_0"
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "DisplayText",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "str",
+          "value": "text_0"
+        },
+        {
+          "kind": "int",
+          "value": 2
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 0,
+        "acttype": 9,
+        "modifier": 0,
+        "flags": 2,
+        "padding": 0,
+        "eudx": 0,
+        "text": "text_0"
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "CenterView",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        }
+      ],
+      "hir": {
+        "mask": 1,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 0,
+        "acttype": 10,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "CreateUnitWithProperties",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 2
+        },
+        {
+          "kind": "int",
+          "value": 8
+        },
+        {
+          "kind": "int",
+          "value": 15
+        },
+        {
+          "kind": "int",
+          "value": 4
+        },
+        {
+          "kind": "uprp",
+          "options": {
+            "hit_points": 50,
+            "shields": 100,
+            "energy": 25,
+            "resource": 4660,
+            "hangar": 3,
+            "cloaked": true,
+            "burrowed": false,
+            "in_transit": true,
+            "hallucinated": false,
+            "invincible": true
+          }
+        }
+      ],
+      "hir": {
+        "mask": 15,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 4,
+        "value": 0,
+        "unit": 8,
+        "acttype": 11,
+        "modifier": 2,
+        "flags": 28,
+        "padding": 0,
+        "eudx": 0,
+        "uprp": [
+          21,
+          0,
+          58,
+          0,
+          0,
+          50,
+          0,
+          25,
+          52,
+          18,
+          0,
+          0,
+          3,
+          0,
+          21,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "diagnostics": [
+        {
+          "case": "param:count",
+          "args": [
+            {
+              "kind": "int",
+              "value": 0
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 4
+            },
+            {
+              "kind": "uprp",
+              "options": {
+                "hit_points": 50,
+                "shields": 100,
+                "energy": 25,
+                "resource": 4660,
+                "hangar": 3,
+                "cloaked": true,
+                "burrowed": false,
+                "in_transit": true,
+                "hallucinated": false,
+                "invincible": true
+              }
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "count must be an integer in 1..255, got 0"
+        },
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 4
+            },
+            {
+              "kind": "uprp",
+              "options": {
+                "hit_points": 50,
+                "shields": 100,
+                "energy": 25,
+                "resource": 4660,
+                "hangar": 3,
+                "cloaked": true,
+                "burrowed": false,
+                "in_transit": true,
+                "hallucinated": false,
+                "invincible": true
+              }
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 4
+            },
+            {
+              "kind": "uprp",
+              "options": {
+                "hit_points": 50,
+                "shields": 100,
+                "energy": 25,
+                "resource": 4660,
+                "hangar": 3,
+                "cloaked": true,
+                "burrowed": false,
+                "in_transit": true,
+                "hallucinated": false,
+                "invincible": true
+              }
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "param:player",
+          "args": [
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "uprp",
+              "options": {
+                "hit_points": 50,
+                "shields": 100,
+                "energy": 25,
+                "resource": 4660,
+                "hangar": 3,
+                "cloaked": true,
+                "burrowed": false,
+                "in_transit": true,
+                "hallucinated": false,
+                "invincible": true
+              }
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "param:properties",
+          "args": [
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 4
+            },
+            {
+              "kind": "raw",
+              "value": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          ],
+          "code": "EUDSL-TYPE",
+          "message": "properties must be a 20-byte UnitProperty record"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 0
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "raw",
+              "value": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          ],
+          "code": "EUDSL-TYPE",
+          "message": "properties must be a 20-byte UnitProperty record"
+        }
+      ]
+    },
+    {
+      "id": "SetMissionObjectives",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "str",
+          "value": "text_0"
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 0,
+        "acttype": 12,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0,
+        "text": "text_0"
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "SetSwitch",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 6
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 1,
+        "unit": 0,
+        "acttype": 13,
+        "modifier": 6,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:switch_id",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 6
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "switch id must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "param:state",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 1011
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "switch action must be one of 4, 5, 6, 11, got 1011"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 1011
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "switch id must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "SetCountdownTimer",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 8
+        },
+        {
+          "kind": "int",
+          "value": 8
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 8,
+        "dest": 0,
+        "value": 0,
+        "unit": 0,
+        "acttype": 14,
+        "modifier": 8,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:modifier",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1009
+            },
+            {
+              "kind": "int",
+              "value": 8
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "modifier must be one of 7, 8, 9, got 1009"
+        },
+        {
+          "case": "param:time",
+          "args": [
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "time must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1009
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "time must be an integer in 0..4294967295, got 4294967296"
+        }
+      ]
+    },
+    {
+      "id": "RunAIScript",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 1,
+        "unit": 0,
+        "acttype": 15,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:script",
+          "args": [
+            {
+              "kind": "int",
+              "value": 4294967296
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "AI script must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 4294967296
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "AI script must be an integer in 0..4294967295, got 4294967296"
+        }
+      ]
+    },
+    {
+      "id": "RunAIScriptAt",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 8
+        }
+      ],
+      "hir": {
+        "mask": 8,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 1,
+        "unit": 0,
+        "acttype": 16,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:script",
+          "args": [
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 8
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "AI script must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "LeaderBoardControl",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "str",
+          "value": "text_1"
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 1,
+        "acttype": 17,
+        "modifier": 0,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0,
+        "text": "text_1"
+      },
+      "diagnostics": [
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "str",
+              "value": "text_1"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "str",
+              "value": "text_1"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        }
+      ]
+    },
+    {
+      "id": "LeaderBoardControlAt",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 8
+        },
+        {
+          "kind": "str",
+          "value": "text_2"
+        }
+      ],
+      "hir": {
+        "mask": 8,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 1,
+        "acttype": 18,
+        "modifier": 0,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0,
+        "text": "text_2"
+      },
+      "diagnostics": [
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "str",
+              "value": "text_2"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "str",
+              "value": "text_2"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "str",
+              "value": "text_2"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "LeaderBoardResources",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "str",
+          "value": "text_1"
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 1,
+        "acttype": 19,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0,
+        "text": "text_1"
+      },
+      "diagnostics": [
+        {
+          "case": "param:resource_type",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1002
+            },
+            {
+              "kind": "str",
+              "value": "text_1"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "resource type must be one of 0, 1, 2, got 1002"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1002
+            },
+            {
+              "kind": "str",
+              "value": "text_1"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "resource type must be one of 0, 1, 2, got 1002"
+        }
+      ]
+    },
+    {
+      "id": "LeaderBoardKills",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "str",
+          "value": "text_1"
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 1,
+        "acttype": 20,
+        "modifier": 0,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0,
+        "text": "text_1"
+      },
+      "diagnostics": [
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "str",
+              "value": "text_1"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "str",
+              "value": "text_1"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        }
+      ]
+    },
+    {
+      "id": "LeaderBoardScore",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "str",
+          "value": "text_1"
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 1,
+        "acttype": 21,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0,
+        "text": "text_1"
+      },
+      "diagnostics": [
+        {
+          "case": "param:score_type",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1007
+            },
+            {
+              "kind": "str",
+              "value": "text_1"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "score type must be one of 0, 1, 2, 3, 4, 5, 6, 7, got 1007"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1007
+            },
+            {
+              "kind": "str",
+              "value": "text_1"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "score type must be one of 0, 1, 2, 3, 4, 5, 6, 7, got 1007"
+        }
+      ]
+    },
+    {
+      "id": "KillUnit",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 2
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 2,
+        "value": 0,
+        "unit": 1,
+        "acttype": 22,
+        "modifier": 0,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 2
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:player",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        }
+      ]
+    },
+    {
+      "id": "KillUnitAt",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 8
+        },
+        {
+          "kind": "int",
+          "value": 15
+        },
+        {
+          "kind": "int",
+          "value": 4
+        }
+      ],
+      "hir": {
+        "mask": 15,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 4,
+        "value": 0,
+        "unit": 8,
+        "acttype": 23,
+        "modifier": 1,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:count",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 4
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "count must be an integer in 1..255, got 256"
+        },
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 4
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 4
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "param:player",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "RemoveUnit",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 2
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 2,
+        "value": 0,
+        "unit": 1,
+        "acttype": 24,
+        "modifier": 0,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 2
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:player",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        }
+      ]
+    },
+    {
+      "id": "RemoveUnitAt",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 8
+        },
+        {
+          "kind": "int",
+          "value": 15
+        },
+        {
+          "kind": "int",
+          "value": 4
+        }
+      ],
+      "hir": {
+        "mask": 15,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 4,
+        "value": 0,
+        "unit": 8,
+        "acttype": 25,
+        "modifier": 1,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:count",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 4
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "count must be an integer in 1..255, got 256"
+        },
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 4
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 4
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "param:player",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "SetResources",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 9
+        },
+        {
+          "kind": "int",
+          "value": 15
+        },
+        {
+          "kind": "int",
+          "value": 1
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 1,
+        "value": 15,
+        "unit": 1,
+        "acttype": 26,
+        "modifier": 9,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:player",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 9
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 1
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "param:modifier",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 1009
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 1
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "modifier must be one of 7, 8, 9, got 1009"
+        },
+        {
+          "case": "param:amount",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 9
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 1
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "amount must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "param:resource_type",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 9
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 1002
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "resource type must be one of 0, 1, 2, got 1002"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 1009
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 1002
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        }
+      ]
+    },
+    {
+      "id": "SetScore",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 9
+        },
+        {
+          "kind": "int",
+          "value": 15
+        },
+        {
+          "kind": "int",
+          "value": 4
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 1,
+        "value": 15,
+        "unit": 4,
+        "acttype": 27,
+        "modifier": 9,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:player",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 9
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 4
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "param:modifier",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 1009
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 4
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "modifier must be one of 7, 8, 9, got 1009"
+        },
+        {
+          "case": "param:amount",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 9
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 4
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "amount must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "param:score_type",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 9
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 1007
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "score type must be one of 0, 1, 2, 3, 4, 5, 6, 7, got 1007"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 1009
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 1007
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        }
+      ]
+    },
+    {
+      "id": "MinimapPing",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        }
+      ],
+      "hir": {
+        "mask": 1,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 0,
+        "acttype": 28,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "TalkingPortrait",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 8
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 8,
+        "dest": 0,
+        "value": 0,
+        "unit": 1,
+        "acttype": 29,
+        "modifier": 0,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 8
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:time",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "time must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "time must be an integer in 0..4294967295, got 4294967296"
+        }
+      ]
+    },
+    {
+      "id": "MuteUnitSpeech",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 0,
+        "acttype": 30,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "UnMuteUnitSpeech",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 0,
+        "acttype": 31,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "LeaderBoardComputerPlayers",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 5
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 0,
+        "acttype": 32,
+        "modifier": 5,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:state",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1006
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "property state must be one of 4, 5, 6, got 1006"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1006
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "property state must be one of 4, 5, 6, got 1006"
+        }
+      ]
+    },
+    {
+      "id": "LeaderBoardGoalControl",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 8
+        },
+        {
+          "kind": "str",
+          "value": "text_2"
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 1,
+        "unit": 8,
+        "acttype": 33,
+        "modifier": 0,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0,
+        "text": "text_2"
+      },
+      "diagnostics": [
+        {
+          "case": "param:goal",
+          "args": [
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "str",
+              "value": "text_2"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "goal must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "str",
+              "value": "text_2"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "str",
+              "value": "text_2"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "goal must be an integer in 0..4294967295, got 4294967296"
+        }
+      ]
+    },
+    {
+      "id": "LeaderBoardGoalControlAt",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 8
+        },
+        {
+          "kind": "int",
+          "value": 15
+        },
+        {
+          "kind": "str",
+          "value": "text_3"
+        }
+      ],
+      "hir": {
+        "mask": 15,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 1,
+        "unit": 8,
+        "acttype": 34,
+        "modifier": 0,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0,
+        "text": "text_3"
+      },
+      "diagnostics": [
+        {
+          "case": "param:goal",
+          "args": [
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "str",
+              "value": "text_3"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "goal must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "str",
+              "value": "text_3"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "str",
+              "value": "text_3"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "str",
+              "value": "text_3"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "LeaderBoardGoalResources",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 2
+        },
+        {
+          "kind": "str",
+          "value": "text_2"
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 1,
+        "unit": 2,
+        "acttype": 35,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0,
+        "text": "text_2"
+      },
+      "diagnostics": [
+        {
+          "case": "param:goal",
+          "args": [
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "str",
+              "value": "text_2"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "goal must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "param:resource_type",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 1002
+            },
+            {
+              "kind": "str",
+              "value": "text_2"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "resource type must be one of 0, 1, 2, got 1002"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 1002
+            },
+            {
+              "kind": "str",
+              "value": "text_2"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "goal must be an integer in 0..4294967295, got 4294967296"
+        }
+      ]
+    },
+    {
+      "id": "LeaderBoardGoalKills",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 8
+        },
+        {
+          "kind": "str",
+          "value": "text_2"
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 1,
+        "unit": 8,
+        "acttype": 36,
+        "modifier": 0,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0,
+        "text": "text_2"
+      },
+      "diagnostics": [
+        {
+          "case": "param:goal",
+          "args": [
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "str",
+              "value": "text_2"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "goal must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "str",
+              "value": "text_2"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "str",
+              "value": "text_2"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "goal must be an integer in 0..4294967295, got 4294967296"
+        }
+      ]
+    },
+    {
+      "id": "LeaderBoardGoalScore",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 2
+        },
+        {
+          "kind": "str",
+          "value": "text_2"
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 1,
+        "unit": 2,
+        "acttype": 37,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0,
+        "text": "text_2"
+      },
+      "diagnostics": [
+        {
+          "case": "param:goal",
+          "args": [
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "str",
+              "value": "text_2"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "goal must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "param:score_type",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 1007
+            },
+            {
+              "kind": "str",
+              "value": "text_2"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "score type must be one of 0, 1, 2, 3, 4, 5, 6, 7, got 1007"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 1007
+            },
+            {
+              "kind": "str",
+              "value": "text_2"
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "goal must be an integer in 0..4294967295, got 4294967296"
+        }
+      ]
+    },
+    {
+      "id": "MoveLocation",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 8
+        },
+        {
+          "kind": "int",
+          "value": 3
+        },
+        {
+          "kind": "int",
+          "value": 22
+        }
+      ],
+      "hir": {
+        "mask": 22,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 3,
+        "value": 1,
+        "unit": 8,
+        "acttype": 38,
+        "modifier": 0,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 22
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "param:on_unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 22
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:owner",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 22
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "param:search_location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "MoveUnit",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 8
+        },
+        {
+          "kind": "int",
+          "value": 3
+        },
+        {
+          "kind": "int",
+          "value": 22
+        },
+        {
+          "kind": "int",
+          "value": 29
+        }
+      ],
+      "hir": {
+        "mask": 22,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 3,
+        "value": 29,
+        "unit": 8,
+        "acttype": 39,
+        "modifier": 1,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:count",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "count must be an integer in 1..255, got 256"
+        },
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:owner",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "param:start_location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "param:dest_location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "LeaderBoardGreed",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 1,
+        "unit": 0,
+        "acttype": 40,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:goal",
+          "args": [
+            {
+              "kind": "int",
+              "value": 4294967296
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "goal must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 4294967296
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "goal must be an integer in 0..4294967295, got 4294967296"
+        }
+      ]
+    },
+    {
+      "id": "SetNextScenario",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "str",
+          "value": "text_0"
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 0,
+        "acttype": 41,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0,
+        "text": "text_0"
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "SetDoodadState",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 5
+        },
+        {
+          "kind": "int",
+          "value": 8
+        },
+        {
+          "kind": "int",
+          "value": 3
+        },
+        {
+          "kind": "int",
+          "value": 22
+        }
+      ],
+      "hir": {
+        "mask": 22,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 3,
+        "value": 0,
+        "unit": 8,
+        "acttype": 42,
+        "modifier": 5,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:state",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1006
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 22
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "property state must be one of 4, 5, 6, got 1006"
+        },
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 5
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 22
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:owner",
+          "args": [
+            {
+              "kind": "int",
+              "value": 5
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 22
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 5
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1006
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "SetInvincibility",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 5
+        },
+        {
+          "kind": "int",
+          "value": 8
+        },
+        {
+          "kind": "int",
+          "value": 3
+        },
+        {
+          "kind": "int",
+          "value": 22
+        }
+      ],
+      "hir": {
+        "mask": 22,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 3,
+        "value": 0,
+        "unit": 8,
+        "acttype": 43,
+        "modifier": 5,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:state",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1006
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 22
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "property state must be one of 4, 5, 6, got 1006"
+        },
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 5
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 22
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:owner",
+          "args": [
+            {
+              "kind": "int",
+              "value": 5
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 22
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 5
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1006
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "CreateUnit",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 2
+        },
+        {
+          "kind": "int",
+          "value": 8
+        },
+        {
+          "kind": "int",
+          "value": 15
+        },
+        {
+          "kind": "int",
+          "value": 4
+        }
+      ],
+      "hir": {
+        "mask": 15,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 4,
+        "value": 0,
+        "unit": 8,
+        "acttype": 44,
+        "modifier": 2,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:number",
+          "args": [
+            {
+              "kind": "int",
+              "value": 0
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 4
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "count must be an integer in 1..255, got 0"
+        },
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 4
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 4
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "param:player",
+          "args": [
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 0
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "SetDeaths",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 256
+        },
+        {
+          "kind": "int",
+          "value": 2
+        },
+        {
+          "kind": "int",
+          "value": 1026
+        },
+        {
+          "kind": "int",
+          "value": 13
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 256,
+        "value": 1026,
+        "unit": 13,
+        "acttype": 45,
+        "modifier": 2,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "Order",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 2
+        },
+        {
+          "kind": "int",
+          "value": 15
+        },
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 29
+        }
+      ],
+      "hir": {
+        "mask": 15,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 2,
+        "value": 29,
+        "unit": 1,
+        "acttype": 46,
+        "modifier": 1,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:owner",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "param:start_location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "param:order_type",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 1002
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "order must be one of 0, 1, 2, got 1002"
+        },
+        {
+          "case": "param:dest_location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 1002
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "Comment",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "str",
+          "value": "text_0"
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 0,
+        "acttype": 47,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0,
+        "text": "text_0"
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "GiveUnits",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 8
+        },
+        {
+          "kind": "int",
+          "value": 3
+        },
+        {
+          "kind": "int",
+          "value": 22
+        },
+        {
+          "kind": "int",
+          "value": 5
+        }
+      ],
+      "hir": {
+        "mask": 22,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 3,
+        "value": 5,
+        "unit": 8,
+        "acttype": 48,
+        "modifier": 1,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:count",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 5
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "count must be an integer in 1..255, got 256"
+        },
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 5
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:owner",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 5
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 5
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "param:new_owner",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "ModifyUnitHitPoints",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 8
+        },
+        {
+          "kind": "int",
+          "value": 3
+        },
+        {
+          "kind": "int",
+          "value": 22
+        },
+        {
+          "kind": "int",
+          "value": 29
+        }
+      ],
+      "hir": {
+        "mask": 22,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 3,
+        "value": 29,
+        "unit": 8,
+        "acttype": 49,
+        "modifier": 1,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:count",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "count must be an integer in 1..255, got 256"
+        },
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:owner",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "param:percent",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 101
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "percent must be an integer in 0..100, got 101"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 101
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "ModifyUnitEnergy",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 8
+        },
+        {
+          "kind": "int",
+          "value": 3
+        },
+        {
+          "kind": "int",
+          "value": 22
+        },
+        {
+          "kind": "int",
+          "value": 29
+        }
+      ],
+      "hir": {
+        "mask": 22,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 3,
+        "value": 29,
+        "unit": 8,
+        "acttype": 50,
+        "modifier": 1,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:count",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "count must be an integer in 1..255, got 256"
+        },
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:owner",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "param:percent",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 101
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "percent must be an integer in 0..100, got 101"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 101
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "ModifyUnitShields",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 8
+        },
+        {
+          "kind": "int",
+          "value": 3
+        },
+        {
+          "kind": "int",
+          "value": 22
+        },
+        {
+          "kind": "int",
+          "value": 29
+        }
+      ],
+      "hir": {
+        "mask": 22,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 3,
+        "value": 29,
+        "unit": 8,
+        "acttype": 51,
+        "modifier": 1,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:count",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "count must be an integer in 1..255, got 256"
+        },
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:owner",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "param:percent",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 3
+            },
+            {
+              "kind": "int",
+              "value": 22
+            },
+            {
+              "kind": "int",
+              "value": 101
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "percent must be an integer in 0..100, got 101"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 101
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "ModifyUnitResourceAmount",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 2
+        },
+        {
+          "kind": "int",
+          "value": 15
+        },
+        {
+          "kind": "int",
+          "value": 22
+        }
+      ],
+      "hir": {
+        "mask": 15,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 2,
+        "value": 22,
+        "unit": 0,
+        "acttype": 52,
+        "modifier": 1,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:count",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 22
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "count must be an integer in 1..255, got 256"
+        },
+        {
+          "case": "param:owner",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 22
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 22
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "param:new_value",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "new value must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 4294967296
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "ModifyUnitHangarCount",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 2
+        },
+        {
+          "kind": "int",
+          "value": 15
+        },
+        {
+          "kind": "int",
+          "value": 4
+        },
+        {
+          "kind": "int",
+          "value": 29
+        }
+      ],
+      "hir": {
+        "mask": 29,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 4,
+        "value": 1,
+        "unit": 15,
+        "acttype": 53,
+        "modifier": 2,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:add",
+          "args": [
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 4
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "add must be an integer in 0..4294967295, got 4294967296"
+        },
+        {
+          "case": "param:count",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 4
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "count must be an integer in 1..255, got 256"
+        },
+        {
+          "case": "param:unit",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 4
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "unit must be an integer in 0..227, got 228"
+        },
+        {
+          "case": "param:owner",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 29
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "param:location",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 2
+            },
+            {
+              "kind": "int",
+              "value": 15
+            },
+            {
+              "kind": "int",
+              "value": 4
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 4294967296
+            },
+            {
+              "kind": "int",
+              "value": 256
+            },
+            {
+              "kind": "int",
+              "value": 228
+            },
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 256
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "location must be an integer in 0..255, got 256"
+        }
+      ]
+    },
+    {
+      "id": "PauseTimer",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 0,
+        "acttype": 54,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "UnpauseTimer",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 0,
+        "acttype": 55,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "Draw",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 0,
+        "acttype": 56,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "SetAllianceStatus",
+      "section": "actions",
+      "kind": "action",
+      "class": "stock",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 2
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 1,
+        "value": 0,
+        "unit": 2,
+        "acttype": 57,
+        "modifier": 0,
+        "flags": 4,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": [
+        {
+          "case": "param:player",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 2
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        },
+        {
+          "case": "param:status",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 1002
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "alliance status must be one of 0, 1, 2, got 1002"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1026
+            },
+            {
+              "kind": "int",
+              "value": 1002
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "player must be one of 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, got 1026"
+        }
+      ]
+    },
+    {
+      "id": "DeathsX",
+      "section": "extensions",
+      "kind": "condition",
+      "class": "eudkit extension",
+      "args": [
+        {
+          "kind": "int",
+          "value": 256
+        },
+        {
+          "kind": "int",
+          "value": 2
+        },
+        {
+          "kind": "int",
+          "value": 1026
+        },
+        {
+          "kind": "int",
+          "value": 13
+        },
+        {
+          "kind": "int",
+          "value": 252645139
+        }
+      ],
+      "hir": {
+        "locid": 252645139,
+        "player": 256,
+        "amount": 1026,
+        "unit": 13,
+        "comparison": 2,
+        "condtype": 15,
+        "restype": 0,
+        "flags": 0,
+        "eudx": 17235
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "Memory",
+      "section": "extensions",
+      "kind": "condition",
+      "class": "eudkit extension",
+      "args": [
+        {
+          "kind": "int",
+          "value": 256
+        },
+        {
+          "kind": "int",
+          "value": 2
+        },
+        {
+          "kind": "int",
+          "value": 1026
+        }
+      ],
+      "hir": {
+        "locid": 0,
+        "player": 4293515111,
+        "amount": 1026,
+        "unit": 0,
+        "comparison": 2,
+        "condtype": 15,
+        "restype": 0,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "MemoryEPD",
+      "section": "extensions",
+      "kind": "condition",
+      "class": "eudkit extension",
+      "args": [
+        {
+          "kind": "int",
+          "value": 256
+        },
+        {
+          "kind": "int",
+          "value": 2
+        },
+        {
+          "kind": "int",
+          "value": 1026
+        }
+      ],
+      "hir": {
+        "locid": 0,
+        "player": 256,
+        "amount": 1026,
+        "unit": 0,
+        "comparison": 2,
+        "condtype": 15,
+        "restype": 0,
+        "flags": 0,
+        "eudx": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "MemoryX",
+      "section": "extensions",
+      "kind": "condition",
+      "class": "eudkit extension",
+      "args": [
+        {
+          "kind": "int",
+          "value": 256
+        },
+        {
+          "kind": "int",
+          "value": 2
+        },
+        {
+          "kind": "int",
+          "value": 1026
+        },
+        {
+          "kind": "int",
+          "value": 252645138
+        }
+      ],
+      "hir": {
+        "locid": 252645138,
+        "player": 4293515111,
+        "amount": 1026,
+        "unit": 0,
+        "comparison": 2,
+        "condtype": 15,
+        "restype": 0,
+        "flags": 0,
+        "eudx": 17235
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "MemoryXEPD",
+      "section": "extensions",
+      "kind": "condition",
+      "class": "eudkit extension",
+      "args": [
+        {
+          "kind": "int",
+          "value": 256
+        },
+        {
+          "kind": "int",
+          "value": 2
+        },
+        {
+          "kind": "int",
+          "value": 1026
+        },
+        {
+          "kind": "int",
+          "value": 252645138
+        }
+      ],
+      "hir": {
+        "locid": 252645138,
+        "player": 256,
+        "amount": 1026,
+        "unit": 0,
+        "comparison": 2,
+        "condtype": 15,
+        "restype": 0,
+        "flags": 0,
+        "eudx": 17235
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "SetDeathsX",
+      "section": "extensions",
+      "kind": "action",
+      "class": "eudkit extension",
+      "args": [
+        {
+          "kind": "int",
+          "value": 256
+        },
+        {
+          "kind": "int",
+          "value": 2
+        },
+        {
+          "kind": "int",
+          "value": 1026
+        },
+        {
+          "kind": "int",
+          "value": 13
+        },
+        {
+          "kind": "int",
+          "value": 252645139
+        }
+      ],
+      "hir": {
+        "mask": 252645139,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 256,
+        "value": 1026,
+        "unit": 13,
+        "acttype": 45,
+        "modifier": 2,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 17235
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "SetMemory",
+      "section": "extensions",
+      "kind": "action",
+      "class": "eudkit extension",
+      "args": [
+        {
+          "kind": "int",
+          "value": 256
+        },
+        {
+          "kind": "int",
+          "value": 2
+        },
+        {
+          "kind": "int",
+          "value": 1026
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 4293515111,
+        "value": 1026,
+        "unit": 0,
+        "acttype": 45,
+        "modifier": 2,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "SetMemoryEPD",
+      "section": "extensions",
+      "kind": "action",
+      "class": "eudkit extension",
+      "args": [
+        {
+          "kind": "int",
+          "value": 256
+        },
+        {
+          "kind": "int",
+          "value": 2
+        },
+        {
+          "kind": "int",
+          "value": 1026
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 256,
+        "value": 1026,
+        "unit": 0,
+        "acttype": 45,
+        "modifier": 2,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "SetMemoryX",
+      "section": "extensions",
+      "kind": "action",
+      "class": "eudkit extension",
+      "args": [
+        {
+          "kind": "int",
+          "value": 256
+        },
+        {
+          "kind": "int",
+          "value": 2
+        },
+        {
+          "kind": "int",
+          "value": 1026
+        },
+        {
+          "kind": "int",
+          "value": 252645138
+        }
+      ],
+      "hir": {
+        "mask": 252645138,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 4293515111,
+        "value": 1026,
+        "unit": 0,
+        "acttype": 45,
+        "modifier": 2,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 17235
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "SetMemoryXEPD",
+      "section": "extensions",
+      "kind": "action",
+      "class": "eudkit extension",
+      "args": [
+        {
+          "kind": "int",
+          "value": 256
+        },
+        {
+          "kind": "int",
+          "value": 2
+        },
+        {
+          "kind": "int",
+          "value": 1026
+        },
+        {
+          "kind": "int",
+          "value": 252645138
+        }
+      ],
+      "hir": {
+        "mask": 252645138,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 256,
+        "value": 1026,
+        "unit": 0,
+        "acttype": 45,
+        "modifier": 2,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 17235
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "SetNextPtr",
+      "section": "extensions",
+      "kind": "action",
+      "class": "eudkit extension",
+      "args": [
+        {
+          "kind": "fieldref",
+          "varId": 3,
+          "byteOffset": 12,
+          "size": 4
+        },
+        {
+          "kind": "int",
+          "value": 1013
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 1013,
+        "unit": 0,
+        "acttype": 45,
+        "modifier": 7,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 0,
+        "relocs": [
+          {
+            "field_offset": 16,
+            "target_var": 3,
+            "target_offset": 12,
+            "mode": 1
+          }
+        ]
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "DisplayTextIndex",
+      "section": "extensions",
+      "kind": "action",
+      "class": "eudkit extension",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 2
+        }
+      ],
+      "hir": {
+        "mask": 0,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 0,
+        "unit": 0,
+        "acttype": 9,
+        "modifier": 0,
+        "flags": 2,
+        "padding": 0,
+        "eudx": 0,
+        "str_index": 1
+      },
+      "diagnostics": [
+        {
+          "case": "param:index",
+          "args": [
+            {
+              "kind": "int",
+              "value": -1
+            },
+            {
+              "kind": "int",
+              "value": 2
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "DisplayTextIndex: string index must be a non-negative integer, got -1"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": -1
+            },
+            {
+              "kind": "int",
+              "value": 2
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "DisplayTextIndex: string index must be a non-negative integer, got -1"
+        }
+      ]
+    },
+    {
+      "id": "SetStringDword",
+      "section": "extensions",
+      "kind": "action",
+      "class": "eudkit extension",
+      "args": [
+        {
+          "kind": "int",
+          "value": 1
+        },
+        {
+          "kind": "int",
+          "value": 8
+        },
+        {
+          "kind": "int",
+          "value": 287454022
+        },
+        {
+          "kind": "int",
+          "value": 252645138
+        },
+        {
+          "kind": "int",
+          "value": 5
+        }
+      ],
+      "hir": {
+        "mask": 252645138,
+        "strid": 0,
+        "wavid": 0,
+        "time": 0,
+        "dest": 0,
+        "value": 287454022,
+        "unit": 0,
+        "acttype": 45,
+        "modifier": 5,
+        "flags": 20,
+        "padding": 0,
+        "eudx": 17235,
+        "relocs": [
+          {
+            "field_offset": 16,
+            "target_string": 1,
+            "target_offset": 8,
+            "mode": 1
+          }
+        ]
+      },
+      "diagnostics": [
+        {
+          "case": "param:index",
+          "args": [
+            {
+              "kind": "int",
+              "value": -1
+            },
+            {
+              "kind": "int",
+              "value": 8
+            },
+            {
+              "kind": "int",
+              "value": 287454022
+            },
+            {
+              "kind": "int",
+              "value": 252645138
+            },
+            {
+              "kind": "int",
+              "value": 5
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "SetStringDword: string index must be a non-negative integer, got -1"
+        },
+        {
+          "case": "param:byte_offset",
+          "args": [
+            {
+              "kind": "int",
+              "value": 1
+            },
+            {
+              "kind": "int",
+              "value": 5
+            },
+            {
+              "kind": "int",
+              "value": 287454022
+            },
+            {
+              "kind": "int",
+              "value": 252645138
+            },
+            {
+              "kind": "int",
+              "value": 5
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "SetStringDword: byte offset must be a non-negative multiple of 4, got 5"
+        },
+        {
+          "case": "all-invalid",
+          "args": [
+            {
+              "kind": "int",
+              "value": -1
+            },
+            {
+              "kind": "int",
+              "value": 5
+            },
+            {
+              "kind": "int",
+              "value": 287454022
+            },
+            {
+              "kind": "int",
+              "value": 252645138
+            },
+            {
+              "kind": "int",
+              "value": 5
+            }
+          ],
+          "code": "EUDSL-BOUNDS",
+          "message": "SetStringDword: string index must be a non-negative integer, got -1"
+        }
+      ]
+    }
+  ],
+  "record": {
+    "id": "UnitProperty",
+    "args": [
+      {
+        "kind": "uprp",
+        "options": {
+          "hit_points": 50,
+          "shields": 100,
+          "energy": 25,
+          "resource": 4660,
+          "hangar": 3,
+          "cloaked": true,
+          "burrowed": false,
+          "in_transit": true,
+          "hallucinated": false,
+          "invincible": true
+        }
+      }
+    ],
+    "record": [
+      21,
+      0,
+      58,
+      0,
+      0,
+      50,
+      0,
+      25,
+      52,
+      18,
+      0,
+      0,
+      3,
+      0,
+      21,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "diagnostics": [
+      {
+        "case": "param:hit_points",
+        "options": {
+          "hit_points": 101
+        },
+        "code": "EUDSL-BOUNDS",
+        "message": "hit points must be an integer in 0..100, got 101"
+      },
+      {
+        "case": "param:shields",
+        "options": {
+          "shields": 101
+        },
+        "code": "EUDSL-BOUNDS",
+        "message": "shields must be an integer in 0..100, got 101"
+      },
+      {
+        "case": "param:energy",
+        "options": {
+          "energy": 101
+        },
+        "code": "EUDSL-BOUNDS",
+        "message": "energy must be an integer in 0..100, got 101"
+      },
+      {
+        "case": "param:resource",
+        "options": {
+          "resource": 65536
+        },
+        "code": "EUDSL-BOUNDS",
+        "message": "resource must be an integer in 0..65535, got 65536"
+      },
+      {
+        "case": "param:hangar",
+        "options": {
+          "hangar": 256
+        },
+        "code": "EUDSL-BOUNDS",
+        "message": "hangar must be an integer in 0..255, got 256"
+      }
+    ]
+  }
+}

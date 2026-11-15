@@ -1,0 +1,21 @@
+[package]
+name = "eudkit-map"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+description = "Native map tail for eudkit: CHK fixups + MPQ assembly"
+
+[dependencies]
+eudkit-lir = { path = "../eudkit-lir" }
+stormlib.workspace = true
+tempfile = "3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# CP949 display-name decoding for MapInfo (eudkit-map::mapinfo).
+encoding_rs = "0.8"
+
+[dev-dependencies]
+serde_json = "1"

@@ -1,0 +1,4811 @@
+{
+  "format": 1,
+  "name": "eudkit stock row spec",
+  "hirVersion": "3.2",
+  "sections": {
+    "conditions": [
+      {
+        "id": "CountdownTimer",
+        "kind": "condition",
+        "chkType": 1,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "Countdown timer is `comparison` `time` game seconds (condition 1).",
+        "params": [
+          {
+            "name": "comparison",
+            "field": "comparison",
+            "chkField": "comparison",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "comparison",
+              "values": [
+                0,
+                1,
+                10
+              ]
+            },
+            "ts": "comparison"
+          },
+          {
+            "name": "time",
+            "field": "amount",
+            "chkField": "amount",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "time",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "time"
+          }
+        ]
+      },
+      {
+        "id": "Command",
+        "kind": "condition",
+        "chkType": 2,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "`player` commands `number` units of `unit` (condition 2).",
+        "params": [
+          {
+            "name": "player",
+            "field": "player",
+            "chkField": "player",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "player"
+          },
+          {
+            "name": "comparison",
+            "field": "comparison",
+            "chkField": "comparison",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "comparison",
+              "values": [
+                0,
+                1,
+                10
+              ]
+            },
+            "ts": "comparison"
+          },
+          {
+            "name": "number",
+            "field": "amount",
+            "chkField": "amount",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "number",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "number"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          }
+        ]
+      },
+      {
+        "id": "Bring",
+        "kind": "condition",
+        "chkType": 3,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "Player brings `number` units of `unit` to `location` (condition 3).",
+        "params": [
+          {
+            "name": "player",
+            "field": "player",
+            "chkField": "player",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "player"
+          },
+          {
+            "name": "comparison",
+            "field": "comparison",
+            "chkField": "comparison",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "comparison",
+              "values": [
+                0,
+                1,
+                10
+              ]
+            },
+            "ts": "comparison"
+          },
+          {
+            "name": "number",
+            "field": "amount",
+            "chkField": "amount",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "number",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "number"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "location",
+            "field": "locid",
+            "chkField": "locid",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          }
+        ]
+      },
+      {
+        "id": "Accumulate",
+        "kind": "condition",
+        "chkType": 4,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "Player accumulates `number` of `resource_type` (condition 4).",
+        "params": [
+          {
+            "name": "player",
+            "field": "player",
+            "chkField": "player",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "player"
+          },
+          {
+            "name": "comparison",
+            "field": "comparison",
+            "chkField": "comparison",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "comparison",
+              "values": [
+                0,
+                1,
+                10
+              ]
+            },
+            "ts": "comparison"
+          },
+          {
+            "name": "number",
+            "field": "amount",
+            "chkField": "amount",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "number",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "number"
+          },
+          {
+            "name": "resource_type",
+            "field": "restype",
+            "chkField": "restype",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "resource type",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            "ts": "resourceType"
+          }
+        ]
+      },
+      {
+        "id": "Kills",
+        "kind": "condition",
+        "chkType": 5,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "`player` has `comparison` `number` kills of `unit` (condition 5).",
+        "params": [
+          {
+            "name": "player",
+            "field": "player",
+            "chkField": "player",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "player"
+          },
+          {
+            "name": "comparison",
+            "field": "comparison",
+            "chkField": "comparison",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "comparison",
+              "values": [
+                0,
+                1,
+                10
+              ]
+            },
+            "ts": "comparison"
+          },
+          {
+            "name": "number",
+            "field": "amount",
+            "chkField": "amount",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "number",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "number"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          }
+        ]
+      },
+      {
+        "id": "CommandMost",
+        "kind": "condition",
+        "chkType": 6,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "Current player commands the most `unit` (condition 6).",
+        "params": [
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          }
+        ]
+      },
+      {
+        "id": "CommandMostAt",
+        "kind": "condition",
+        "chkType": 7,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "Current player commands the most `unit` at `location` (condition 7).",
+        "params": [
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "location",
+            "field": "locid",
+            "chkField": "locid",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          }
+        ]
+      },
+      {
+        "id": "MostKills",
+        "kind": "condition",
+        "chkType": 8,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "Current player has the most kills of `unit` (condition 8).",
+        "params": [
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          }
+        ]
+      },
+      {
+        "id": "HighestScore",
+        "kind": "condition",
+        "chkType": 9,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "Current player has the highest `score_type` score (condition 9).",
+        "params": [
+          {
+            "name": "score_type",
+            "field": "restype",
+            "chkField": "restype",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "score type",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ]
+            },
+            "ts": "scoreType"
+          }
+        ]
+      },
+      {
+        "id": "MostResources",
+        "kind": "condition",
+        "chkType": 10,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "Current player has the most `resource_type` (condition 10).",
+        "params": [
+          {
+            "name": "resource_type",
+            "field": "restype",
+            "chkField": "restype",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "resource type",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            "ts": "resourceType"
+          }
+        ]
+      },
+      {
+        "id": "Switch",
+        "kind": "condition",
+        "chkType": 11,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "`switch_id` is set or cleared (condition 11).",
+        "params": [
+          {
+            "name": "switch_id",
+            "field": "restype",
+            "chkField": "restype",
+            "encoding": "u8",
+            "validator": {
+              "kind": "range",
+              "label": "switch id",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "switchId"
+          },
+          {
+            "name": "state",
+            "field": "comparison",
+            "chkField": "comparison",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "switch state",
+              "values": [
+                2,
+                3
+              ]
+            },
+            "ts": "state"
+          }
+        ]
+      },
+      {
+        "id": "ElapsedTime",
+        "kind": "condition",
+        "chkType": 12,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "Elapsed scenario time is `comparison` `time` game seconds (condition 12).",
+        "params": [
+          {
+            "name": "comparison",
+            "field": "comparison",
+            "chkField": "comparison",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "comparison",
+              "values": [
+                0,
+                1,
+                10
+              ]
+            },
+            "ts": "comparison"
+          },
+          {
+            "name": "time",
+            "field": "amount",
+            "chkField": "amount",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "time",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "time"
+          }
+        ]
+      },
+      {
+        "id": "Opponents",
+        "kind": "condition",
+        "chkType": 14,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "`player` has `comparison` `number` opponents remaining (condition 14).",
+        "params": [
+          {
+            "name": "player",
+            "field": "player",
+            "chkField": "player",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "player"
+          },
+          {
+            "name": "comparison",
+            "field": "comparison",
+            "chkField": "comparison",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "comparison",
+              "values": [
+                0,
+                1,
+                10
+              ]
+            },
+            "ts": "comparison"
+          },
+          {
+            "name": "number",
+            "field": "amount",
+            "chkField": "amount",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "number",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "number"
+          }
+        ]
+      },
+      {
+        "id": "Deaths",
+        "kind": "condition",
+        "chkType": 15,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": true,
+        "handWritten": true,
+        "specialReason": "extension target form (PlayerOrFieldTarget / ValueOrPtrTarget)",
+        "doc": "Deaths-table read for `player` compared `comparison` `amount`, with `unit` (condition 15). `unit` defaults to 0. `player` and `amount` accept the documented extension targets.",
+        "params": [
+          {
+            "name": "player",
+            "field": "player",
+            "chkField": "player",
+            "encoding": "epd",
+            "validator": {
+              "kind": "none"
+            },
+            "targetForm": "PlayerOrFieldTarget",
+            "ts": "player"
+          },
+          {
+            "name": "comparison",
+            "field": "comparison",
+            "chkField": "comparison",
+            "encoding": "u8-truncate",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "comparison"
+          },
+          {
+            "name": "amount",
+            "field": "amount",
+            "chkField": "amount",
+            "encoding": "value-or-ptr",
+            "validator": {
+              "kind": "none"
+            },
+            "targetForm": "ValueOrPtrTarget",
+            "ts": "amount"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16-truncate",
+            "validator": {
+              "kind": "none"
+            },
+            "default": 0,
+            "ts": "unit"
+          }
+        ]
+      },
+      {
+        "id": "CommandLeast",
+        "kind": "condition",
+        "chkType": 16,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "Current player commands the least `unit` (condition 16).",
+        "params": [
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          }
+        ]
+      },
+      {
+        "id": "CommandLeastAt",
+        "kind": "condition",
+        "chkType": 17,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "Current player commands the least `unit` at `location` (condition 17).",
+        "params": [
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "location",
+            "field": "locid",
+            "chkField": "locid",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          }
+        ]
+      },
+      {
+        "id": "LeastKills",
+        "kind": "condition",
+        "chkType": 18,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "Current player has the least kills of `unit` (condition 18).",
+        "params": [
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          }
+        ]
+      },
+      {
+        "id": "LowestScore",
+        "kind": "condition",
+        "chkType": 19,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "Current player has the lowest `score_type` score (condition 19).",
+        "params": [
+          {
+            "name": "score_type",
+            "field": "restype",
+            "chkField": "restype",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "score type",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ]
+            },
+            "ts": "scoreType"
+          }
+        ]
+      },
+      {
+        "id": "LeastResources",
+        "kind": "condition",
+        "chkType": 20,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "Current player has the least `resource_type` (condition 20).",
+        "params": [
+          {
+            "name": "resource_type",
+            "field": "restype",
+            "chkField": "restype",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "resource type",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            "ts": "resourceType"
+          }
+        ]
+      },
+      {
+        "id": "Score",
+        "kind": "condition",
+        "chkType": 21,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "`player`'s `score_type` score is `comparison` `number` (condition 21).",
+        "params": [
+          {
+            "name": "player",
+            "field": "player",
+            "chkField": "player",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "player"
+          },
+          {
+            "name": "score_type",
+            "field": "restype",
+            "chkField": "restype",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "score type",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ]
+            },
+            "ts": "scoreType"
+          },
+          {
+            "name": "comparison",
+            "field": "comparison",
+            "chkField": "comparison",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "comparison",
+              "values": [
+                0,
+                1,
+                10
+              ]
+            },
+            "ts": "comparison"
+          },
+          {
+            "name": "number",
+            "field": "amount",
+            "chkField": "amount",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "number",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "number"
+          }
+        ]
+      },
+      {
+        "id": "Always",
+        "kind": "condition",
+        "chkType": 22,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "Always true; the row takes no parameters (condition 22).",
+        "params": []
+      },
+      {
+        "id": "Never",
+        "kind": "condition",
+        "chkType": 23,
+        "class": "stock",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "Never true; the row takes no parameters (condition 23).",
+        "params": []
+      }
+    ],
+    "actions": [
+      {
+        "id": "Victory",
+        "kind": "action",
+        "chkType": 1,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "End the scenario in victory for the affected players (action 1).",
+        "params": []
+      },
+      {
+        "id": "Defeat",
+        "kind": "action",
+        "chkType": 2,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "End the scenario in defeat for the affected players (action 2).",
+        "params": []
+      },
+      {
+        "id": "PreserveTrigger",
+        "kind": "action",
+        "chkType": 3,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Keep the trigger enabled after it fires (action 3).",
+        "params": []
+      },
+      {
+        "id": "Wait",
+        "kind": "action",
+        "chkType": 4,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Wait `time` milliseconds before running the trigger's remaining actions (action 4).",
+        "params": [
+          {
+            "name": "time",
+            "field": "time",
+            "chkField": "time",
+            "encoding": "u32-wrap",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "time"
+          }
+        ]
+      },
+      {
+        "id": "PauseGame",
+        "kind": "action",
+        "chkType": 5,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Pause the game (action 5).",
+        "params": []
+      },
+      {
+        "id": "UnpauseGame",
+        "kind": "action",
+        "chkType": 6,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Unpause the game (action 6).",
+        "params": []
+      },
+      {
+        "id": "Transmission",
+        "kind": "action",
+        "chkType": 7,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Show `unit` at `location` for `time` milliseconds, play `sound`, and display `text` (action 7). `sound` resolves to `wavid`, `text` to `strid`.",
+        "params": [
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "location",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          },
+          {
+            "name": "sound",
+            "field": "wav",
+            "chkField": "wavid",
+            "encoding": "string",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "sound"
+          },
+          {
+            "name": "time_modifier",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "modifier",
+              "values": [
+                7,
+                8,
+                9
+              ]
+            },
+            "ts": "timeModifier"
+          },
+          {
+            "name": "time",
+            "field": "time",
+            "chkField": "time",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "time",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "time"
+          },
+          {
+            "name": "text",
+            "field": "text",
+            "chkField": "strid",
+            "encoding": "string",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "text"
+          },
+          {
+            "name": "always_display",
+            "field": "flags",
+            "chkField": "flags",
+            "encoding": "u8",
+            "validator": {
+              "kind": "range",
+              "label": "always display",
+              "min": 0,
+              "max": 255
+            },
+            "default": 4,
+            "ts": "alwaysDisplay"
+          }
+        ]
+      },
+      {
+        "id": "PlayWAV",
+        "kind": "action",
+        "chkType": 8,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Play `wav` (action 8). The name resolves to the action's `wavid` slot.",
+        "params": [
+          {
+            "name": "wav",
+            "field": "wav",
+            "chkField": "wavid",
+            "encoding": "string",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "wav"
+          }
+        ]
+      },
+      {
+        "id": "DisplayText",
+        "kind": "action",
+        "chkType": 9,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Show `text` to CurrentPlayer (`0x6509B0`), not to all players (action 9). `always_display` defaults to 4.",
+        "params": [
+          {
+            "name": "text",
+            "field": "text",
+            "chkField": "strid",
+            "encoding": "string",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "text"
+          },
+          {
+            "name": "always_display",
+            "field": "flags",
+            "chkField": "flags",
+            "encoding": "u8-truncate",
+            "validator": {
+              "kind": "none"
+            },
+            "default": 4,
+            "ts": "alwaysDisplay"
+          }
+        ]
+      },
+      {
+        "id": "CenterView",
+        "kind": "action",
+        "chkType": 10,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Center the current player's view on `location` (action 10).",
+        "params": [
+          {
+            "name": "location",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          }
+        ]
+      },
+      {
+        "id": "CreateUnitWithProperties",
+        "kind": "action",
+        "chkType": 11,
+        "class": "stock",
+        "defaultFlags": 28,
+        "special": true,
+        "handWritten": true,
+        "specialReason": "UPRP record parameter",
+        "doc": "Create `count` units of `unit` at `location` for `player` with the properties from a UnitProperty record (action 11). Default flags are 28.",
+        "params": [
+          {
+            "name": "count",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8",
+            "validator": {
+              "kind": "range",
+              "label": "count",
+              "min": 1,
+              "max": 255
+            },
+            "ts": "count"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "location",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          },
+          {
+            "name": "player",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "player"
+          },
+          {
+            "name": "properties",
+            "field": "uprp",
+            "chkField": null,
+            "encoding": "record",
+            "validator": {
+              "kind": "record",
+              "label": "properties",
+              "length": 20
+            },
+            "ts": "properties"
+          }
+        ]
+      },
+      {
+        "id": "SetMissionObjectives",
+        "kind": "action",
+        "chkType": 12,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Replace the mission objectives text (action 12).",
+        "params": [
+          {
+            "name": "text",
+            "field": "text",
+            "chkField": "strid",
+            "encoding": "string",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "text"
+          }
+        ]
+      },
+      {
+        "id": "SetSwitch",
+        "kind": "action",
+        "chkType": 13,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Set, clear, toggle, or randomize `switchId` (action 13).",
+        "params": [
+          {
+            "name": "switch_id",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "switch id",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "switchId"
+          },
+          {
+            "name": "state",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "switch action",
+              "values": [
+                4,
+                5,
+                6,
+                11
+              ]
+            },
+            "ts": "state"
+          }
+        ]
+      },
+      {
+        "id": "SetCountdownTimer",
+        "kind": "action",
+        "chkType": 14,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Set or adjust the countdown timer (action 14).",
+        "params": [
+          {
+            "name": "modifier",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "modifier",
+              "values": [
+                7,
+                8,
+                9
+              ]
+            },
+            "ts": "modifier"
+          },
+          {
+            "name": "time",
+            "field": "time",
+            "chkField": "time",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "time",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "time"
+          }
+        ]
+      },
+      {
+        "id": "RunAIScript",
+        "kind": "action",
+        "chkType": 15,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Run AI script `script` for the trigger owner (action 15).",
+        "params": [
+          {
+            "name": "script",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "AI script",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "script"
+          }
+        ]
+      },
+      {
+        "id": "RunAIScriptAt",
+        "kind": "action",
+        "chkType": 16,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Run AI script `script` at `location` (action 16).",
+        "params": [
+          {
+            "name": "script",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "AI script",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "script"
+          },
+          {
+            "name": "location",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          }
+        ]
+      },
+      {
+        "id": "LeaderBoardControl",
+        "kind": "action",
+        "chkType": 17,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Show a leaderboard for control of `unit` (action 17).",
+        "params": [
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "label",
+            "field": "text",
+            "chkField": "strid",
+            "encoding": "string",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "label"
+          }
+        ]
+      },
+      {
+        "id": "LeaderBoardControlAt",
+        "kind": "action",
+        "chkType": 18,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Show a leaderboard for control of `unit` at `location` (action 18).",
+        "params": [
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "location",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          },
+          {
+            "name": "label",
+            "field": "text",
+            "chkField": "strid",
+            "encoding": "string",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "label"
+          }
+        ]
+      },
+      {
+        "id": "LeaderBoardResources",
+        "kind": "action",
+        "chkType": 19,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Show a leaderboard for accumulated `resourceType` (action 19).",
+        "params": [
+          {
+            "name": "resource_type",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "enum",
+              "label": "resource type",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            "ts": "resourceType"
+          },
+          {
+            "name": "label",
+            "field": "text",
+            "chkField": "strid",
+            "encoding": "string",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "label"
+          }
+        ]
+      },
+      {
+        "id": "LeaderBoardKills",
+        "kind": "action",
+        "chkType": 20,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Show a leaderboard for kills of `unit` (action 20).",
+        "params": [
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "label",
+            "field": "text",
+            "chkField": "strid",
+            "encoding": "string",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "label"
+          }
+        ]
+      },
+      {
+        "id": "LeaderBoardScore",
+        "kind": "action",
+        "chkType": 21,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Show a leaderboard for `scoreType` (action 21).",
+        "params": [
+          {
+            "name": "score_type",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "enum",
+              "label": "score type",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ]
+            },
+            "ts": "scoreType"
+          },
+          {
+            "name": "label",
+            "field": "text",
+            "chkField": "strid",
+            "encoding": "string",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "label"
+          }
+        ]
+      },
+      {
+        "id": "KillUnit",
+        "kind": "action",
+        "chkType": 22,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Kill every `unit` owned by `player` (action 22).",
+        "params": [
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "player",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "player"
+          }
+        ]
+      },
+      {
+        "id": "KillUnitAt",
+        "kind": "action",
+        "chkType": 23,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Kill `count` units of `unit` owned by `player` at `location` (action 23).",
+        "params": [
+          {
+            "name": "count",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8",
+            "validator": {
+              "kind": "count",
+              "label": "count",
+              "min": 1,
+              "max": 255,
+              "all": 0
+            },
+            "ts": "count"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "location",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          },
+          {
+            "name": "player",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "player"
+          }
+        ]
+      },
+      {
+        "id": "RemoveUnit",
+        "kind": "action",
+        "chkType": 24,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Remove every `unit` owned by `player` (action 24).",
+        "params": [
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "player",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "player"
+          }
+        ]
+      },
+      {
+        "id": "RemoveUnitAt",
+        "kind": "action",
+        "chkType": 25,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Remove `count` units of `unit` owned by `player` at `location` (action 25).",
+        "params": [
+          {
+            "name": "count",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8",
+            "validator": {
+              "kind": "count",
+              "label": "count",
+              "min": 1,
+              "max": 255,
+              "all": 0
+            },
+            "ts": "count"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "location",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          },
+          {
+            "name": "player",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "player"
+          }
+        ]
+      },
+      {
+        "id": "SetResources",
+        "kind": "action",
+        "chkType": 26,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Set, add, or subtract player resources (action 26).",
+        "params": [
+          {
+            "name": "player",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "player"
+          },
+          {
+            "name": "modifier",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "modifier",
+              "values": [
+                7,
+                8,
+                9
+              ]
+            },
+            "ts": "modifier"
+          },
+          {
+            "name": "amount",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "amount",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "amount"
+          },
+          {
+            "name": "resource_type",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "enum",
+              "label": "resource type",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            "ts": "resourceType"
+          }
+        ]
+      },
+      {
+        "id": "SetScore",
+        "kind": "action",
+        "chkType": 27,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Set, add, or subtract a player score (action 27).",
+        "params": [
+          {
+            "name": "player",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "player"
+          },
+          {
+            "name": "modifier",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "modifier",
+              "values": [
+                7,
+                8,
+                9
+              ]
+            },
+            "ts": "modifier"
+          },
+          {
+            "name": "amount",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "amount",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "amount"
+          },
+          {
+            "name": "score_type",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "enum",
+              "label": "score type",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ]
+            },
+            "ts": "scoreType"
+          }
+        ]
+      },
+      {
+        "id": "MinimapPing",
+        "kind": "action",
+        "chkType": 28,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Ping the current player's minimap at `location` (action 28).",
+        "params": [
+          {
+            "name": "location",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          }
+        ]
+      },
+      {
+        "id": "TalkingPortrait",
+        "kind": "action",
+        "chkType": 29,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Show `unit`'s portrait for `time` milliseconds (action 29).",
+        "params": [
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "time",
+            "field": "time",
+            "chkField": "time",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "time",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "time"
+          }
+        ]
+      },
+      {
+        "id": "MuteUnitSpeech",
+        "kind": "action",
+        "chkType": 30,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Mute non-trigger unit sounds (action 30).",
+        "params": []
+      },
+      {
+        "id": "UnMuteUnitSpeech",
+        "kind": "action",
+        "chkType": 31,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Unmute non-trigger unit sounds (action 31).",
+        "params": []
+      },
+      {
+        "id": "LeaderBoardComputerPlayers",
+        "kind": "action",
+        "chkType": 32,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Include or exclude computer players in leaderboards (action 32).",
+        "params": [
+          {
+            "name": "state",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "property state",
+              "values": [
+                4,
+                5,
+                6
+              ]
+            },
+            "ts": "state"
+          }
+        ]
+      },
+      {
+        "id": "LeaderBoardGoalControl",
+        "kind": "action",
+        "chkType": 33,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Show a leaderboard for progress toward controlling `goal` units (action 33).",
+        "params": [
+          {
+            "name": "goal",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "goal",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "goal"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "label",
+            "field": "text",
+            "chkField": "strid",
+            "encoding": "string",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "label"
+          }
+        ]
+      },
+      {
+        "id": "LeaderBoardGoalControlAt",
+        "kind": "action",
+        "chkType": 34,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Show a leaderboard for progress toward controlling `goal` units at `location` (action 34).",
+        "params": [
+          {
+            "name": "goal",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "goal",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "goal"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "location",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          },
+          {
+            "name": "label",
+            "field": "text",
+            "chkField": "strid",
+            "encoding": "string",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "label"
+          }
+        ]
+      },
+      {
+        "id": "LeaderBoardGoalResources",
+        "kind": "action",
+        "chkType": 35,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Show a leaderboard for progress toward `goal` resources (action 35).",
+        "params": [
+          {
+            "name": "goal",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "goal",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "goal"
+          },
+          {
+            "name": "resource_type",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "enum",
+              "label": "resource type",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            "ts": "resourceType"
+          },
+          {
+            "name": "label",
+            "field": "text",
+            "chkField": "strid",
+            "encoding": "string",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "label"
+          }
+        ]
+      },
+      {
+        "id": "LeaderBoardGoalKills",
+        "kind": "action",
+        "chkType": 36,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Show a leaderboard for progress toward `goal` kills (action 36).",
+        "params": [
+          {
+            "name": "goal",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "goal",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "goal"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "label",
+            "field": "text",
+            "chkField": "strid",
+            "encoding": "string",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "label"
+          }
+        ]
+      },
+      {
+        "id": "LeaderBoardGoalScore",
+        "kind": "action",
+        "chkType": 37,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Show a leaderboard for progress toward `goal` score (action 37).",
+        "params": [
+          {
+            "name": "goal",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "goal",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "goal"
+          },
+          {
+            "name": "score_type",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "enum",
+              "label": "score type",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ]
+            },
+            "ts": "scoreType"
+          },
+          {
+            "name": "label",
+            "field": "text",
+            "chkField": "strid",
+            "encoding": "string",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "label"
+          }
+        ]
+      },
+      {
+        "id": "MoveLocation",
+        "kind": "action",
+        "chkType": 38,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Center `location` on `onUnit` owned by `owner` inside `searchLocation` (action 38). The fourth parameter is the search location.",
+        "params": [
+          {
+            "name": "location",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          },
+          {
+            "name": "on_unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "onUnit"
+          },
+          {
+            "name": "owner",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "owner"
+          },
+          {
+            "name": "search_location",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "searchLocation"
+          }
+        ]
+      },
+      {
+        "id": "MoveUnit",
+        "kind": "action",
+        "chkType": 39,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Move `count` units of `unit` from `startLocation` to `destLocation` (action 39).",
+        "params": [
+          {
+            "name": "count",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8",
+            "validator": {
+              "kind": "count",
+              "label": "count",
+              "min": 1,
+              "max": 255,
+              "all": 0
+            },
+            "ts": "count"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "owner",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "owner"
+          },
+          {
+            "name": "start_location",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "startLocation"
+          },
+          {
+            "name": "dest_location",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "destLocation"
+          }
+        ]
+      },
+      {
+        "id": "LeaderBoardGreed",
+        "kind": "action",
+        "chkType": 40,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Show the greed leaderboard for accumulated ore and gas (action 40).",
+        "params": [
+          {
+            "name": "goal",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "goal",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "goal"
+          }
+        ]
+      },
+      {
+        "id": "SetNextScenario",
+        "kind": "action",
+        "chkType": 41,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Set the next campaign scenario name (action 41).",
+        "params": [
+          {
+            "name": "scenario_name",
+            "field": "text",
+            "chkField": "strid",
+            "encoding": "string",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "scenarioName"
+          }
+        ]
+      },
+      {
+        "id": "SetDoodadState",
+        "kind": "action",
+        "chkType": 42,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Set doodad `state` for `unit` owned by `owner` at `location` (action 42).",
+        "params": [
+          {
+            "name": "state",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "property state",
+              "values": [
+                4,
+                5,
+                6
+              ]
+            },
+            "ts": "state"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "owner",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "owner"
+          },
+          {
+            "name": "location",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          }
+        ]
+      },
+      {
+        "id": "SetInvincibility",
+        "kind": "action",
+        "chkType": 43,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Set invincibility `state` for `unit` owned by `owner` at `location` (action 43).",
+        "params": [
+          {
+            "name": "state",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "property state",
+              "values": [
+                4,
+                5,
+                6
+              ]
+            },
+            "ts": "state"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "owner",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "owner"
+          },
+          {
+            "name": "location",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          }
+        ]
+      },
+      {
+        "id": "CreateUnit",
+        "kind": "action",
+        "chkType": 44,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Create `number` units of `unit` at `location` for `player` (action 44).",
+        "params": [
+          {
+            "name": "number",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8",
+            "validator": {
+              "kind": "range",
+              "label": "count",
+              "min": 1,
+              "max": 255
+            },
+            "ts": "number"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "location",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          },
+          {
+            "name": "player",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "player"
+          }
+        ]
+      },
+      {
+        "id": "SetDeaths",
+        "kind": "action",
+        "chkType": 45,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": true,
+        "handWritten": true,
+        "specialReason": "extension target form (PlayerOrFieldTarget / ValueOrPtrTarget)",
+        "doc": "Deaths-table write of `value` with `modifier`, with `unit` (action 45). Default flags are 20 and `unit` defaults to 0. `player` and `value` accept the documented extension targets.",
+        "params": [
+          {
+            "name": "player",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "epd",
+            "validator": {
+              "kind": "none"
+            },
+            "targetForm": "PlayerOrFieldTarget",
+            "ts": "player"
+          },
+          {
+            "name": "modifier",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8-truncate",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "modifier"
+          },
+          {
+            "name": "value",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "value-or-ptr",
+            "validator": {
+              "kind": "none"
+            },
+            "targetForm": "ValueOrPtrTarget",
+            "ts": "value"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16-truncate",
+            "validator": {
+              "kind": "none"
+            },
+            "default": 0,
+            "ts": "unit"
+          }
+        ]
+      },
+      {
+        "id": "Order",
+        "kind": "action",
+        "chkType": 46,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Order `unit` owned by `owner` at `startLocation` to `destLocation` with `orderType` (action 46).",
+        "params": [
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "owner",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "owner"
+          },
+          {
+            "name": "start_location",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "startLocation"
+          },
+          {
+            "name": "order_type",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8",
+            "validator": {
+              "kind": "enum",
+              "label": "order",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            "ts": "orderType"
+          },
+          {
+            "name": "dest_location",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "destLocation"
+          }
+        ]
+      },
+      {
+        "id": "Comment",
+        "kind": "action",
+        "chkType": 47,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Attach a comment string to the trigger (action 47).",
+        "params": [
+          {
+            "name": "text",
+            "field": "text",
+            "chkField": "strid",
+            "encoding": "string",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "text"
+          }
+        ]
+      },
+      {
+        "id": "GiveUnits",
+        "kind": "action",
+        "chkType": 48,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Give `count` units of `unit` at `location` to `newOwner` (action 48).",
+        "params": [
+          {
+            "name": "count",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8",
+            "validator": {
+              "kind": "count",
+              "label": "count",
+              "min": 1,
+              "max": 255,
+              "all": 0
+            },
+            "ts": "count"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "owner",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "owner"
+          },
+          {
+            "name": "location",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          },
+          {
+            "name": "new_owner",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "newOwner"
+          }
+        ]
+      },
+      {
+        "id": "ModifyUnitHitPoints",
+        "kind": "action",
+        "chkType": 49,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Set hit points to `percent` for `count` units at `location` (action 49).",
+        "params": [
+          {
+            "name": "count",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8",
+            "validator": {
+              "kind": "count",
+              "label": "count",
+              "min": 1,
+              "max": 255,
+              "all": 0
+            },
+            "ts": "count"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "owner",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "owner"
+          },
+          {
+            "name": "location",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          },
+          {
+            "name": "percent",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "percent",
+              "min": 0,
+              "max": 100
+            },
+            "ts": "percent"
+          }
+        ]
+      },
+      {
+        "id": "ModifyUnitEnergy",
+        "kind": "action",
+        "chkType": 50,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Set energy to `percent` for `count` units at `location` (action 50).",
+        "params": [
+          {
+            "name": "count",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8",
+            "validator": {
+              "kind": "count",
+              "label": "count",
+              "min": 1,
+              "max": 255,
+              "all": 0
+            },
+            "ts": "count"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "owner",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "owner"
+          },
+          {
+            "name": "location",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          },
+          {
+            "name": "percent",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "percent",
+              "min": 0,
+              "max": 100
+            },
+            "ts": "percent"
+          }
+        ]
+      },
+      {
+        "id": "ModifyUnitShields",
+        "kind": "action",
+        "chkType": 51,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Set shields to `percent` for `count` units at `location` (action 51).",
+        "params": [
+          {
+            "name": "count",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8",
+            "validator": {
+              "kind": "count",
+              "label": "count",
+              "min": 1,
+              "max": 255,
+              "all": 0
+            },
+            "ts": "count"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "owner",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "owner"
+          },
+          {
+            "name": "location",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          },
+          {
+            "name": "percent",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "percent",
+              "min": 0,
+              "max": 100
+            },
+            "ts": "percent"
+          }
+        ]
+      },
+      {
+        "id": "ModifyUnitResourceAmount",
+        "kind": "action",
+        "chkType": 52,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Set the resource amount of `count` resource sources at `location` to `newValue` (action 52).",
+        "params": [
+          {
+            "name": "count",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8",
+            "validator": {
+              "kind": "count",
+              "label": "count",
+              "min": 1,
+              "max": 255,
+              "all": 0
+            },
+            "ts": "count"
+          },
+          {
+            "name": "owner",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "owner"
+          },
+          {
+            "name": "location",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          },
+          {
+            "name": "new_value",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "new value",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "newValue"
+          }
+        ]
+      },
+      {
+        "id": "ModifyUnitHangarCount",
+        "kind": "action",
+        "chkType": 53,
+        "class": "stock",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Add `add` to the hangar count of `count` units at `location` (action 53).",
+        "params": [
+          {
+            "name": "add",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "add",
+              "min": 0,
+              "max": 4294967295
+            },
+            "ts": "add"
+          },
+          {
+            "name": "count",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8",
+            "validator": {
+              "kind": "count",
+              "label": "count",
+              "min": 1,
+              "max": 255,
+              "all": 0
+            },
+            "ts": "count"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "range",
+              "label": "unit",
+              "min": 0,
+              "max": 227
+            },
+            "ts": "unit"
+          },
+          {
+            "name": "owner",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "owner"
+          },
+          {
+            "name": "location",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "range",
+              "label": "location",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "location"
+          }
+        ]
+      },
+      {
+        "id": "PauseTimer",
+        "kind": "action",
+        "chkType": 54,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Pause the countdown timer (action 54).",
+        "params": []
+      },
+      {
+        "id": "UnpauseTimer",
+        "kind": "action",
+        "chkType": 55,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Resume the countdown timer (action 55).",
+        "params": []
+      },
+      {
+        "id": "Draw",
+        "kind": "action",
+        "chkType": 56,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "End the scenario in a draw for the affected players (action 56).",
+        "params": []
+      },
+      {
+        "id": "SetAllianceStatus",
+        "kind": "action",
+        "chkType": 57,
+        "class": "stock",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Set `player`'s alliance status (action 57).",
+        "params": [
+          {
+            "name": "player",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "u32",
+            "validator": {
+              "kind": "enum",
+              "label": "player",
+              "values": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                26
+              ]
+            },
+            "ts": "player"
+          },
+          {
+            "name": "status",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16",
+            "validator": {
+              "kind": "enum",
+              "label": "alliance status",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            "ts": "status"
+          }
+        ]
+      }
+    ],
+    "extensions": [
+      {
+        "id": "DeathsX",
+        "kind": "condition",
+        "chkType": 15,
+        "class": "eudkit extension",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "Masked Deaths-table read (condition 15 with the `eudx` mask). Eudkit extension; not a StarEdit row.",
+        "params": [
+          {
+            "name": "player",
+            "field": "player",
+            "chkField": "player",
+            "encoding": "epd",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "player"
+          },
+          {
+            "name": "comparison",
+            "field": "comparison",
+            "chkField": "comparison",
+            "encoding": "u8-truncate",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "comparison"
+          },
+          {
+            "name": "amount",
+            "field": "amount",
+            "chkField": "amount",
+            "encoding": "value-or-ptr",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "amount"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16-truncate",
+            "validator": {
+              "kind": "none"
+            },
+            "default": 0,
+            "ts": "unit"
+          },
+          {
+            "name": "mask",
+            "field": "locid",
+            "chkField": "locid",
+            "encoding": "mask",
+            "validator": {
+              "kind": "none"
+            },
+            "default": 4294967295,
+            "ts": "mask"
+          }
+        ]
+      },
+      {
+        "id": "Memory",
+        "kind": "condition",
+        "chkType": 15,
+        "class": "eudkit extension",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "Read memory at a fixed address through the Deaths wire form (condition 15 at `EPD(addr)`). Eudkit extension.",
+        "params": [
+          {
+            "name": "addr",
+            "field": "player",
+            "chkField": "player",
+            "encoding": "epd-from-address",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "addr"
+          },
+          {
+            "name": "comparison",
+            "field": "comparison",
+            "chkField": "comparison",
+            "encoding": "u8-truncate",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "comparison"
+          },
+          {
+            "name": "amount",
+            "field": "amount",
+            "chkField": "amount",
+            "encoding": "value-or-ptr",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "amount"
+          }
+        ]
+      },
+      {
+        "id": "MemoryEPD",
+        "kind": "condition",
+        "chkType": 15,
+        "class": "eudkit extension",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "Read memory at an EPD through the Deaths wire form (condition 15). Eudkit extension.",
+        "params": [
+          {
+            "name": "epd_addr",
+            "field": "player",
+            "chkField": "player",
+            "encoding": "epd",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "epdAddr"
+          },
+          {
+            "name": "comparison",
+            "field": "comparison",
+            "chkField": "comparison",
+            "encoding": "u8-truncate",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "comparison"
+          },
+          {
+            "name": "amount",
+            "field": "amount",
+            "chkField": "amount",
+            "encoding": "value-or-ptr",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "amount"
+          }
+        ]
+      },
+      {
+        "id": "MemoryX",
+        "kind": "condition",
+        "chkType": 15,
+        "class": "eudkit extension",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "Masked read of memory at a fixed address (condition 15 with the `eudx` mask). Eudkit extension.",
+        "params": [
+          {
+            "name": "addr",
+            "field": "player",
+            "chkField": "player",
+            "encoding": "epd-from-address",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "addr"
+          },
+          {
+            "name": "comparison",
+            "field": "comparison",
+            "chkField": "comparison",
+            "encoding": "u8-truncate",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "comparison"
+          },
+          {
+            "name": "amount",
+            "field": "amount",
+            "chkField": "amount",
+            "encoding": "value-or-ptr",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "amount"
+          },
+          {
+            "name": "mask",
+            "field": "locid",
+            "chkField": "locid",
+            "encoding": "mask",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "mask"
+          }
+        ]
+      },
+      {
+        "id": "MemoryXEPD",
+        "kind": "condition",
+        "chkType": 15,
+        "class": "eudkit extension",
+        "defaultFlags": 0,
+        "special": false,
+        "handWritten": false,
+        "doc": "Masked read of memory at an EPD (condition 15 with the `eudx` mask). Eudkit extension.",
+        "params": [
+          {
+            "name": "epd_addr",
+            "field": "player",
+            "chkField": "player",
+            "encoding": "epd",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "epdAddr"
+          },
+          {
+            "name": "comparison",
+            "field": "comparison",
+            "chkField": "comparison",
+            "encoding": "u8-truncate",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "comparison"
+          },
+          {
+            "name": "amount",
+            "field": "amount",
+            "chkField": "amount",
+            "encoding": "value-or-ptr",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "amount"
+          },
+          {
+            "name": "mask",
+            "field": "locid",
+            "chkField": "locid",
+            "encoding": "mask",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "mask"
+          }
+        ]
+      },
+      {
+        "id": "SetDeathsX",
+        "kind": "action",
+        "chkType": 45,
+        "class": "eudkit extension",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Masked Deaths-table write (action 45 with the `eudx` mask). Eudkit extension; not a StarEdit row.",
+        "params": [
+          {
+            "name": "player",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "epd",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "player"
+          },
+          {
+            "name": "modifier",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8-truncate",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "modifier"
+          },
+          {
+            "name": "value",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "value-or-ptr",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "value"
+          },
+          {
+            "name": "unit",
+            "field": "unit",
+            "chkField": "unit",
+            "encoding": "u16-truncate",
+            "validator": {
+              "kind": "none"
+            },
+            "default": 0,
+            "ts": "unit"
+          },
+          {
+            "name": "mask",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "mask",
+            "validator": {
+              "kind": "none"
+            },
+            "default": 4294967295,
+            "ts": "mask"
+          }
+        ]
+      },
+      {
+        "id": "SetMemory",
+        "kind": "action",
+        "chkType": 45,
+        "class": "eudkit extension",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Write memory at a fixed address through the Deaths wire form (action 45 at `EPD(addr)`). Eudkit extension.",
+        "params": [
+          {
+            "name": "addr",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "epd-from-address",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "addr"
+          },
+          {
+            "name": "modifier",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8-truncate",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "modifier"
+          },
+          {
+            "name": "value",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "value-or-ptr",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "value"
+          }
+        ]
+      },
+      {
+        "id": "SetMemoryEPD",
+        "kind": "action",
+        "chkType": 45,
+        "class": "eudkit extension",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Write memory at an EPD through the Deaths wire form (action 45). Eudkit extension.",
+        "params": [
+          {
+            "name": "epd_addr",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "epd",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "epdAddr"
+          },
+          {
+            "name": "modifier",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8-truncate",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "modifier"
+          },
+          {
+            "name": "value",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "value-or-ptr",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "value"
+          }
+        ]
+      },
+      {
+        "id": "SetMemoryX",
+        "kind": "action",
+        "chkType": 45,
+        "class": "eudkit extension",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Masked write of memory at a fixed address (action 45 with the `eudx` mask). Eudkit extension.",
+        "params": [
+          {
+            "name": "addr",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "epd-from-address",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "addr"
+          },
+          {
+            "name": "modifier",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8-truncate",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "modifier"
+          },
+          {
+            "name": "value",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "value-or-ptr",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "value"
+          },
+          {
+            "name": "mask",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "mask",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "mask"
+          }
+        ]
+      },
+      {
+        "id": "SetMemoryXEPD",
+        "kind": "action",
+        "chkType": 45,
+        "class": "eudkit extension",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Masked write of memory at an EPD (action 45 with the `eudx` mask). Eudkit extension.",
+        "params": [
+          {
+            "name": "epd_addr",
+            "field": "dest",
+            "chkField": "player1",
+            "encoding": "epd",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "epdAddr"
+          },
+          {
+            "name": "modifier",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8-truncate",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "modifier"
+          },
+          {
+            "name": "value",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "value-or-ptr",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "value"
+          },
+          {
+            "name": "mask",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "mask",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "mask"
+          }
+        ]
+      },
+      {
+        "id": "SetNextPtr",
+        "kind": "action",
+        "chkType": 45,
+        "class": "eudkit extension",
+        "defaultFlags": 20,
+        "special": false,
+        "handWritten": false,
+        "doc": "Write a trigger `next` pointer through the Deaths wire form (action 45 relocation). Eudkit extension.",
+        "params": [
+          {
+            "name": "src",
+            "field": "relocs",
+            "chkField": "player1",
+            "encoding": "ptr",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "src"
+          },
+          {
+            "name": "dst",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "value-or-ptr",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "dst"
+          }
+        ]
+      },
+      {
+        "id": "DisplayTextIndex",
+        "kind": "action",
+        "chkType": 9,
+        "class": "eudkit extension",
+        "defaultFlags": 4,
+        "special": false,
+        "handWritten": false,
+        "doc": "Show the module string at `index` (0-based module string index) to CurrentPlayer (action 9). Eudkit extension.",
+        "params": [
+          {
+            "name": "index",
+            "field": "str_index",
+            "chkField": "strid",
+            "encoding": "string-index",
+            "validator": {
+              "kind": "range",
+              "label": "string index",
+              "min": 0
+            },
+            "ts": "index"
+          },
+          {
+            "name": "always_display",
+            "field": "flags",
+            "chkField": "flags",
+            "encoding": "u8-truncate",
+            "validator": {
+              "kind": "none"
+            },
+            "default": 4,
+            "ts": "alwaysDisplay"
+          }
+        ]
+      },
+      {
+        "id": "SetStringDword",
+        "kind": "action",
+        "chkType": 45,
+        "class": "eudkit extension",
+        "defaultFlags": 20,
+        "special": true,
+        "handWritten": true,
+        "specialReason": "string-table relocation",
+        "doc": "Write one 32-bit word of a module string buffer through its late-bound string address (action 45 relocation). Eudkit extension.",
+        "params": [
+          {
+            "name": "index",
+            "field": "relocs.target_string",
+            "chkField": "strid",
+            "encoding": "string-reloc",
+            "validator": {
+              "kind": "range",
+              "label": "string index",
+              "min": 0
+            },
+            "ts": "index"
+          },
+          {
+            "name": "byte_offset",
+            "field": "relocs.target_offset",
+            "chkField": "strid",
+            "encoding": "string-reloc",
+            "validator": {
+              "kind": "multiple",
+              "label": "byte offset",
+              "min": 0,
+              "multipleOf": 4
+            },
+            "ts": "byteOffset"
+          },
+          {
+            "name": "value",
+            "field": "value",
+            "chkField": "player2",
+            "encoding": "u32-wrap",
+            "validator": {
+              "kind": "none"
+            },
+            "ts": "value"
+          },
+          {
+            "name": "mask",
+            "field": "mask",
+            "chkField": "locid1",
+            "encoding": "mask",
+            "validator": {
+              "kind": "none"
+            },
+            "default": 4294967295,
+            "ts": "mask"
+          },
+          {
+            "name": "modifier",
+            "field": "modifier",
+            "chkField": "amount",
+            "encoding": "u8-truncate",
+            "validator": {
+              "kind": "none"
+            },
+            "default": 7,
+            "ts": "modifier"
+          }
+        ]
+      }
+    ],
+    "records": [
+      {
+        "id": "UnitProperty",
+        "kind": "record",
+        "chkType": null,
+        "class": "eudkit extension",
+        "defaultFlags": null,
+        "special": true,
+        "handWritten": true,
+        "specialReason": "UPRP record builder; not a trigger row",
+        "doc": "Build the normalized 20-byte UPRP record consumed by CreateUnitWithProperties. Not a trigger row; the record is always hand-built.",
+        "params": [
+          {
+            "name": "hit_points",
+            "field": "hit_points",
+            "chkField": null,
+            "encoding": "record-byte",
+            "validator": {
+              "kind": "range",
+              "label": "hit points",
+              "min": 0,
+              "max": 100
+            },
+            "ts": "hitPoints"
+          },
+          {
+            "name": "shields",
+            "field": "shields",
+            "chkField": null,
+            "encoding": "record-byte",
+            "validator": {
+              "kind": "range",
+              "label": "shields",
+              "min": 0,
+              "max": 100
+            },
+            "ts": "shields"
+          },
+          {
+            "name": "energy",
+            "field": "energy",
+            "chkField": null,
+            "encoding": "record-byte",
+            "validator": {
+              "kind": "range",
+              "label": "energy",
+              "min": 0,
+              "max": 100
+            },
+            "ts": "energy"
+          },
+          {
+            "name": "resource",
+            "field": "resource",
+            "chkField": null,
+            "encoding": "record-u32",
+            "validator": {
+              "kind": "range",
+              "label": "resource",
+              "min": 0,
+              "max": 65535
+            },
+            "ts": "resource"
+          },
+          {
+            "name": "hangar",
+            "field": "hangar",
+            "chkField": null,
+            "encoding": "record-u16",
+            "validator": {
+              "kind": "range",
+              "label": "hangar",
+              "min": 0,
+              "max": 255
+            },
+            "ts": "hangar"
+          },
+          {
+            "name": "cloaked",
+            "field": "sprpflag",
+            "chkField": null,
+            "encoding": "record-bit",
+            "validator": {
+              "kind": "boolean",
+              "label": "cloaked"
+            },
+            "ts": "cloaked"
+          },
+          {
+            "name": "burrowed",
+            "field": "sprpflag",
+            "chkField": null,
+            "encoding": "record-bit",
+            "validator": {
+              "kind": "boolean",
+              "label": "burrowed"
+            },
+            "ts": "burrowed"
+          },
+          {
+            "name": "in_transit",
+            "field": "sprpflag",
+            "chkField": null,
+            "encoding": "record-bit",
+            "validator": {
+              "kind": "boolean",
+              "label": "in transit"
+            },
+            "ts": "inTransit"
+          },
+          {
+            "name": "hallucinated",
+            "field": "sprpflag",
+            "chkField": null,
+            "encoding": "record-bit",
+            "validator": {
+              "kind": "boolean",
+              "label": "hallucinated"
+            },
+            "ts": "hallucinated"
+          },
+          {
+            "name": "invincible",
+            "field": "sprpflag",
+            "chkField": null,
+            "encoding": "record-bit",
+            "validator": {
+              "kind": "boolean",
+              "label": "invincible"
+            },
+            "ts": "invincible"
+          }
+        ]
+      }
+    ]
+  },
+  "counts": {
+    "conditions": 22,
+    "actions": 57,
+    "extensions": 13,
+    "records": 1
+  },
+  "assumptions": [
+    "This file is the single source of truth for the 79 stock rows (22 conditions + 57 actions) and the 13 eudkit extension helper rows.",
+    "UnitProperty is a record row, not one of the 92 trigger rows; it is listed separately so the five documented special rows are visible in one place.",
+    "The partial tests/stock-trigger-catalog.json and its runners were retired in ticket #5; this spec plus the frozen goldens in tests/stock-row-goldens.json supersede them, and the docs, LSP, and export surfaces derive from this file.",
+    "Emitted HIR is unchanged by this artifact: the frozen goldens in tests/stock-row-goldens.json were captured from the current hand-written helpers before any emitter change; the rows carry no HIR version field, so they stay valid across version bumps (3.1 at capture, 3.2 since ADR 0021).",
+    "Deaths/SetDeaths keep class 'stock'; their target forms are the only place the PlayerOrFieldTarget / ValueOrPtrTarget extension target form appears."
+  ]
+}

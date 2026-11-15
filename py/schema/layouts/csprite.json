@@ -1,0 +1,85 @@
+{
+  "struct": "CSprite",
+  "size": 36,
+  "version": "3.0",
+  "fields": {
+    "prev": {
+      "offset": 0,
+      "size": 4,
+      "pointer": "CSprite"
+    },
+    "next": {
+      "offset": 4,
+      "size": 4,
+      "pointer": "CSprite"
+    },
+    "sprite": {
+      "offset": 8,
+      "size": 2
+    },
+    "player": {
+      "offset": 10,
+      "size": 1,
+      "composite": "PlayerMember"
+    },
+    "selectionIndex": {
+      "offset": 11,
+      "size": 1
+    },
+    "visibilityFlags": {
+      "offset": 12,
+      "size": 1
+    },
+    "elevationLevel": {
+      "offset": 13,
+      "size": 1
+    },
+    "flags": {
+      "offset": 14,
+      "size": 1
+    },
+    "selectionTimer": {
+      "offset": 15,
+      "size": 1
+    },
+    "index": {
+      "offset": 16,
+      "size": 2
+    },
+    "grpWidth": {
+      "offset": 18,
+      "size": 1
+    },
+    "grpHeight": {
+      "offset": 19,
+      "size": 1
+    },
+    "pos": {
+      "offset": 20,
+      "size": 4,
+      "composite": "PositionMember"
+    },
+    "posX": {
+      "offset": 20,
+      "size": 2,
+      "composite": "PositionXMember"
+    },
+    "posY": {
+      "offset": 22,
+      "size": 2,
+      "composite": "PositionYMember"
+    },
+    "mainGraphic": {
+      "offset": 24,
+      "size": 4
+    },
+    "imageHead": {
+      "offset": 28,
+      "size": 4
+    },
+    "imageTail": {
+      "offset": 32,
+      "size": 4
+    }
+  }
+}

@@ -1,0 +1,395 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      publish_registries:
+        description: Publish to PyPI, npm, the VS Code Marketplace, and Open VSX
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify versions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check manifest versions and release tag
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            python scripts/check_versions.py --tag "$GITHUB_REF_NAME"
+          else
+            python scripts/check_versions.py
+          fi
+      - name: Test bundle tooling
+        run: python -m unittest scripts/test_package_bundle.py
+
+  build-binaries:
+    name: Binaries (${{ matrix.target }})
+    needs: verify
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ts/package-lock.json
+      - name: Build TypeScript runtime
+        working-directory: ts
+        run: npm ci && npm run build
+      - name: Build release binaries
+        run: cargo build --release -p eudkit -p eudkit-lsp -j 2 --target ${{ matrix.target }}
+      - name: Assemble and verify bundle
+        shell: bash
+        run: |
+          VERSION=$(python -c "import tomllib; print(tomllib.load(open('Cargo.toml', 'rb'))['workspace']['package']['version'])" | tr -d '\r')
+          python scripts/package_bundle.py \
+            --version "$VERSION" \
+            --target "${{ matrix.target }}" \
+            --bin-dir "target/${{ matrix.target }}/release" \
+            --repo-root . \
+            --out-dir dist \
+            --verify
+      - name: Extract bundle for smoke test
+        shell: bash
+        run: |
+          python - <<'PY'
+          import glob
+          import os
+          import pathlib
+          import shutil
+          import tarfile
+          import zipfile
+
+          archives = [
+              path
+              for path in glob.glob("dist/eudkit-*")
+              if path.endswith((".tar.gz", ".zip"))
+          ]
+          if len(archives) != 1:
+              raise SystemExit(f"expected one bundle archive, found {archives}")
+          archive = archives[0]
+          destination = pathlib.Path(os.environ["RUNNER_TEMP"]) / "bundle"
+          shutil.rmtree(destination, ignore_errors=True)
+          destination.mkdir(parents=True)
+          if archive.endswith(".zip"):
+              with zipfile.ZipFile(archive) as zf:
+                  zf.extractall(destination)
+          else:
+              with tarfile.open(archive, "r:gz") as tar:
+                  tar.extractall(destination)
+          roots = sorted(path for path in destination.iterdir() if path.is_dir())
+          if len(roots) != 1:
+              raise SystemExit(f"expected one bundle root, found {roots}")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+              env.write(f"BUNDLE_ROOT={roots[0].as_posix()}\n")
+          PY
+      - name: Smoke-test bundle
+        shell: bash
+        run: |
+          if [ -f "$BUNDLE_ROOT/bin/eudkit.exe" ]; then
+            BIN="$BUNDLE_ROOT/bin/eudkit.exe"
+          else
+            BIN="$BUNDLE_ROOT/bin/eudkit"
+          fi
+          if [ -f "$BUNDLE_ROOT/bin/eudkit-lsp.exe" ]; then
+            LSP="$BUNDLE_ROOT/bin/eudkit-lsp.exe"
+          else
+            LSP="$BUNDLE_ROOT/bin/eudkit-lsp"
+          fi
+          cd "$BUNDLE_ROOT"
+          "$BIN" --version
+          "$BIN" doctor
+          PROJECT="$RUNNER_TEMP/eudkit-smoke"
+          rm -rf "$PROJECT"
+          "$BIN" init "$PROJECT" --ts
+          "$BIN" compile "$PROJECT/main.ts" \
+            --basemap "$PROJECT/basemap.scx" \
+            --out "$PROJECT/main.scx"
+          test -f "$PROJECT/main.scx"
+          python - "$LSP" <<'PY'
+          import json
+          import subprocess
+          import sys
+
+          lsp = sys.argv[1]
+
+          def frame(message):
+              body = json.dumps(message).encode("utf-8")
+              return f"Content-Length: {len(body)}\r\n\r\n".encode("utf-8") + body
+
+          messages = b"".join(
+              [
+                  frame({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}),
+                  frame({"jsonrpc": "2.0", "id": 2, "method": "shutdown", "params": None}),
+                  frame({"jsonrpc": "2.0", "method": "exit", "params": None}),
+              ]
+          )
+          result = subprocess.run([lsp], input=messages, stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE, timeout=30)
+          output = result.stdout.decode("utf-8", "replace")
+          if result.returncode != 0:
+              sys.stderr.write(result.stderr.decode("utf-8", "replace"))
+              raise SystemExit(f"eudkit-lsp exited {result.returncode}")
+          if '"serverInfo"' not in output:
+              raise SystemExit(f"eudkit-lsp handshake missing serverInfo: {output!r}")
+          print("lsp handshake ok")
+          PY
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  build-vscode:
+    name: VS Code extension
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: editors/vscode/package-lock.json
+      - name: Install dependencies
+        working-directory: editors/vscode
+        run: npm ci
+      - name: Test extension
+        working-directory: editors/vscode
+        run: node --test test_extension.mjs
+      - name: Package extension
+        working-directory: editors/vscode
+        run: npx --yes @vscode/vsce@4.1.1 package --out eudkit-vscode.vsix
+      - name: Upload extension
+        uses: actions/upload-artifact@v4
+        with:
+          name: vscode-extension
+          path: editors/vscode/eudkit-vscode.vsix
+          if-no-files-found: error
+      - name: Publish to VS Code Marketplace
+        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_registries == 'true') }}
+        working-directory: editors/vscode
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "::notice::VSCE_PAT is not set; skipping VS Code Marketplace publish."
+            exit 0
+          fi
+          npx --yes @vscode/vsce@4.1.1 publish --packagePath eudkit-vscode.vsix --pat "$VSCE_PAT"
+      - name: Publish to Open VSX
+        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_registries == 'true') }}
+        working-directory: editors/vscode
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          if [ -z "$OVSX_PAT" ]; then
+            echo "::notice::OVSX_PAT is not set; skipping Open VSX publish."
+            exit 0
+          fi
+          npx --yes ovsx@0.10.2 --pat "$OVSX_PAT" publish eudkit-vscode.vsix
+
+  build-zed:
+    name: Zed extension
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Add wasm target
+        run: rustup target add wasm32-wasip2
+      - name: Build extension
+        working-directory: editors/zed
+        run: cargo build --release --target wasm32-wasip2
+      - name: Package extension
+        shell: bash
+        run: |
+          VERSION=$(python -c "import tomllib; print(tomllib.load(open('Cargo.toml', 'rb'))['workspace']['package']['version'])" | tr -d '\r')
+          WASM=$(find editors/zed/target/wasm32-wasip2/release target/wasm32-wasip2/release -maxdepth 1 -type f -name '*.wasm' 2>/dev/null | head -n 1)
+          test -n "$WASM"
+          STAGE="$RUNNER_TEMP/zed-package/eudkit-zed-${VERSION}"
+          rm -rf "$RUNNER_TEMP/zed-package"
+          mkdir -p "$STAGE/src" dist
+          cp editors/zed/extension.toml "$STAGE/"
+          cp "$WASM" "$STAGE/extension.wasm"
+          cp editors/zed/Cargo.toml editors/zed/Cargo.lock "$STAGE/"
+          cp -R editors/zed/src/. "$STAGE/src/"
+          cp editors/zed/LICENSE editors/zed/README.md "$STAGE/"
+          tar -czf "dist/eudkit-zed-${VERSION}.tar.gz" -C "$RUNNER_TEMP/zed-package" \
+            "eudkit-zed-${VERSION}"
+          (cd dist && sha256sum "eudkit-zed-${VERSION}.tar.gz" > "eudkit-zed-${VERSION}.tar.gz.sha256")
+      - name: Upload extension
+        uses: actions/upload-artifact@v4
+        with:
+          name: zed-extension
+          path: dist/*
+          if-no-files-found: error
+
+  build-python:
+    name: Python packages
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install build tools
+        run: python -m pip install --upgrade "build==1.2.2" "twine==6.1.0" "setuptools>=68" wheel
+      - name: Build sdist and wheel
+        run: python -m build --no-isolation py --outdir dist
+      - name: Check distributions
+        run: python -m twine check dist/*
+      - name: Smoke-test wheel
+        run: |
+          python -m venv "$RUNNER_TEMP/py-venv"
+          "$RUNNER_TEMP/py-venv/bin/python" -m pip install --no-deps dist/*.whl
+          "$RUNNER_TEMP/py-venv/bin/python" -c "import eudkit; print('import eudkit ok')"
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-dist
+          path: dist/*
+          if-no-files-found: error
+      - name: Publish to PyPI with API token
+        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_registries == 'true') }}
+        env:
+          PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          PUBLISH_PYPI: ${{ vars.PUBLISH_PYPI }}
+        run: |
+          if [ -z "$PYPI_API_TOKEN" ] || [ "$PUBLISH_PYPI" = "true" ]; then
+            echo "::notice::Token publish skipped (no PYPI_API_TOKEN, or trusted publishing enabled)."
+            exit 0
+          fi
+          python -m twine upload --skip-existing dist/*
+      - name: Publish to PyPI with Trusted Publishing
+        if: ${{ vars.PUBLISH_PYPI == 'true' && ((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_registries == 'true')) }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          skip-existing: true
+
+  build-node:
+    name: npm package
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ts/package-lock.json
+          registry-url: https://registry.npmjs.org
+      - name: Build and pack
+        working-directory: ts
+        run: |
+          npm ci
+          npm run build
+          npm run typecheck
+          npm pack
+      - name: Smoke-test tarball
+        working-directory: ts
+        run: node ../scripts/smoke_npm.mjs "$(ls eudkit-*.tgz | head -n 1)"
+      - name: Upload tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package
+          path: ts/*.tgz
+          if-no-files-found: error
+      - name: Publish to npm
+        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_registries == 'true') }}
+        working-directory: ts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::notice::NPM_TOKEN is not set; skipping npm publish."
+            exit 0
+          fi
+          npm publish "$(ls eudkit-*.tgz | head -n 1)" --provenance --access public
+
+  publish-release:
+    name: GitHub release
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    needs:
+      - verify
+      - build-binaries
+      - build-vscode
+      - build-zed
+      - build-python
+      - build-node
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Generate SHA256SUMS.txt
+        working-directory: release-assets
+        run: |
+          find . -maxdepth 1 -type f \
+            ! -name '*.sha256' \
+            ! -name 'SHA256SUMS.txt' \
+            -print0 \
+            | sort -z \
+            | xargs -0 -r sha256sum \
+            | sed 's|  \./|  |' > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+          generate_release_notes: true

@@ -1,0 +1,1390 @@
+/**
+ * Zero-storage typed layout views (`MemView`, `CondView`, `ActView`, `CUnit`, `CSprite`),
+ * StarCraft `EPD` address helpers, and `MemCond` in-place comparisons.
+ * Fields are accessed directly as properties (`u.hp`, `u.shield`, `trig.act(0).value`).
+ */
+
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { EudslError } from "./errors.ts";
+import {
+  Add,
+  Always,
+  AtLeast,
+  AtMost,
+  CurrentPlayer,
+  Deaths,
+  DeathsX,
+  Exactly,
+  Never,
+  SetDeaths,
+  SetDeathsX,
+  SetTo,
+  Subtract,
+  type HirAct,
+  type HirCond,
+} from "./hir.ts";
+import {
+  Trigger,
+  _getActiveModuleBuilder,
+  type CondLike,
+  type MaterializableCond,
+} from "./trigger.ts";
+import { Var, saturatingSubInto, type VarImpl } from "./var.ts";
+import { registerDetachedPlan, type GatePlan } from "./conditions.ts";
+
+export const EPD_BASE = 0x58a364;
+export const EPD_CURRENT_PLAYER = 203155;
+export const CURRENT_PLAYER = 13;
+
+/**
+ * Compute the signed StarCraft EPD index for a 4-byte-aligned address:
+ * `EPD(addr) = (addr - 0x58A364) / 4`.
+ */
+export function EPD(addr: number): number {
+  return Math.floor(((addr >>> 0) - EPD_BASE) / 4);
+}
+
+export const epd = EPD;
+
+/**
+ * Loud structured DSL error carrying a canonical error code (e.g. `EUDSL-BOUNDS`).
+ *
+ * Re-exported from the leaf `errors` module so condition combinators can raise
+ * it without a `conditions` -> `view` cycle.
+ */
+export { EudslError };
+
+/**
+ * Render an arbitrary operand for an error message.
+ *
+ * This is the pre-dedupe leaf rendering: strings are JSON-quoted, numbers
+ * render bare, and everything else is named by `typeof` (`a boolean`,
+ * `a object`, `a undefined`, ...). FE0 briefly routed every operand through
+ * a `null`/`undefined`-aware variant, changing the messages callers saw.
+ */
+export function describeValue(value: unknown): string {
+  if (typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "number") return String(value);
+  return `a ${typeof value}`;
+}
+
+/**
+ * Validate an integer operand domain (ADR 0019): a plain integer is the only
+ * numeric domain; magnitude is not part of the check (32-bit normalisation
+ * happens downstream). Everything else raises `EUDSL-TYPE` at the call.
+ */
+export function requirePlainInt(value: unknown, what: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value)) {
+    throw new EudslError("EUDSL-TYPE", `${what} must be a plain integer, got ${describeValue(value)}`);
+  }
+  return value;
+}
+
+/**
+ * Reject an absolute dword address that is not 4-byte aligned.
+ *
+ * A whole-dword read/write names one of `EPD_BASE + 4 * epd`. An unaligned
+ * address silently rounds to the containing dword, and the two conversions in
+ * the tree round in different directions: `EPD()` floors while
+ * `eudkit_lir::epd_u32` truncates (they agree only on aligned input, which is
+ * why alignment is the seam's job). Measured with `0x57F0B2`: the gate read
+ * the dword at `0x57F0B0` and the store wrote the dword at `0x57F0B4` with no
+ * error anywhere.
+ *
+ * This is *not* a guard for byte-lane access. `DatFieldHandle`,
+ * `SetStringDword` and mode-1 string relocations deliberately floor an
+ * unaligned field address and mask the byte lane; that names a byte inside
+ * the containing dword, not a whole-dword access, so it must not be routed
+ * through this check (and `EPD()` itself stays unguarded).
+ */
+export function requireAlignedDwordAddress(address: number, subject: string): void {
+  const folded = address >>> 0;
+  if (folded & 3) {
+    throw new EudslError(
+      "EUDSL-BOUNDS",
+      `${subject} 0x${folded.toString(16)} is not 4-byte aligned`,
+    );
+  }
+}
+
+/**
+ * Structured DSL warning carrying a canonical warning code (e.g. `EUDSL-WARN-PERF`).
+ */
+export class EudslWarning {
+  readonly code: string;
+  readonly message: string;
+
+  constructor(code: string, message: string) {
+    this.code = code;
+    this.message = `${code}: ${message}`;
+  }
+
+  toString(): string {
+    return this.message;
+  }
+}
+
+export type WarningListener = (warning: { code: string; message: string }) => void;
+
+let warningListeners: WarningListener[] = [];
+
+/**
+ * Register a listener for non-fatal DSL compiler warnings.
+ * Returns an unsubscribe function.
+ */
+export function onWarning(fn: WarningListener): () => void {
+  warningListeners.push(fn);
+  return () => {
+    warningListeners = warningListeners.filter((l) => l !== fn);
+  };
+}
+
+export function emitWarning(code: string, message: string): void {
+  const formatted = `${code}: ${message}`;
+  for (const listener of [...warningListeners]) {
+    listener({ code, message: formatted });
+  }
+  if (typeof process !== "undefined" && typeof process.emitWarning === "function") {
+    process.emitWarning(formatted, { code });
+  }
+}
+
+/**
+ * One canonical EUDSL-WARN-SCOPE message for every lazy* factory, quoted
+ * verbatim by ADR 0005, GLOSSARY.md, and the cross-frontend tests.
+ */
+export const WARN_SCOPE_CODE = "EUDSL-WARN-SCOPE";
+export const WARN_SCOPE_MESSAGE =
+  "lazy* declared inside buildModule; use eager Var for in-module declarations";
+
+/**
+ * Emit the canonical `EUDSL-WARN-SCOPE` warning when a `lazy*` factory is
+ * called inside `buildModule`.
+ *
+ * Warning dispatch lives in this module, next to `EudslWarning` and
+ * `emitWarning`, so every declaration module can import it without a cycle
+ * (the string module used to own it, but string is itself a lazy factory
+ * module).
+ */
+export function warnLazyInBuilder(): void {
+  if (_getActiveModuleBuilder()) {
+    emitWarning(WARN_SCOPE_CODE, WARN_SCOPE_MESSAGE);
+  }
+}
+
+export type FieldWidth = 1 | 2 | 4;
+
+export interface FieldSpec {
+  readonly offset: number;
+  readonly size: FieldWidth;
+  readonly mask?: number;
+  readonly pointer?: string;
+  readonly composite?: string;
+  readonly aliases?: readonly string[];
+}
+
+export interface MemViewSchema<K extends string = string> {
+  readonly name: string;
+  readonly size: number;
+  readonly fields: Readonly<Record<K, FieldSpec>>;
+}
+
+export function defineMemView<K extends string>(
+  name: string,
+  size: number,
+  fields: Record<K, FieldSpec>,
+): MemViewSchema<K> {
+  return Object.freeze({
+    name,
+    size,
+    fields: Object.freeze({ ...fields }),
+  });
+}
+
+/** Built-in 20-byte (5-EPD) condition slot view (`IIIHBBBBH`). */
+export const CondView = defineMemView("CondView", 20, {
+  mask: { offset: 0, size: 4 },
+  player: { offset: 4, size: 4 },
+  amount: { offset: 8, size: 4 },
+  unit: { offset: 12, size: 2 },
+  comparison: { offset: 14, size: 1 },
+  condtype: { offset: 15, size: 1 },
+  restype: { offset: 16, size: 1 },
+  flags: { offset: 17, size: 1 },
+  eudx: { offset: 18, size: 2 },
+});
+
+/** Built-in 32-byte (8-EPD) action slot view (`IIIIIIHBBBBH`). */
+export const ActView = defineMemView("ActView", 32, {
+  mask: { offset: 0, size: 4 },
+  strid: { offset: 4, size: 4 },
+  wavid: { offset: 8, size: 4 },
+  time: { offset: 12, size: 4 },
+  dest: { offset: 16, size: 4 },
+  value: { offset: 20, size: 4 },
+  unit: { offset: 24, size: 2 },
+  acttype: { offset: 26, size: 1 },
+  modifier: { offset: 27, size: 1 },
+  flags: { offset: 28, size: 1 },
+  pad: { offset: 29, size: 1 },
+  eudx: { offset: 30, size: 2 },
+});
+
+// ---------------------------------------------------------------------------
+// TriggerFieldRef: bound field in Trigger / TriggerPage
+// ---------------------------------------------------------------------------
+
+export class TriggerFieldRef {
+  readonly triggerId: number;
+  readonly varId?: number;
+  readonly byteOffset: number;
+  readonly alignedByteOffset: number;
+  readonly epdOffset: number;
+  readonly subp: 0 | 1 | 2 | 3;
+  readonly shift: 0 | 8 | 16 | 24;
+  readonly size: FieldWidth;
+  readonly bitMask: number;
+  readonly initialValue: number;
+  /** No symbolic name: a raw field reference is addressed by offset. */
+  readonly fieldName?: undefined;
+
+  constructor(
+    triggerId: number,
+    byteOffset: number,
+    size: FieldWidth,
+    initialValue = 0,
+    varId?: number,
+    customMask?: number,
+  ) {
+    this.triggerId = triggerId;
+    if (varId !== undefined) {
+      this.varId = varId;
+    }
+    this.byteOffset = byteOffset;
+    const subp = (byteOffset & 3) as 0 | 1 | 2 | 3;
+    this.alignedByteOffset = byteOffset - subp;
+    this.epdOffset = Math.floor(this.alignedByteOffset / 4);
+    this.subp = subp;
+    this.shift = (subp * 8) as 0 | 8 | 16 | 24;
+    this.size = size;
+    const rawMask = size === 4 ? 0xffffffff : size === 2 ? 0xffff : 0xff;
+    this.bitMask = customMask !== undefined ? customMask >>> 0 : ((rawMask << this.shift) >>> 0);
+    this.initialValue = initialValue >>> 0;
+  }
+
+  static forVar(
+    varId: number,
+    byteOffset: number,
+    size: FieldWidth,
+    initialValue = 0,
+  ): TriggerFieldRef {
+    return new TriggerFieldRef(-1, byteOffset, size, initialValue, varId);
+  }
+
+  /** This field's comparison kernel (the one source of comparison truth). */
+  valueSpace(): FieldValueSpace {
+    return new FieldValueSpace(this.bitMask, this.shift, this.size);
+  }
+
+  act_set(rhs: number): HirAct {
+    const val = (requirePlainInt(rhs, "field write") << this.shift) >>> 0;
+    return SetDeathsX(this, SetTo, val, 0, this.bitMask);
+  }
+
+  act_add(rhs: number): HirAct {
+    const val = (requirePlainInt(rhs, "field write") << this.shift) >>> 0;
+    return SetDeathsX(this, Add, val, 0, this.bitMask);
+  }
+
+  act_sub(rhs: number): HirAct {
+    const val = (requirePlainInt(rhs, "field write") << this.shift) >>> 0;
+    return SetDeathsX(this, Subtract, val, 0, this.bitMask);
+  }
+
+  set(rhs: number): HirAct {
+    return this.act_set(rhs);
+  }
+
+  iadd(rhs: number): HirAct {
+    return this.act_add(rhs);
+  }
+
+  isub(rhs: number): HirAct {
+    return this.act_sub(rhs);
+  }
+
+  eq(rhs: number): HirCond {
+    return applyComparison(this.valueSpace(), "eq", rhs, () => this, {
+      what: "field comparison",
+    }) as HirCond;
+  }
+
+  ge(rhs: number): HirCond {
+    return applyComparison(this.valueSpace(), "ge", rhs, () => this.condTarget(), {
+      what: "field comparison",
+    }) as HirCond;
+  }
+
+  le(rhs: number): HirCond {
+    return applyComparison(this.valueSpace(), "le", rhs, () => this.condTarget(), {
+      what: "field comparison",
+    }) as HirCond;
+  }
+
+  gt(rhs: number): HirCond {
+    return applyComparison(this.valueSpace(), "gt", rhs, () => this.condTarget(), {
+      what: "field comparison",
+    }) as HirCond;
+  }
+
+  lt(rhs: number): HirCond {
+    return applyComparison(this.valueSpace(), "lt", rhs, () => this.condTarget(), {
+      what: "field comparison",
+    }) as HirCond;
+  }
+
+  ne(rhs: number): CondLike {
+    return applyComparison(
+      this.valueSpace(),
+      "ne",
+      rhs,
+      () => this.condTarget(),
+      {
+        what: "field comparison",
+        fieldName: this.fieldName,
+        defer: (constant) => new DeferredNe(this, constant),
+      },
+    );
+  }
+
+  /**
+   * Condition target for this surface — the reference itself.
+   *
+   * `MemFieldHandle.condTarget()` resolves an absolute EPD; a raw field
+   * reference already names its slot directly, so the deferred marker can
+   * treat both surfaces uniformly.
+   *
+   * @internal Seam helper: the `TriggerFieldRef` analogue of
+   * {@link MemFieldHandle.condTarget}.
+   */
+  condTarget(): TriggerFieldRef {
+    return this;
+  }
+
+  read(): VarImpl {
+    const numBits = this.size * 8;
+    const res = Var(0);
+    // Reset the accumulator every time this read site executes (reads inside
+    // loops would otherwise accumulate into the previous result).
+    new Trigger({
+      conds: [],
+      acts: [res.act_set(0)],
+      preserved: true,
+    });
+    emitBitTestRead(this, numBits, this.shift, res, this.bitMask);
+    return res;
+  }
+
+  valueOf(): number {
+    return this.initialValue;
+  }
+
+  [Symbol.toPrimitive](): number {
+    return this.initialValue;
+  }
+}
+
+/**
+ * Reject a custom mask whose set bits fall below the field's byte shift.
+ */
+function validateMaskShift(mask: number, shift: number, fieldName?: string): void {
+  if (shift > 0 && (mask & ((1 << shift) - 1)) !== 0) {
+    const label = fieldName ?? "field";
+    throw new EudslError(
+      "EUDSL-BOUNDS",
+      `mask ${mask.toString(16)} on ${label} has set bits below shift ${shift}; ` +
+        "the accumulator cannot represent them in field units",
+    );
+  }
+}
+
+/**
+ * Fold an ordering comparison no value in the field's space can satisfy.
+ *
+ * `c` is the constant normalised to 32 bits. Returns `"never"` (the
+ * comparison can never hold), `"always"` (it holds for every value), or
+ * `undefined` (emit the comparison). Only constants *outside* the space fold,
+ * so well-formed HIR stays byte-identical.
+ *
+ * The folds compare numerically (`c > maxVal`), not with `c & ~maxVal`: on a
+ * non-contiguous mask a constant naming a representable threshold must stay
+ * eager.
+ */
+function foldOrdering(
+  op: "ge" | "le" | "gt" | "lt",
+  c: number,
+  maxVal: number,
+): "never" | "always" | undefined {
+  if (op === "ge") return c > maxVal ? "never" : undefined;
+  if (op === "le") return c > maxVal ? "always" : undefined;
+  if (op === "gt") return c >= maxVal ? "never" : undefined;
+  if (op === "lt") {
+    if (c === 0) return "never";
+    return c > maxVal ? "always" : undefined;
+  }
+  throw new Error(`not an ordering op: ${op}`);
+}
+
+/**
+ * Largest value representable in the field's units, derived from the mask.
+ *
+ * A field's value space is the set of bit patterns inside `bitMask`,
+ * interpreted as field units (`raw >> shift`). Because any bit-subset of the
+ * mask is representable, its largest member is the whole mask shifted down —
+ * including for *straddling* fields, where that is smaller than the nominal
+ * width.
+ *
+ * `size` is accepted for signature symmetry with `FieldSpec`; the mask alone
+ * determines the space.
+ */
+export function fieldValueSpace(
+  bitMask: number,
+  shift: number,
+  size: FieldWidth,
+): number {
+  void size;
+  return ((bitMask >>> 0) >>> shift) >>> 0;
+}
+
+export type ComparisonOp = "eq" | "ne" | "ge" | "le" | "gt" | "lt";
+
+/**
+ * One comparison decided in a field's value space.
+ *
+ * `fold` is `"never"`/`"always"` when no value in the space can satisfy the
+ * comparison, `"defer"` when a middle `ne` constant must be materialized at
+ * the use site, and `undefined` when the adapter should emit `comparison`
+ * against `value` (already shifted into the field's lane).
+ */
+export interface ComparisonPlan {
+  readonly fold?: "never" | "always" | "defer";
+  readonly comparison?: number;
+  readonly value?: number;
+}
+
+/**
+ * The value space of one masked field and its six comparison decisions.
+ *
+ * A field's value space is the set of bit patterns inside `bitMask`,
+ * interpreted as field units (`raw >> shift`). Because any bit-subset of the
+ * mask is representable, its largest member is the whole mask shifted down —
+ * including for *straddling* fields, where that is smaller than the nominal
+ * width.
+ *
+ * `size` is carried for symmetry with `FieldSpec`; the mask alone determines
+ * the space.
+ *
+ * The three comparison surfaces — `TriggerFieldRef`, `MemFieldHandle` and
+ * `Var(explicitMask)` — all ask this object, so the fold table and constant
+ * normalisation exist once. Writes, lane resolution and the concrete HIR
+ * record stay with the adapters.
+ */
+export class FieldValueSpace {
+  readonly bitMask: number;
+  readonly shift: number;
+  readonly size: FieldWidth;
+
+  constructor(bitMask: number, shift: number, size: FieldWidth = 4) {
+    this.bitMask = bitMask >>> 0;
+    this.shift = shift;
+    this.size = size;
+  }
+
+  get maxValue(): number {
+    return fieldValueSpace(this.bitMask, this.shift, this.size);
+  }
+
+  /** Normalise a field-unit constant to its in-lane bit pattern. */
+  lane(constant: number): number {
+    return (constant << this.shift) >>> 0;
+  }
+
+  /** Reject a mask whose set bits sit below the field's byte shift. */
+  validate(fieldName?: string): void {
+    validateMaskShift(this.bitMask, this.shift, fieldName);
+  }
+
+  /** Decide `op` against `constant` (already normalised to 32 bits). */
+  compare(op: ComparisonOp, constant: number, fieldName?: string): ComparisonPlan {
+    const maxVal = this.maxValue;
+    switch (op) {
+      case "eq":
+        if (((constant & ~maxVal) >>> 0) !== 0) {
+          // A constant the field cannot hold can never equal it.
+          return { fold: "never" };
+        }
+        return { comparison: Exactly, value: this.lane(constant) };
+      case "ne":
+        // Validate before folding: an invalid mask must stay a loud error
+        // rather than silently becoming an always-true condition.
+        this.validate(fieldName);
+        if (((constant & ~maxVal) >>> 0) !== 0) {
+          // Unrepresentable constant ⇒ "always unequal".
+          return { fold: "always" };
+        }
+        if (constant === 0) {
+          return { comparison: AtLeast, value: (1 << this.shift) >>> 0 };
+        }
+        if (constant === maxVal) {
+          return {
+            comparison: AtMost,
+            value: ((maxVal - 1) << this.shift) >>> 0,
+          };
+        }
+        return { fold: "defer" };
+      case "ge": {
+        const fold = foldOrdering("ge", constant, maxVal);
+        return fold !== undefined
+          ? { fold }
+          : { comparison: AtLeast, value: this.lane(constant) };
+      }
+      case "le": {
+        const fold = foldOrdering("le", constant, maxVal);
+        return fold !== undefined
+          ? { fold }
+          : { comparison: AtMost, value: this.lane(constant) };
+      }
+      case "gt": {
+        const fold = foldOrdering("gt", constant, maxVal);
+        return fold !== undefined
+          ? { fold }
+          : {
+              comparison: AtLeast,
+              value: this.lane((constant + 1) >>> 0),
+            };
+      }
+      case "lt": {
+        const fold = foldOrdering("lt", constant, maxVal);
+        return fold !== undefined
+          ? { fold }
+          : {
+              comparison: AtMost,
+              value: this.lane((constant - 1) >>> 0),
+            };
+      }
+      default:
+        throw new Error(`not a comparison op: ${op}`);
+    }
+  }
+}
+
+/**
+ * Emit (or fold/defer) one comparison through the shared kernel.
+ *
+ * `target` is lazy so a folded comparison never resolves a condition target —
+ * an important no-move guard for CP-backed fields. `defer` is the adapter's
+ * use-site marker factory; only `ne` can decide to defer.
+ */
+export function applyComparison(
+  space: FieldValueSpace,
+  op: ComparisonOp,
+  rhs: unknown,
+  target: () => number | TriggerFieldRef,
+  options: {
+    readonly what: string;
+    readonly fieldName?: string;
+    readonly fullMaskDeaths?: boolean;
+    readonly defer?: (constant: number) => CondLike;
+  },
+): CondLike {
+  if (op === "ne") {
+    // Preserve the historical precedence: an invalid mask is a loud
+    // EUDSL-BOUNDS before the operand guard names a bad constant.
+    space.validate(options.fieldName);
+  }
+  const constant = requirePlainInt(rhs, options.what) >>> 0;
+  const plan = space.compare(op, constant, options.fieldName);
+  if (plan.fold === "never") return Never();
+  if (plan.fold === "always") return Always();
+  if (plan.fold === "defer") {
+    if (options.defer === undefined) {
+      throw new Error(`${op} deferred without a marker factory`);
+    }
+    return options.defer(constant);
+  }
+  const comparison = plan.comparison as number;
+  const value = plan.value as number;
+  // A whole-dword `Var` keeps the compact `Deaths` row; the field adapters
+  // always use `DeathsX`, exactly as before the kernel existed.
+  if (options.fullMaskDeaths === true && space.bitMask === 0xffffffff) {
+    return Deaths(target(), comparison, value, 0);
+  }
+  return DeathsX(target(), comparison, value, 0, space.bitMask);
+}
+
+
+/**
+ * Append one bit-test trigger per bit of `target` into `dst`.
+ *
+ * Each trigger adds `1 << bit` to the accumulator when the corresponding bit
+ * of the source field is set. The caller owns the accumulator reset, so reset
+ * ordering (including any queued CP move) stays at the read site.
+ *
+ * With `extraConds` given, every bit-test trigger also carries those
+ * conditions, prepended before the bit condition. The `FixedArray.get` reader
+ * gates its 32 tests with `index < length` so an out-of-range index leaves the
+ * result at 0, matching the per-element unroll. The default `undefined` path is
+ * unchanged.
+ */
+export function emitBitTestRead(
+  target: number | TriggerFieldRef,
+  numBits: number,
+  shift: number,
+  dst: VarImpl,
+  mask?: number,
+  fieldName?: string,
+  extraConds?: readonly HirCond[],
+): void {
+  let bitPositions: number[];
+  if (mask === undefined) {
+    bitPositions = [];
+    for (let b = 0; b < numBits; b++) {
+      bitPositions.push(shift + b);
+    }
+  } else {
+    validateMaskShift(mask, shift, fieldName);
+    bitPositions = [];
+    for (let p = shift; p < 32; p++) {
+      if (((mask >>> p) & 1) !== 0) {
+        bitPositions.push(p);
+      }
+    }
+  }
+
+  for (const bitPos of bitPositions) {
+    const maskBit = (1 << bitPos) >>> 0;
+    const addVal = (1 << (bitPos - shift)) >>> 0;
+    new Trigger({
+      conds: [...(extraConds ?? []), DeathsX(target, AtLeast, maskBit, 0, maskBit)],
+      acts: [SetDeathsX(dst.value, Add, addVal, 0, 0xffffffff)],
+    });
+  }
+}
+
+/**
+ * Read `bits` bits from the dword at `epd` into a fresh `Var`.
+ *
+ * The accumulator reset is owned by this read site (never by
+ * {@link emitBitTestRead}), so a caller that queued a CP move keeps its
+ * ordering. This helper itself is for direct reads with no queued CP move.
+ *
+ * `mask` follows {@link emitBitTestRead}: with a mask, one trigger per set bit
+ * of the mask at or above `shift`; without it, the exact `bits` window starting
+ * at `shift`.
+ *
+ * A full 32-bit dword read (`bits === 32`, `shift === 0`, full mask) is the
+ * shared-reader shape: it goes through {@link sharedDwordReader} exactly like
+ * `MemFieldHandle.read()`. Inlining the 32 bit tests here would make a direct
+ * caller (e.g. `bgm`) pay the per-site reader again.
+ */
+export function readEpd(
+  epd: number,
+  bits: number,
+  shift: number,
+  mask?: number,
+): VarImpl {
+  if (
+    bits === 32 &&
+    shift === 0 &&
+    (mask === undefined || (mask >>> 0) === 0xffffffff)
+  ) {
+    return sharedDwordReader()(epd);
+  }
+  const res = Var(0);
+  // Reset the accumulator at the read site: a re-entered body must not
+  // accumulate onto the previous pass's result.
+  new Trigger({ conds: [], acts: [res.act_set(0)], preserved: true });
+  emitBitTestRead(epd, bits, shift, res, mask);
+  return res;
+}
+
+/**
+ * Read the dword at `epd` and return its *EPD* (`f_epdread_epd`).
+ *
+ * The dword holds a byte address `D` (the game's own pointer, e.g. the table
+ * pointer at `0x58D740`). `EPD(D) = (D - 0x58A364) / 4`, so dropping bits 0-1
+ * (addresses are dword aligned) and subtracting `EPD_BASE / 4` folds the
+ * conversion into the bit-test accumulator the read already pays for.
+ */
+export function readEpdPointer(epd: number): VarImpl {
+  const res = readEpd(epd, 30, 2, 0xfffffffc);
+  res.isub(EPD_BASE >>> 2);
+  return res;
+}
+
+// ---------------------------------------------------------------------------
+// Shared full-dword reader (one subroutine per build)
+// ---------------------------------------------------------------------------
+//
+// The inline reader is 32 bit-test triggers per call site. Declaring it once
+// and calling it makes a site pay the call sequence instead, so K sites of an
+// M-trigger reader cost O(K + M) triggers instead of O(K x M).
+//
+// The body takes the EPD as a *parameter variable*: each bit-test condition's
+// `player` field is a relocation into that variable's slot, so the engine
+// reads the address when the condition fires. A call site therefore binds one
+// argument (a constant store into the parameter slot, one act) instead of
+// rewriting 32 condition fields, and the body stays reentrant per call.
+
+/**
+ * Late-bound `func()` factory.
+ *
+ * `view` cannot import `temporal` (temporal imports view), so temporal
+ * registers its public `Func` here at module load. The shared reader then
+ * declares its body through the same code path user subroutines use.
+ */
+type FuncFactory = (body: (...params: VarImpl[]) => VarImpl | void) => unknown;
+// `var`, not `let`: `view` -> `var` -> `temporal` -> `view` is a module cycle,
+// so temporal's registration call can run while view is still evaluating its
+// body. `var` is hoisted and initialized before evaluation, so the write
+// lands; a `let` would be in its TDZ. Deliberately no initializer: a later
+// `= null` on this line would clobber the registration.
+// eslint-disable-next-line no-var
+var funcFactory: FuncFactory | null | undefined;
+
+export function _registerFuncFactory(factory: FuncFactory): void {
+  funcFactory = factory;
+}
+
+/** Callable handle for the shared full-dword reader. */
+export interface SharedDwordReader {
+  (epd: number): VarImpl;
+}
+
+const sharedDwordReaders = new WeakMap<object, Map<number, () => VarImpl>>();
+
+/**
+ * Return this build's shared full-dword reader, declaring bodies lazily.
+ *
+ * The engine reads a condition's `player` field as a literal EPD, so a shared
+ * body cannot take the address as a runtime variable (the field would name the
+ * variable's slot, not the dword it holds). Patching the 32 fields per call
+ * would regress executed cost, so each distinct address gets its own body:
+ * sites that read the same field share one body, and the body keeps literal
+ * `player` fields.
+ */
+function sharedDwordReader(): SharedDwordReader {
+  const builder = _getActiveModuleBuilder();
+  if (builder === null) {
+    throw new EudslError(
+      "EUDSL-SCOPE",
+      "field.read() must be called inside buildModule()",
+    );
+  }
+  let kernels = sharedDwordReaders.get(builder);
+  if (kernels === undefined) {
+    kernels = new Map<number, () => VarImpl>();
+    sharedDwordReaders.set(builder, kernels);
+  }
+  const declared = kernels;
+
+  const declare = (epd: number): (() => VarImpl) => {
+    const kernelBody = (): VarImpl => {
+      const res = Var(0);
+      res.set(0);
+      for (let bit = 0; bit < 32; bit++) {
+        const maskBit = (1 << bit) >>> 0;
+        new Trigger({
+          conds: [DeathsX(epd, AtLeast, maskBit, 0, maskBit)],
+          acts: [SetDeathsX(res.value, Add, maskBit, 0, 0xffffffff)],
+        });
+      }
+      return res;
+    };
+    if (funcFactory === null || funcFactory === undefined) {
+      throw new EudslError(
+        "EUDSL-SCOPE",
+        "field.read() requires the temporal frontend to be loaded",
+      );
+    }
+    return funcFactory(kernelBody) as () => VarImpl;
+  };
+
+  return ((epd: number): VarImpl => {
+    const target = requirePlainInt(epd, "field read target") >>> 0;
+    let handle = declared.get(target);
+    if (handle === undefined) {
+      handle = declare(target);
+      declared.set(target, handle);
+    }
+    return handle();
+  }) as SharedDwordReader;
+}
+
+// ---------------------------------------------------------------------------
+// MemFieldHandle: field handle on a MemView instance
+// ---------------------------------------------------------------------------
+
+export interface CursorLike {
+  moveTo(dwordOffset: number): void;
+}
+
+export class MemFieldHandle {
+  readonly schema: MemViewSchema;
+  readonly spec: FieldSpec;
+  readonly baseEpd: number | CursorLike | any;
+  readonly fieldName: string;
+
+  readonly byteOffset: number;
+  readonly size: FieldWidth;
+  readonly subp: 0 | 1 | 2 | 3;
+  readonly shift: 0 | 8 | 16 | 24;
+  readonly alignedByteOffset: number;
+  readonly dwordOffset: number;
+  readonly bitMask: number;
+  readonly epd?: number;
+
+  constructor(
+    schema: MemViewSchema,
+    spec: FieldSpec,
+    baseEpd: number | CursorLike | any,
+    fieldName: string,
+  ) {
+    this.schema = schema;
+    this.spec = spec;
+    this.baseEpd = baseEpd;
+    this.fieldName = fieldName;
+
+    this.byteOffset = spec.offset;
+    this.size = spec.size;
+    const subp = (spec.offset & 3) as 0 | 1 | 2 | 3;
+    this.subp = subp;
+    this.shift = (subp * 8) as 0 | 8 | 16 | 24;
+    this.alignedByteOffset = spec.offset - subp;
+    this.dwordOffset = Math.floor(spec.offset / 4);
+
+    const rawMask = spec.size === 4 ? 0xffffffff : spec.size === 2 ? 0xffff : 0xff;
+    this.bitMask = spec.mask !== undefined ? spec.mask >>> 0 : ((rawMask << this.shift) >>> 0);
+
+    if (typeof baseEpd === "number") {
+      this.epd = baseEpd + this.dwordOffset;
+    }
+  }
+
+  private isCP(): boolean {
+    return typeof this.baseEpd === "object" && this.baseEpd !== null && "moveTo" in this.baseEpd;
+  }
+
+  private prepareTarget(): number {
+    if (this.isCP()) {
+      (this.baseEpd as CursorLike).moveTo(this.dwordOffset);
+      return CurrentPlayer; // 13
+    }
+    if (typeof this.baseEpd === "number") {
+      return this.baseEpd + this.dwordOffset;
+    }
+    throw new EudslError(
+      "EUDSL-TARGET",
+      `Dynamic Var EPD access on field '${this.fieldName}' requires withCP scope`,
+    );
+  }
+
+  /**
+   * Absolute EPD for a condition: no act, so no scope/alias state.
+   *
+   * `withCP(base)` rejects a dynamic base, so `base + dwordOffset` names the
+   * same dword at every evaluation site. `base === 0` is the internal
+   * "follow the live CP" sentinel (`CPCursor(0)` from `read()`), so keep the
+   * hop path for it.
+   *
+   * @internal Seam helper: the condition-only analogue of `prepareTarget`.
+   */
+  condTarget(): number {
+    if (this.isCP()) {
+      const base = (this.baseEpd as { baseEpd?: unknown }).baseEpd;
+      if (typeof base === "number" && base !== 0) {
+        return base + this.dwordOffset;
+      }
+    }
+    return this.prepareTarget();
+  }
+
+  /** This field's comparison kernel (the one source of comparison truth). */
+  valueSpace(): FieldValueSpace {
+    return new FieldValueSpace(this.bitMask, this.shift, this.size);
+  }
+
+  // Validate the operand *before* `prepareTarget()`: on a CP base the target
+  // step queues a move act, and a rejected write must leave no stray act.
+  act_set(rhs: number): HirAct {
+    const val = (requirePlainInt(rhs, "field write") << this.shift) >>> 0;
+    const target = this.prepareTarget();
+    return SetDeathsX(target, SetTo, val, 0, this.bitMask);
+  }
+
+  act_add(rhs: number): HirAct {
+    const val = (requirePlainInt(rhs, "field write") << this.shift) >>> 0;
+    const target = this.prepareTarget();
+    return SetDeathsX(target, Add, val, 0, this.bitMask);
+  }
+
+  act_sub(rhs: number): HirAct {
+    const val = (requirePlainInt(rhs, "field write") << this.shift) >>> 0;
+    const target = this.prepareTarget();
+    return SetDeathsX(target, Subtract, val, 0, this.bitMask);
+  }
+
+  set(rhs: number): void {
+    this.act_set(rhs);
+  }
+
+  iadd(rhs: number): void {
+    this.act_add(rhs);
+  }
+
+  isub(rhs: number): void {
+    this.act_sub(rhs);
+  }
+
+  eq(rhs: number): HirCond {
+    return applyComparison(
+      this.valueSpace(),
+      "eq",
+      rhs,
+      () => this.condTarget(),
+      { what: "field comparison" },
+    ) as HirCond;
+  }
+
+  ge(rhs: number): HirCond {
+    return applyComparison(
+      this.valueSpace(),
+      "ge",
+      rhs,
+      () => this.condTarget(),
+      { what: "field comparison" },
+    ) as HirCond;
+  }
+
+  le(rhs: number): HirCond {
+    return applyComparison(
+      this.valueSpace(),
+      "le",
+      rhs,
+      () => this.condTarget(),
+      { what: "field comparison" },
+    ) as HirCond;
+  }
+
+  gt(rhs: number): HirCond {
+    return applyComparison(
+      this.valueSpace(),
+      "gt",
+      rhs,
+      () => this.condTarget(),
+      { what: "field comparison" },
+    ) as HirCond;
+  }
+
+  lt(rhs: number): HirCond {
+    return applyComparison(
+      this.valueSpace(),
+      "lt",
+      rhs,
+      () => this.condTarget(),
+      { what: "field comparison" },
+    ) as HirCond;
+  }
+
+  ne(rhs: number): CondLike {
+    return applyComparison(
+      this.valueSpace(),
+      "ne",
+      rhs,
+      () => this.condTarget(),
+      {
+        what: "field comparison",
+        fieldName: this.fieldName,
+        defer: (constant) => new DeferredNe(this, constant),
+      },
+    );
+  }
+
+  read(): VarImpl {
+    const target = this.prepareTarget();
+    if (this.size === 4 && this.shift === 0 && this.bitMask === 0xffffffff) {
+      // Full dword: one shared kernel serves every site (see
+      // `sharedDwordReader`). Wider/partial fields keep the inline reader.
+      return sharedDwordReader()(target);
+    }
+    const numBits = this.size * 8;
+    const res = Var(0);
+    // `prepareTarget()` may queue a CP move as an immediate act; this
+    // unconditional trigger consumes it and resets the accumulator, so
+    // repeated reads (loops) start from zero.
+    new Trigger({
+      conds: [],
+      acts: [res.act_set(0)],
+      preserved: true,
+    });
+    emitBitTestRead(target, numBits, this.shift, res, this.bitMask, this.fieldName);
+    return res;
+  }
+}
+
+/**
+ * Any field surface whose `ne` can defer.
+ *
+ * `MemFieldHandle` and `TriggerFieldRef` share the field geometry, the two
+ * bounding comparisons and a condition target, so both defer through one
+ * marker.
+ */
+interface FieldSurface {
+  readonly size: FieldWidth;
+  readonly shift: 0 | 8 | 16 | 24;
+  readonly bitMask: number;
+  readonly fieldName?: string;
+  condTarget(): number | TriggerFieldRef;
+  eq(rhs: number): HirCond;
+  lt(rhs: number): HirCond;
+  gt(rhs: number): HirCond;
+}
+
+/**
+ * `field.ne(k)` for a middle constant, materialized at the use site.
+ *
+ * The eager path built `diff = k; diff.isub(read())` at construction, so a
+ * `whileLoop` gate re-checked a stale `diff` every pass. This marker records
+ * intent instead: every {@link materialize} resets `diff` to `k` and then
+ * queues exactly the acts the eager path queued into the same temporaries.
+ * The first call allocates those temporaries and later calls reuse them; both
+ * emit the reset, so the loop tail rebuilds the comparison from live memory
+ * and a one-shot site (`when`, a raw `Trigger`) starts every pass clean.
+ *
+ * The read target is resolved through the surface's absolute-EPD
+ * {@link MemFieldHandle.condTarget}, so a CP-backed field needs no hop.
+ */
+class DeferredNe implements MaterializableCond {
+  readonly surface: FieldSurface;
+  readonly neConst: number;
+  private diff?: VarImpl;
+  private res?: VarImpl;
+  private inv?: VarImpl;
+
+  constructor(surface: FieldSurface, neConst: number) {
+    this.surface = surface;
+    this.neConst = neConst;
+  }
+
+  /**
+   * `field != k` is the union `field < k || field > k`, matching the
+   * historical 4T deferred gate byte for byte.
+   */
+  gatePlan(): GatePlan {
+    validateMaskShift(
+      this.surface.bitMask,
+      this.surface.shift,
+      this.surface.fieldName,
+    );
+    return registerDetachedPlan(
+      {
+        kind: "or",
+        nodes: [
+          { kind: "lit", cond: this.surface.lt(this.neConst) },
+          { kind: "lit", cond: this.surface.gt(this.neConst) },
+        ],
+      },
+      this,
+    );
+  }
+
+  /** `!(field != k)` is the direct 1C `field == k`. */
+  complement(): CondLike {
+    return this.surface.eq(this.neConst);
+  }
+
+  materialize(): HirCond {
+    const h = this.surface;
+    const target = h.condTarget(); // absolute EPD; no act, no hop
+    // Allocation order must match the eager path: diff, res, inv.
+    let diff = this.diff;
+    if (!diff) {
+      diff = Var(this.neConst);
+      this.diff = diff;
+    }
+    let res = this.res;
+    if (!res) {
+      res = Var(0);
+      this.res = res;
+    }
+    let inv = this.inv;
+    if (!inv) {
+      inv = Var(0);
+      this.inv = inv;
+    }
+
+    // Reset the accumulator, then one bit test per in-mask bit.
+    new Trigger({ conds: [], acts: [res.act_set(0)], preserved: true });
+    emitBitTestRead(target, h.size * 8, h.shift, res, h.bitMask, h.fieldName);
+    // diff = k - res, wrapping, exactly as Var.isub(Var) emits it — but into
+    // cached temporaries, so a loop rebuild allocates nothing.
+    inv.set(0xffffffff);
+    saturatingSubInto(inv, res);
+    // The declaration init runs once; every evaluation site needs the reset
+    // re-emitted, including the first (one-shot) one.
+    diff.set(this.neConst);
+    diff.iadd(1);
+    diff.iadd(inv);
+    return Deaths(diff.value, AtLeast, 1, 0);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Schema Normalization & Resolution
+// ---------------------------------------------------------------------------
+
+function normalizeName(name: string): string {
+  return name.replace(/_/g, "").toLowerCase();
+}
+
+const schemaIndexCache = new WeakMap<MemViewSchema, Map<string, { name: string; spec: FieldSpec }>>();
+
+function buildSchemaIndex(schema: MemViewSchema): Map<string, { name: string; spec: FieldSpec }> {
+  let idx = schemaIndexCache.get(schema);
+  if (idx) return idx;
+
+  idx = new Map();
+  for (const [key, spec] of Object.entries(schema.fields) as [string, FieldSpec][]) {
+    const item = { name: key, spec };
+    idx.set(key, item);
+    idx.set(normalizeName(key), item);
+
+    if (spec.aliases) {
+      for (const alias of spec.aliases) {
+        idx.set(alias, item);
+        idx.set(normalizeName(alias), item);
+      }
+    }
+  }
+
+  // Common StarCraft domain aliases
+  const addAlias = (canonical: string, ...aliases: string[]) => {
+    const found = idx!.get(canonical) ?? idx!.get(normalizeName(canonical));
+    if (found) {
+      for (const a of aliases) {
+        idx!.set(a, found);
+        idx!.set(normalizeName(a), found);
+      }
+    }
+  };
+
+  addAlias("hp", "hitPoints", "hit_points");
+  addAlias("shield", "shields");
+  addAlias("order", "orderID", "order_id");
+  addAlias("owner", "playerID", "player_id");
+  addAlias("posX", "pos_x");
+  addAlias("posY", "pos_y");
+
+  schemaIndexCache.set(schema, idx);
+  return idx;
+}
+
+function resolveField(schema: MemViewSchema, prop: string): { name: string; spec: FieldSpec } | undefined {
+  const index = buildSchemaIndex(schema);
+  return index.get(prop) ?? index.get(normalizeName(prop));
+}
+
+// ---------------------------------------------------------------------------
+// MemViewInstance: Proxy-based typed memory view
+// ---------------------------------------------------------------------------
+
+export class MemViewInstance {
+  readonly schema: MemViewSchema;
+  readonly baseEpd: number | any;
+
+  constructor(schema: MemViewSchema, baseEpd: number | any) {
+    this.schema = schema;
+    this.baseEpd = baseEpd;
+
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        if (typeof prop === "symbol" || prop in target) {
+          return Reflect.get(target, prop, receiver);
+        }
+        if (typeof prop === "string") {
+          const resolved = resolveField(target.schema, prop);
+          if (resolved) {
+            return new MemFieldHandle(target.schema, resolved.spec, target.baseEpd, resolved.name);
+          }
+          throw new EudslError(
+            "EUDSL-BOUNDS",
+            `Unknown field '${prop}' on layout '${target.schema.name}'`,
+          );
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+      set(target, prop, value, receiver) {
+        if (typeof prop === "symbol" || prop in target) {
+          return Reflect.set(target, prop, value, receiver);
+        }
+        if (typeof prop === "string") {
+          const resolved = resolveField(target.schema, prop);
+          if (resolved) {
+            new MemFieldHandle(
+              target.schema,
+              resolved.spec,
+              target.baseEpd,
+              resolved.name,
+            ).set(value);
+            return true;
+          }
+          throw new EudslError(
+            "EUDSL-BOUNDS",
+            `Unknown field '${prop}' on layout '${target.schema.name}'`,
+          );
+        }
+        return Reflect.set(target, prop, value, receiver);
+      },
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Layout Loaders & Pre-loaded Schemas
+// ---------------------------------------------------------------------------
+
+const __dirname_view = path.dirname(fileURLToPath(import.meta.url));
+
+export function locateSchemaFile(name: string): string {
+  // Packaged copy first: it ships inside the installed `eudkit` package
+  // (ts/schema/layouts, included by the `files` allowlist in package.json),
+  // so an installed import works outside the repo tree. The repo-tree and
+  // cwd candidates remain as dev fallbacks; the packaged copy is kept
+  // byte-identical to the repo canonical files by test_schema_packaging.ts.
+  // Note: from dist/ the first candidate (dist/schema/layouts) misses and
+  // the second (dist/../schema/layouts) hits — that is the same shipped
+  // copy, so no dist/schema duplication is needed.
+  const candidates = [
+    path.join(__dirname_view, "schema", "layouts", `${name}.json`),
+    path.join(__dirname_view, "..", "schema", "layouts", `${name}.json`),
+    path.join(process.cwd(), "schema", "layouts", `${name}.json`),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      return c;
+    }
+  }
+  throw new Error(`Schema file not found for '${name}'`);
+}
+
+export function loadLayout(name: string): MemViewSchema {
+  const filePath = locateSchemaFile(name);
+  const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  const fields: Record<string, FieldSpec> = {};
+  for (const [k, v] of Object.entries(data.fields) as [string, any][]) {
+    fields[k] = {
+      offset: v.offset,
+      size: v.size as FieldWidth,
+      mask: v.mask,
+      pointer: v.pointer,
+      composite: v.composite,
+      aliases: v.aliases,
+    };
+  }
+  return defineMemView(data.struct ?? name, data.size, fields);
+}
+
+export const CUnitSchema = loadLayout("cunit");
+export const CSpriteSchema = loadLayout("csprite");
+
+// ---------------------------------------------------------------------------
+// Constructors & Factories: CUnit, CSprite, MemView, MemCond
+// ---------------------------------------------------------------------------
+
+export interface MemViewFactory<S extends MemViewSchema = MemViewSchema> {
+  (epd: number | any): MemViewInstance & any;
+  new (epd: number | any): MemViewInstance & any;
+  readonly schema: S;
+}
+
+function makeFactory<S extends MemViewSchema>(schema: S): MemViewFactory<S> {
+  const factory = function (epd: number | any) {
+    return new MemViewInstance(schema, epd);
+  };
+  (factory as any).schema = schema;
+  return new Proxy(factory as unknown as MemViewFactory<S>, {
+    apply(_target, _thisArg, args: [number | any]) {
+      return new MemViewInstance(schema, args[0]);
+    },
+    construct(_target, args: [number | any]) {
+      return new MemViewInstance(schema, args[0]);
+    },
+  });
+}
+
+export const CUnit = makeFactory(CUnitSchema);
+export const CSprite = makeFactory(CSpriteSchema);
+
+export function MemView(
+  schema: MemViewSchema,
+  epd: number | any,
+): MemViewInstance & any {
+  return new MemViewInstance(schema, epd);
+}
+
+// Backward-compatible type alias
+export type MemView<K extends string = string> = MemViewSchema<K>;
+
+/**
+ * Single-condition in-place memory comparison against an `EPD` without
+ * materializing into a variable (1C / 1T when the `EPD` is constant).
+ */
+export function MemCond(
+  epdAddr: number | any,
+  comparison: number | string,
+  amount: number | any,
+  sizeOrMask: number = 4,
+): HirCond {
+  let cmp = comparison;
+  if (typeof cmp === "string") {
+    switch (cmp.toLowerCase()) {
+      case "exactly":
+      case "==":
+      case "=":
+        cmp = Exactly;
+        break;
+      case "atleast":
+      case ">=":
+        cmp = AtLeast;
+        break;
+      case "atmost":
+      case "<=":
+        cmp = AtMost;
+        break;
+      default:
+        throw new EudslError("EUDSL-CMP", `Unknown comparison: ${comparison}`);
+    }
+  } else {
+    // The two DSL parameters are guarded *here* so the error names the operand
+    // the author wrote (`MemCond comparison`), not the record field it would
+    // have reached. Only the numeric branch is guarded: a string is a
+    // comparison *name*, and an unknown name stays `EUDSL-CMP` (ADR 0019 §6).
+    cmp = requirePlainInt(cmp, "MemCond comparison");
+  }
+
+  sizeOrMask = requirePlainInt(sizeOrMask, "MemCond size_or_mask");
+
+  if (sizeOrMask === 4 || sizeOrMask === 0xffffffff) {
+    return Deaths(epdAddr, cmp as number, amount, 0);
+  }
+  if (sizeOrMask === 1) {
+    return DeathsX(epdAddr, cmp as number, amount, 0, 0xff);
+  }
+  if (sizeOrMask === 2) {
+    return DeathsX(epdAddr, cmp as number, amount, 0, 0xffff);
+  }
+  return DeathsX(epdAddr, cmp as number, amount, 0, sizeOrMask >>> 0);
+}

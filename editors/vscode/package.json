@@ -1,0 +1,49 @@
+{
+  "name": "eudkit-lsp",
+  "displayName": "eudkit LSP",
+  "description": "Completion, hover docs, and capacity diagnostics for eudkit TypeScript and Python DSL files",
+  "version": "0.3.0",
+  "publisher": "Tb1281",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Tb1281/eudkit.git"
+  },
+  "engines": {
+    "vscode": "^1.82.0"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Workspace binary discovery and custom server paths require a trusted workspace."
+    }
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "activationEvents": [
+    "onLanguage:typescript",
+    "onLanguage:python"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "eudkit LSP",
+      "properties": {
+        "eudkit.lsp.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the eudkit-lsp binary (auto-detects workspace target/{release,debug}/eudkit-lsp or PATH when empty)"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "scripts": {
+    "package": "npx @vscode/vsce package",
+    "test": "node --test test_extension.mjs"
+  }
+}

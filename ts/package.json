@@ -1,0 +1,42 @@
+{
+  "name": "eudkit",
+  "version": "3.0.0",
+  "description": "eudkit — Trigger (16C, 64A) EUD compiler and unified DSL",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Tb1281/eudkit.git"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "schema",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "clean": "node -e \"import('node:fs').then((fs) => fs.rmSync('dist', { recursive: true, force: true }))\"",
+    "generate:dat": "node scripts/generate-dat.ts",
+    "generate:stock": "node scripts/generate-stock.ts",
+    "prebuild": "node -e \"import('node:fs').then((fs) => fs.rmSync('dist', { recursive: true, force: true }))\"",
+    "test": "node --test tests/test_*.ts",
+    "typecheck": "tsc --noEmit && npm run typecheck:truthiness",
+    "typecheck:truthiness": "node --experimental-strip-types --no-warnings scripts/check-truthiness.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "^5.9.3"
+  }
+}

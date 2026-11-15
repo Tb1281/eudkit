@@ -1,0 +1,984 @@
+{
+  "struct": "CUnit",
+  "size": 336,
+  "version": "3.0",
+  "fields": {
+    "prev": {
+      "offset": 0,
+      "size": 4,
+      "pointer": "CUnit"
+    },
+    "next": {
+      "offset": 4,
+      "size": 4,
+      "pointer": "CUnit"
+    },
+    "hp": {
+      "offset": 8,
+      "size": 4
+    },
+    "sprite": {
+      "offset": 12,
+      "size": 4,
+      "pointer": "CSprite"
+    },
+    "moveTargetPos": {
+      "offset": 16,
+      "size": 4,
+      "composite": "PositionMember"
+    },
+    "moveTargetX": {
+      "offset": 16,
+      "size": 2,
+      "composite": "PositionXMember"
+    },
+    "moveTargetY": {
+      "offset": 18,
+      "size": 2,
+      "composite": "PositionYMember"
+    },
+    "moveTarget": {
+      "offset": 20,
+      "size": 4,
+      "pointer": "CUnit",
+      "aliases": [
+        "moveTargetUnit"
+      ]
+    },
+    "nextMovementWaypoint": {
+      "offset": 24,
+      "size": 4,
+      "composite": "PositionMember"
+    },
+    "nextTargetWaypoint": {
+      "offset": 28,
+      "size": 4,
+      "composite": "PositionMember"
+    },
+    "movementFlags": {
+      "offset": 32,
+      "size": 1
+    },
+    "currentDirection1": {
+      "offset": 33,
+      "size": 1
+    },
+    "turnRadius": {
+      "offset": 34,
+      "size": 1,
+      "aliases": [
+        "turnSpeed"
+      ]
+    },
+    "velocityDirection1": {
+      "offset": 35,
+      "size": 1
+    },
+    "flingyID": {
+      "offset": 36,
+      "size": 1
+    },
+    "unknown0x26": {
+      "offset": 38,
+      "size": 1
+    },
+    "flingyMovementType": {
+      "offset": 39,
+      "size": 1
+    },
+    "pos": {
+      "offset": 40,
+      "size": 4,
+      "composite": "PositionMember"
+    },
+    "posX": {
+      "offset": 40,
+      "size": 2,
+      "composite": "PositionXMember"
+    },
+    "posY": {
+      "offset": 42,
+      "size": 2,
+      "composite": "PositionYMember"
+    },
+    "haltX": {
+      "offset": 44,
+      "size": 4
+    },
+    "haltY": {
+      "offset": 48,
+      "size": 4
+    },
+    "topSpeed": {
+      "offset": 52,
+      "size": 4
+    },
+    "currentSpeed1": {
+      "offset": 56,
+      "size": 4
+    },
+    "currentSpeed2": {
+      "offset": 60,
+      "size": 4
+    },
+    "currentVelocityX": {
+      "offset": 64,
+      "size": 4
+    },
+    "currentVelocityY": {
+      "offset": 68,
+      "size": 4
+    },
+    "acceleration": {
+      "offset": 72,
+      "size": 2
+    },
+    "currentDirection2": {
+      "offset": 74,
+      "size": 1
+    },
+    "velocityDirection2": {
+      "offset": 75,
+      "size": 1
+    },
+    "owner": {
+      "offset": 76,
+      "size": 1,
+      "composite": "PlayerMember",
+      "aliases": [
+        "playerID"
+      ]
+    },
+    "order": {
+      "offset": 77,
+      "size": 1,
+      "aliases": [
+        "orderID"
+      ]
+    },
+    "orderState": {
+      "offset": 78,
+      "size": 1
+    },
+    "orderSignal": {
+      "offset": 79,
+      "size": 1
+    },
+    "orderUnitType": {
+      "offset": 80,
+      "size": 2,
+      "composite": "UnitMember"
+    },
+    "unknown0x52": {
+      "offset": 82,
+      "size": 2
+    },
+    "cooldown": {
+      "offset": 84,
+      "size": 4
+    },
+    "orderTimer": {
+      "offset": 84,
+      "size": 1
+    },
+    "gCooldown": {
+      "offset": 85,
+      "size": 1,
+      "aliases": [
+        "groundWeaponCooldown"
+      ]
+    },
+    "aCooldown": {
+      "offset": 86,
+      "size": 1,
+      "aliases": [
+        "airWeaponCooldown"
+      ]
+    },
+    "spellCooldown": {
+      "offset": 87,
+      "size": 1
+    },
+    "orderTargetPos": {
+      "offset": 88,
+      "size": 4,
+      "composite": "PositionMember",
+      "aliases": [
+        "orderTargetXY"
+      ]
+    },
+    "orderTargetX": {
+      "offset": 88,
+      "size": 2,
+      "composite": "PositionXMember"
+    },
+    "orderTargetY": {
+      "offset": 90,
+      "size": 2,
+      "composite": "PositionYMember"
+    },
+    "orderTarget": {
+      "offset": 92,
+      "size": 4,
+      "pointer": "CUnit",
+      "aliases": [
+        "orderTargetUnit"
+      ]
+    },
+    "shield": {
+      "offset": 96,
+      "size": 4
+    },
+    "unitID": {
+      "offset": 100,
+      "size": 2,
+      "composite": "UnitMember",
+      "aliases": [
+        "unitType"
+      ]
+    },
+    "unknown0x66": {
+      "offset": 102,
+      "size": 2
+    },
+    "prevPlayerUnit": {
+      "offset": 104,
+      "size": 4,
+      "pointer": "CUnit"
+    },
+    "nextPlayerUnit": {
+      "offset": 108,
+      "size": 4,
+      "pointer": "CUnit"
+    },
+    "subUnit": {
+      "offset": 112,
+      "size": 4,
+      "pointer": "CUnit"
+    },
+    "orderQueueHead": {
+      "offset": 116,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "orderQueueTail": {
+      "offset": 120,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "autoTargetUnit": {
+      "offset": 124,
+      "size": 4,
+      "pointer": "CUnit"
+    },
+    "connectedUnit": {
+      "offset": 128,
+      "size": 4,
+      "pointer": "CUnit"
+    },
+    "orderQueueCount": {
+      "offset": 132,
+      "size": 1
+    },
+    "orderQueueTimer": {
+      "offset": 133,
+      "size": 1
+    },
+    "unknown0x86": {
+      "offset": 134,
+      "size": 1
+    },
+    "attackNotifyTimer": {
+      "offset": 135,
+      "size": 1
+    },
+    "prevUnitType": {
+      "offset": 136,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "lastEventTimer": {
+      "offset": 138,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "lastEventColor": {
+      "offset": 139,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "unknown0x8C": {
+      "offset": 140,
+      "size": 2
+    },
+    "rankIncrease": {
+      "offset": 142,
+      "size": 1
+    },
+    "killCount": {
+      "offset": 143,
+      "size": 1
+    },
+    "lastAttackingPlayer": {
+      "offset": 144,
+      "size": 1,
+      "composite": "PlayerMember"
+    },
+    "secondaryOrderTimer": {
+      "offset": 145,
+      "size": 1
+    },
+    "AIActionFlag": {
+      "offset": 146,
+      "size": 1
+    },
+    "userActionFlags": {
+      "offset": 147,
+      "size": 1
+    },
+    "currentButtonSet": {
+      "offset": 148,
+      "size": 2
+    },
+    "isCloaked": {
+      "offset": 150,
+      "size": 1,
+      "composite": "BoolMember"
+    },
+    "movementState": {
+      "offset": 151,
+      "size": 1
+    },
+    "buildQueue1": {
+      "offset": 152,
+      "size": 2,
+      "composite": "UnitMember"
+    },
+    "buildQueue12": {
+      "offset": 152,
+      "size": 4
+    },
+    "buildQueue2": {
+      "offset": 154,
+      "size": 2,
+      "composite": "UnitMember"
+    },
+    "buildQueue3": {
+      "offset": 156,
+      "size": 2,
+      "composite": "UnitMember"
+    },
+    "buildQueue34": {
+      "offset": 156,
+      "size": 4
+    },
+    "buildQueue4": {
+      "offset": 158,
+      "size": 2,
+      "composite": "UnitMember"
+    },
+    "buildQueue5": {
+      "offset": 160,
+      "size": 2,
+      "composite": "UnitMember"
+    },
+    "energy": {
+      "offset": 162,
+      "size": 2
+    },
+    "buildQueueSlot": {
+      "offset": 164,
+      "size": 1
+    },
+    "targetOrderSpecial": {
+      "offset": 165,
+      "size": 1,
+      "aliases": [
+        "uniquenessIdentifier"
+      ]
+    },
+    "secondaryOrder": {
+      "offset": 166,
+      "size": 1,
+      "aliases": [
+        "secondaryOrderID"
+      ]
+    },
+    "buildingOverlayState": {
+      "offset": 167,
+      "size": 1
+    },
+    "hpGain": {
+      "offset": 168,
+      "size": 2
+    },
+    "shieldGain": {
+      "offset": 170,
+      "size": 2
+    },
+    "remainingBuildTime": {
+      "offset": 172,
+      "size": 2
+    },
+    "prevHp": {
+      "offset": 174,
+      "size": 2
+    },
+    "loadedUnit1": {
+      "offset": 176,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "loadedUnit2": {
+      "offset": 178,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "loadedUnit3": {
+      "offset": 180,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "loadedUnit4": {
+      "offset": 182,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "loadedUnit5": {
+      "offset": 184,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "loadedUnit6": {
+      "offset": 186,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "loadedUnit7": {
+      "offset": 188,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "loadedUnit8": {
+      "offset": 190,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "addon": {
+      "offset": 192,
+      "size": 4,
+      "pointer": "CUnit",
+      "aliases": [
+        "inHangarChild",
+        "parent",
+        "powerup"
+      ]
+    },
+    "beaconUnknown0xC0": {
+      "offset": 192,
+      "size": 4
+    },
+    "spiderMineCount": {
+      "offset": 192,
+      "size": 1
+    },
+    "addonBuildType": {
+      "offset": 196,
+      "size": 2,
+      "composite": "UnitMember"
+    },
+    "beaconUnknown0xC4": {
+      "offset": 196,
+      "size": 4
+    },
+    "outHangarChild": {
+      "offset": 196,
+      "size": 4,
+      "pointer": "CUnit",
+      "aliases": [
+        "prevFighter"
+      ]
+    },
+    "targetResourcePos": {
+      "offset": 196,
+      "size": 4,
+      "composite": "PositionMember"
+    },
+    "targetResourceX": {
+      "offset": 196,
+      "size": 2,
+      "composite": "PositionXMember"
+    },
+    "targetResourceY": {
+      "offset": 198,
+      "size": 2,
+      "composite": "PositionYMember"
+    },
+    "upgradeResearchTime": {
+      "offset": 198,
+      "size": 2
+    },
+    "flagSpawnFrame": {
+      "offset": 200,
+      "size": 4
+    },
+    "inHangarCount": {
+      "offset": 200,
+      "size": 1,
+      "aliases": [
+        "techType"
+      ]
+    },
+    "nextFighter": {
+      "offset": 200,
+      "size": 4,
+      "pointer": "CUnit",
+      "aliases": [
+        "targetResourceUnit"
+      ]
+    },
+    "outHangarCount": {
+      "offset": 201,
+      "size": 1,
+      "aliases": [
+        "upgradeType"
+      ]
+    },
+    "larvaTimer": {
+      "offset": 202,
+      "size": 1
+    },
+    "landingTimer": {
+      "offset": 203,
+      "size": 1
+    },
+    "creepTimer": {
+      "offset": 204,
+      "size": 1
+    },
+    "isOutsideHangar": {
+      "offset": 204,
+      "size": 1,
+      "composite": "BoolMember"
+    },
+    "repairResourceLossTimer": {
+      "offset": 204,
+      "size": 2
+    },
+    "upgradeLevel": {
+      "offset": 205,
+      "size": 1
+    },
+    "isCarryingSomething": {
+      "offset": 206,
+      "size": 1,
+      "composite": "BoolMember"
+    },
+    "resourceCarryAmount": {
+      "offset": 207,
+      "size": 1
+    },
+    "ghostNukeDot": {
+      "offset": 208,
+      "size": 4,
+      "aliases": [
+        "hatcheryHarvestLT"
+      ]
+    },
+    "harvestTarget": {
+      "offset": 208,
+      "size": 4,
+      "pointer": "CUnit",
+      "aliases": [
+        "nydusExit",
+        "pylonAura",
+        "siloNuke"
+      ]
+    },
+    "hatcheryHarvestL": {
+      "offset": 208,
+      "size": 2,
+      "aliases": [
+        "resourceAmount"
+      ]
+    },
+    "powerupOrigin": {
+      "offset": 208,
+      "size": 4,
+      "composite": "PositionMember"
+    },
+    "powerupOriginX": {
+      "offset": 208,
+      "size": 2,
+      "composite": "PositionXMember"
+    },
+    "hatcheryHarvestT": {
+      "offset": 210,
+      "size": 2
+    },
+    "powerupOriginY": {
+      "offset": 210,
+      "size": 2,
+      "composite": "PositionYMember"
+    },
+    "resourceIscript": {
+      "offset": 210,
+      "size": 1
+    },
+    "gatherQueueCount": {
+      "offset": 211,
+      "size": 1,
+      "composite": "BoolMember"
+    },
+    "hatcheryHarvestR": {
+      "offset": 212,
+      "size": 2
+    },
+    "hatcheryHarvestRB": {
+      "offset": 212,
+      "size": 4
+    },
+    "nextGatherer": {
+      "offset": 212,
+      "size": 4,
+      "pointer": "CUnit",
+      "aliases": [
+        "powerupCarryingUnit",
+        "prevHarvestUnit"
+      ]
+    },
+    "siloReady": {
+      "offset": 212,
+      "size": 1,
+      "composite": "BoolMember"
+    },
+    "hatcheryHarvestB": {
+      "offset": 214,
+      "size": 2
+    },
+    "nextHarvestUnit": {
+      "offset": 216,
+      "size": 4,
+      "pointer": "CUnit"
+    },
+    "resourceGroup": {
+      "offset": 216,
+      "size": 1
+    },
+    "resourceBelongsToAI": {
+      "offset": 217,
+      "size": 1,
+      "composite": "BoolMember"
+    },
+    "statusFlags": {
+      "offset": 220,
+      "size": 4
+    },
+    "resourceType": {
+      "offset": 224,
+      "size": 1
+    },
+    "wireframeRandomizer": {
+      "offset": 225,
+      "size": 1
+    },
+    "secondaryOrderState": {
+      "offset": 226,
+      "size": 1
+    },
+    "recentOrderTimer": {
+      "offset": 227,
+      "size": 1
+    },
+    "visibilityStatus": {
+      "offset": 228,
+      "size": 4
+    },
+    "secondaryOrderPos": {
+      "offset": 232,
+      "size": 4,
+      "composite": "PositionMember"
+    },
+    "secondaryOrderX": {
+      "offset": 232,
+      "size": 2,
+      "composite": "PositionXMember"
+    },
+    "secondaryOrderY": {
+      "offset": 234,
+      "size": 2,
+      "composite": "PositionYMember"
+    },
+    "currentBuildUnit": {
+      "offset": 236,
+      "size": 4,
+      "pointer": "CUnit"
+    },
+    "prevBurrowedUnit": {
+      "offset": 240,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "nextBurrowedUnit": {
+      "offset": 244,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "prevPsiProvider": {
+      "offset": 248,
+      "size": 4,
+      "pointer": "CUnit"
+    },
+    "rallyPos": {
+      "offset": 248,
+      "size": 4,
+      "composite": "PositionMember"
+    },
+    "rallyX": {
+      "offset": 248,
+      "size": 2,
+      "composite": "PositionXMember"
+    },
+    "rallyY": {
+      "offset": 250,
+      "size": 2,
+      "composite": "PositionYMember"
+    },
+    "nextPsiProvider": {
+      "offset": 252,
+      "size": 4,
+      "pointer": "CUnit",
+      "aliases": [
+        "rallyUnit"
+      ]
+    },
+    "path": {
+      "offset": 256,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "pathingCollisionInterval": {
+      "offset": 260,
+      "size": 1
+    },
+    "pathingFlags": {
+      "offset": 261,
+      "size": 1
+    },
+    "unknown0x106": {
+      "offset": 262,
+      "size": 1
+    },
+    "isBeingHealed": {
+      "offset": 263,
+      "size": 1,
+      "composite": "BoolMember"
+    },
+    "contourBoundsL": {
+      "offset": 264,
+      "size": 0,
+      "composite": "UnsupportedMember",
+      "aliases": [
+        "contourBoundsLT"
+      ]
+    },
+    "contourBoundsT": {
+      "offset": 266,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "contourBoundsR": {
+      "offset": 268,
+      "size": 0,
+      "composite": "UnsupportedMember",
+      "aliases": [
+        "contourBoundsRB"
+      ]
+    },
+    "contourBoundsB": {
+      "offset": 270,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "removeTimer": {
+      "offset": 272,
+      "size": 2
+    },
+    "defensiveMatrixHp": {
+      "offset": 274,
+      "size": 2
+    },
+    "defensiveMatrixTimer": {
+      "offset": 276,
+      "size": 1
+    },
+    "stimTimer": {
+      "offset": 277,
+      "size": 1
+    },
+    "ensnareTimer": {
+      "offset": 278,
+      "size": 1
+    },
+    "lockdownTimer": {
+      "offset": 279,
+      "size": 1
+    },
+    "irradiateTimer": {
+      "offset": 280,
+      "size": 1
+    },
+    "stasisTimer": {
+      "offset": 281,
+      "size": 1
+    },
+    "plagueTimer": {
+      "offset": 282,
+      "size": 1
+    },
+    "isUnderStorm": {
+      "offset": 283,
+      "size": 1,
+      "composite": "BoolMember"
+    },
+    "stormTimer": {
+      "offset": 283,
+      "size": 1
+    },
+    "irradiatedBy": {
+      "offset": 284,
+      "size": 4,
+      "pointer": "CUnit"
+    },
+    "irradiatePlayerID": {
+      "offset": 288,
+      "size": 1,
+      "composite": "PlayerMember"
+    },
+    "parasiteFlags": {
+      "offset": 289,
+      "size": 1
+    },
+    "cycleCounter": {
+      "offset": 290,
+      "size": 1
+    },
+    "blindFlags": {
+      "offset": 291,
+      "size": 1
+    },
+    "maelstromTimer": {
+      "offset": 292,
+      "size": 1
+    },
+    "unusedTimer": {
+      "offset": 293,
+      "size": 1
+    },
+    "acidSporeCount": {
+      "offset": 294,
+      "size": 1
+    },
+    "acidSporeTime0": {
+      "offset": 295,
+      "size": 1
+    },
+    "acidSporeTime1": {
+      "offset": 296,
+      "size": 1
+    },
+    "acidSporeTime2": {
+      "offset": 297,
+      "size": 1
+    },
+    "acidSporeTime3": {
+      "offset": 298,
+      "size": 1
+    },
+    "acidSporeTime4": {
+      "offset": 299,
+      "size": 1
+    },
+    "acidSporeTime5": {
+      "offset": 300,
+      "size": 1
+    },
+    "acidSporeTime6": {
+      "offset": 301,
+      "size": 1
+    },
+    "acidSporeTime7": {
+      "offset": 302,
+      "size": 1
+    },
+    "acidSporeTime8": {
+      "offset": 303,
+      "size": 1
+    },
+    "offsetIndex3by3": {
+      "offset": 304,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "unknown0x132": {
+      "offset": 306,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "AI": {
+      "offset": 308,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "airStrength": {
+      "offset": 312,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "groundStrength": {
+      "offset": 314,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "finderIndexLeft": {
+      "offset": 316,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "finderIndexRight": {
+      "offset": 320,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "finderIndexTop": {
+      "offset": 324,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "finderIndexBottom": {
+      "offset": 328,
+      "size": 0,
+      "composite": "UnsupportedMember"
+    },
+    "repulseUnknown": {
+      "offset": 332,
+      "size": 1
+    },
+    "repulseAngle": {
+      "offset": 333,
+      "size": 1
+    },
+    "driftPos": {
+      "offset": 334,
+      "size": 2
+    },
+    "driftX": {
+      "offset": 334,
+      "size": 1
+    },
+    "driftY": {
+      "offset": 335,
+      "size": 1
+    }
+  }
+}

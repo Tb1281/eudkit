@@ -1,0 +1,15 @@
+# Keep this package out of the repository root workspace: Zed builds the
+# extension on its own, targeting wasm32-wasip2.
+[workspace]
+
+[package]
+name = "zed_eudkit_lsp"
+version = "0.3.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+zed_extension_api = "0.2"
