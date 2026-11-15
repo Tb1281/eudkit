@@ -61,6 +61,7 @@ from .trigger import (
 from .var import Var
 from .view import (
     CURRENT_PLAYER,
+    POOL_NULL,
     EudslError,
     _describe_value,
     _is_plain_int,
@@ -990,3 +991,102 @@ EUDQueue = Queue
 EUDDeque = Deque
 EUDStack = Stack
 EUDUnitGroup = UnitGroup
+
+
+class ObjectPool:
+    """Fixed-capacity free-list pool over a ``FixedArray``.
+
+    The free list is a LIFO ``Stack`` of indices, so a fresh pool hands out
+    ``0, 1, 2, ...`` deterministically. ``POOL_NULL`` (``0xFFFFFFFF``) is
+    returned when the pool is exhausted and is distinguishable from every
+    legal index because capacity is capped at ``0xFFFFFFFE``.
+
+    ``release`` performs no bounds check (documented): releasing an index
+    twice or outside ``0..capacity-1`` corrupts the free list.
+    """
+
+    def __init__(self, capacity: int, schema_or_width: Any = arrayDword) -> None:
+        if not _is_plain_int(capacity):
+            raise EudslError(
+                "EUDSL-TYPE",
+                f"ObjectPool capacity must be a plain integer, got "
+                f"{_describe_value(capacity)}",
+            )
+        if capacity <= 0:
+            raise EudslError(
+                "EUDSL-BOUNDS",
+                f"ObjectPool capacity must be positive, got {capacity}",
+            )
+        if capacity > 0xFFFFFFFE:
+            raise EudslError(
+                "EUDSL-RANGE",
+                f"ObjectPool capacity must be at most 0xFFFFFFFE, got {capacity}",
+            )
+        self.capacity = capacity
+        self._storage = FixedArray(schema_or_width, capacity)
+        self._free = Stack(capacity)
+        self._fill_free()
+
+    def _fill_free(self) -> None:
+        """Seed the stack body statically so a pop yields ``0, 1, 2, ...``.
+
+        ``Stack.push`` would emit a dynamic-write trigger per slot; writing the
+        constant body and setting ``pos`` is the same state with one packed
+        initialization.
+        """
+        for index in range(self.capacity):
+            self._free.storage.set(index, self.capacity - 1 - index)
+        self._free.pos.set(self.capacity)
+
+    @property
+    def storage(self) -> Any:
+        """The user-data array; ``get``/``set`` delegate to it."""
+        return self._storage
+
+    @property
+    def free_list(self) -> Stack:
+        """The LIFO index stack backing allocation."""
+        return self._free
+
+    def allocate(self) -> Var:
+        """Pop one free index, or return ``POOL_NULL`` when full."""
+        out = Var(0)
+        # Reset per call, not just at module init: a reused allocation site
+        # inside a loop must return POOL_NULL after the pool becomes full.
+        out.set(POOL_NULL)
+        when(self._free.pos.ge(1), lambda: out.set(self._free.pop()))
+        return out
+
+    def release(self, index: int | Var) -> None:
+        """Push ``index`` back onto the free list."""
+        if not (_is_plain_int(index) or isinstance(index, Var)):
+            raise EudslError(
+                "EUDSL-TYPE",
+                f"ObjectPool.release index must be an integer or a Var; got "
+                f"{_describe_value(index)}",
+            )
+        self._free.push(index)
+
+    def full(self) -> Any:
+        """A condition that holds when there are no free slots."""
+        return self._free.pos.eq(0)
+
+    def empty(self) -> Any:
+        """A condition that holds when every slot is free."""
+        return self._free.pos.eq(self.capacity)
+
+    def clear(self) -> None:
+        """Reset the free list to its fresh LIFO order; storage is untouched."""
+        self._free.clear()
+        self._fill_free()
+
+    def get(self, index: int | Var) -> Any:
+        """Read a user-data slot through the backing array."""
+        return self._storage.get(index)
+
+    def set(self, index: int | Var, value: Any) -> None:
+        """Write a user-data slot through the backing array."""
+        self._storage.set(index, value)
+
+    allocateObject = allocate
+    releaseObject = release

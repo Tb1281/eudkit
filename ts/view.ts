@@ -23,15 +23,19 @@ import {
   SetDeathsX,
   SetTo,
   Subtract,
+  TriggerFieldReloc,
+  emitVarStore,
   type HirAct,
   type HirCond,
 } from "./hir.ts";
 import {
   Trigger,
   _getActiveModuleBuilder,
+  _registerTrigger,
   type CondLike,
   type MaterializableCond,
 } from "./trigger.ts";
+import { when, whileLoop } from "./temporal.ts";
 import { Var, VarImpl, saturatingSubInto } from "./var.ts";
 import { Expr, ReadonlyVar, toVar, type VarOperand } from "./var.ts";
 import { registerDetachedPlan, type GatePlan } from "./conditions.ts";
@@ -1615,4 +1619,474 @@ export function MemCond(
     return DeathsX(epdAddr, cmp as number, amount, 0, 0xffff);
   }
   return DeathsX(epdAddr, cmp as number, amount, 0, sizeOrMask >>> 0);
+}
+
+// ---------------------------------------------------------------------------
+// Raw dword/word bit helpers and the CUnitView façade
+// ---------------------------------------------------------------------------
+
+/** Sentinel returned by `ObjectPool` when it is exhausted. */
+export const POOL_NULL = 0xffffffff;
+
+/** The scenario location table starts at this byte address. */
+const LOCATION_TABLE_BASE = 0x58dc4c;
+/** Each location record is five dwords; dwords 0 and 1 are `left`/`top`. */
+const LOCATION_STRIDE_EPDS = 5;
+
+/** `GroupFlags` are unit-type data, never CUnit field masks. */
+export const GROUP_FLAGS_TARGET = "unit-type";
+
+/** Full-dword CUnit `statusFlags` masks (byte offset 220). */
+export const StatusFlags = Object.freeze({
+  Completed: 0x00000001,
+  GroundedBuilding: 0x00000002,
+  InAir: 0x00000004,
+  Disabled: 0x00000008,
+  Burrowed: 0x00000010,
+  InBuilding: 0x00000020,
+  InTransport: 0x00000040,
+  CanBeChased: 0x00000080,
+  RequiresDetection: 0x00000100,
+  Cloaked: 0x00000200,
+  DoodadStatesThing: 0x00000400,
+  CloakingForFree: 0x00000800,
+  CanNotReceiveOrders: 0x00001000,
+  NoBrkCodeStart: 0x00002000,
+  UNKNOWN2: 0x00004000,
+  CanNotAttack: 0x00008000,
+  CanTurnAroundToAttack: 0x00010000,
+  IsBuilding: 0x00020000,
+  IgnoreTileCollision: 0x00040000,
+  Unmovable: 0x00080000,
+  IsNormal: 0x00100000,
+  NoCollide: 0x00200000,
+  UNKNOWN5: 0x00400000,
+  IsGathering: 0x00800000,
+  SubunitWalking: 0x01000000,
+  SubunitFollow: 0x02000000,
+  Invincible: 0x04000000,
+  HoldingPosition: 0x08000000,
+  SpeedUpgrade: 0x10000000,
+  CooldownUpgrade: 0x20000000,
+  IsHallucination: 0x40000000,
+  IsSelfDestructing: 0x80000000,
+} as const);
+
+/** CUnit `pathingFlags` byte masks (byte offset 261). */
+export const PathingFlags = Object.freeze({
+  HasCollision: 0x01,
+  IsStacked: 0x02,
+  Decollide: 0x04,
+} as const);
+
+/**
+ * Unit-type `groupFlags` byte masks at byte address `0x6637a0`.
+ *
+ * These are unit-type dat-array bits, **not** masks for any CUnit field;
+ * never write them through `CUnitView`.
+ */
+export const GroupFlags = Object.freeze({
+  Zerg: 0x01,
+  Terran: 0x02,
+  Protoss: 0x04,
+  Men: 0x08,
+  Building: 0x10,
+  Factory: 0x20,
+  Independent: 0x40,
+  Neutral: 0x80,
+} as const);
+
+/** Unit-type `availabilityFlags` word masks at byte address `0x661518`. */
+export const AvailabilityFlags = Object.freeze({
+  NonNeutral: 0x001,
+  UnitListing: 0x002,
+  MissionBriefing: 0x004,
+  PlayerSettings: 0x008,
+  AllRaces: 0x010,
+  SetDoodadState: 0x020,
+  NonLocationTriggers: 0x040,
+  UnitHeroSettings: 0x080,
+  LocationTriggers: 0x100,
+  BroodWarOnly: 0x200,
+} as const);
+
+function requireDwordAddress(addr: unknown, subject: string): number {
+  const value = requirePlainInt(addr, subject);
+  requireAlignedDwordAddress(value, subject);
+  return value >>> 0;
+}
+
+function requireBitIndex(bit: unknown): number {
+  const value = requirePlainInt(bit, "bit index");
+  if (value < 0 || value > 31) {
+    throw new EudslError(
+      "EUDSL-RANGE",
+      `bit index must be in 0..31, got ${value}`,
+    );
+  }
+  return value;
+}
+
+function splitValue(
+  value: number | VarImpl | ReadonlyVar | Expr,
+  halfBits: number,
+  shift: number,
+  what: string,
+): [VarImpl, VarImpl] {
+  if (typeof value === "number") {
+    const constant = requirePlainInt(value, `${what} value`) >>> 0;
+    const halfMask = (1 << halfBits) - 1;
+    return [Var(constant >>> shift), Var(constant & halfMask)];
+  }
+  if (!(value instanceof VarImpl || value instanceof ReadonlyVar || value instanceof Expr)) {
+    throw new EudslError(
+      "EUDSL-TYPE",
+      `${what} value must be an integer, a Var, or an Expr; got ${describeValue(value)}`,
+    );
+  }
+  const source = toVar(value as VarOperand);
+  const high = Var(0);
+  high.set(source);
+  high.ishr(shift);
+  const low = Var(0);
+  low.set(source);
+  low.iand((1 << halfBits) - 1);
+  return [high, low];
+}
+
+/** Split a 32-bit value into its two 16-bit halves `(hi16, lo16)`. */
+export function splitDword(
+  value: number | VarImpl | ReadonlyVar | Expr,
+): [VarImpl, VarImpl] {
+  return splitValue(value, 16, 16, "splitDword");
+}
+
+/** Split a **word** into its two bytes `(hi8, lo8)`. */
+export function splitWord(
+  value: number | VarImpl | ReadonlyVar | Expr,
+): [VarImpl, VarImpl] {
+  return splitValue(value, 8, 8, "splitWord");
+}
+
+export const split_dword = splitDword;
+export const split_word = splitWord;
+
+/** Return a 1-condition / 0-action test of bit `bit` at dword `addr`. */
+export function readBit(addr: number, bit: number): HirCond {
+  const address = requireDwordAddress(addr, "readBit address");
+  const index = requireBitIndex(bit);
+  const mask = (1 << index) >>> 0;
+  return DeathsX(EPD(address), AtLeast, mask, 0, mask);
+}
+
+/** Read bit `bit` at dword `addr` into a fresh Var (2T). */
+export function readBitVar(addr: number, bit: number): VarImpl {
+  const address = requireDwordAddress(addr, "readBitVar address");
+  const index = requireBitIndex(bit);
+  return readEpd(EPD(address), 1, index);
+}
+
+export const read_bit = readBit;
+export const read_bit_var = readBitVar;
+
+/** Set or clear bit `bit` at dword `addr` (one masked act). */
+export function writeBit(addr: number, bit: number, on: boolean): void {
+  const address = requireDwordAddress(addr, "writeBit address");
+  const index = requireBitIndex(bit);
+  if (typeof on !== "boolean") {
+    throw new EudslError(
+      "EUDSL-TYPE",
+      `writeBit on must be a bool, got ${describeValue(on)}`,
+    );
+  }
+  const mask = (1 << index) >>> 0;
+  const act = SetDeathsX(EPD(address), SetTo, on ? mask : 0, 0, mask);
+  new Trigger({ conds: [], acts: [act] });
+}
+
+/** Write `value` through `mask` at dword `addr` in one act. */
+export function writeMask(addr: number, value: number, mask: number): void {
+  const address = requireDwordAddress(addr, "writeMask address");
+  const maskedValue = requirePlainInt(value, "writeMask value") >>> 0;
+  const bitMask = requirePlainInt(mask, "writeMask mask") >>> 0;
+  if (bitMask === 0) {
+    throw new EudslError("EUDSL-RANGE", "writeMask mask must be non-zero");
+  }
+  const outside = (maskedValue & (~bitMask >>> 0)) >>> 0;
+  if (outside !== 0) {
+    throw new EudslError(
+      "EUDSL-BOUNDS",
+      `writeMask value ${maskedValue.toString(16)} has set bits outside mask ${bitMask.toString(16)}`,
+    );
+  }
+  const act = SetDeathsX(EPD(address), SetTo, maskedValue, 0, bitMask);
+  new Trigger({ conds: [], acts: [act] });
+}
+
+export const write_bit = writeBit;
+export const write_mask = writeMask;
+
+function coerceEpd(epd: number | VarImpl | ReadonlyVar | Expr): number | VarImpl {
+  if (typeof epd === "number") {
+    return requirePlainInt(epd, "CUnitView epd");
+  }
+  return toVar(epd as VarOperand);
+}
+
+function epdAdd(
+  epd: number | VarImpl,
+  offset: number,
+): number | VarImpl | Expr {
+  if (typeof epd === "number") {
+    return epd + offset;
+  }
+  if (offset === 0) {
+    return epd;
+  }
+  return epd.add(offset);
+}
+
+function writeMaskedAt(
+  epd: number | VarImpl | Expr,
+  value: number,
+  mask: number,
+): void {
+  if (typeof epd === "number") {
+    SetDeathsX(epd >>> 0, SetTo, value, 0, mask);
+    return;
+  }
+  const target = toVar(epd as VarOperand);
+  const ptr = new Trigger({
+    conds: [],
+    acts: [SetDeathsX(0, SetTo, value, 0, mask)],
+    preserved: true,
+    register: false,
+  });
+  emitVarStore(
+    target.id,
+    TriggerFieldReloc(ptr.id, ptr.act(0).dest.byteOffset),
+  );
+  _registerTrigger(ptr);
+}
+
+/**
+ * One-dword runtime store, byte-identical to `memsetEPD(dst, value, 1)`.
+ *
+ * `setLocation` needs exactly this body. Importing `blockio` here would close
+ * a `view -> blockio -> cp -> trigger -> view` cycle that reads `cp`'s
+ * `ACT_STRIDE_EPDS` before `trigger` initializes it, so the body is mirrored
+ * locally from the same primitives.
+ */
+function storeOneDword(dst: number | VarImpl | Expr, value: VarImpl): void {
+  const dstNode: number | VarImpl =
+    typeof dst === "number" ? dst >>> 0 : toVar(dst as VarOperand);
+  const cnt = Var(0);
+  cnt.set(1);
+  const ptr = new Trigger({
+    conds: [],
+    acts: [SetDeathsX(0, SetTo, 0, 0, 0xffffffff)],
+    preserved: true,
+    register: false,
+  });
+  when(cnt.ge(1), () => {
+    if (typeof dstNode === "number") {
+      SetDeaths(ptr.act(0).dest, SetTo, dstNode, 0);
+    } else {
+      emitVarStore(
+        dstNode.id,
+        TriggerFieldReloc(ptr.id, ptr.act(0).dest.byteOffset),
+        SetTo,
+      );
+    }
+  });
+  whileLoop(cnt.ge(1), () => {
+    emitVarStore(
+      value.id,
+      TriggerFieldReloc(ptr.id, ptr.act(0).value.byteOffset),
+      SetTo,
+    );
+    _registerTrigger(ptr);
+    SetDeaths(ptr.act(0).dest, Add, 1, 0);
+    cnt.isub(1);
+  });
+}
+
+function readEpdPointerAt(epd: number | VarImpl | Expr): VarImpl {
+  if (typeof epd === "number") {
+    return readEpdPointer(epd >>> 0);
+  }
+  return requireWithEpdFactory()(epd, () => {
+    const res = readEpd(CurrentPlayer, 30, 2, 0xfffffffc);
+    res.isub(EPD_BASE >>> 2);
+    return res;
+  }) as VarImpl;
+}
+
+function readStatusBitAt(epd: number | VarImpl | Expr, bit: number): VarImpl {
+  if (typeof epd === "number") {
+    return readEpd(epd >>> 0, 1, bit);
+  }
+  return requireWithEpdFactory()(epd, () =>
+    readEpd(CurrentPlayer, 1, bit),
+  ) as VarImpl;
+}
+
+function requirePlayerId(player: unknown, subject: string): number {
+  const value = requirePlainInt(player, subject);
+  if (value < 0 || value > 11) {
+    throw new EudslError(
+      "EUDSL-RANGE",
+      `${subject} must be a player id in 0..11, got ${value}`,
+    );
+  }
+  return value;
+}
+
+function requireLocationId(location: unknown): number {
+  const value = requirePlainInt(location, "setLocation location");
+  if (value < 0 || value > 255) {
+    throw new EudslError(
+      "EUDSL-RANGE",
+      `setLocation location must be an id in 0..255, got ${value}`,
+    );
+  }
+  return value;
+}
+
+/**
+ * Typed façade over a CUnit slot at a constant or runtime EPD.
+ *
+ * Not a `MemViewInstance` subclass: its proxy intercepts attribute writes,
+ * which would swallow this façade's own state. Field access still resolves
+ * through the canonical `CUnit` schema.
+ */
+export class CUnitView {
+  readonly epd: number | VarImpl;
+  readonly mem: MemViewInstance;
+
+  constructor(epd: number | VarImpl | ReadonlyVar | Expr) {
+    this.epd = coerceEpd(epd);
+    this.mem = CUnit(this.epd);
+  }
+
+  field(name: string): MemFieldHandle {
+    const resolved = resolveField(CUnitSchema, name);
+    if (!resolved) {
+      throw new EudslError(
+        "EUDSL-UNKNOWN-FIELD",
+        `Unknown field '${name}' on layout '${CUnitSchema.name}'`,
+      );
+    }
+    return new MemFieldHandle(
+      CUnitSchema,
+      resolved.spec,
+      this.epd,
+      resolved.name,
+    );
+  }
+
+  read(name: string): VarImpl {
+    return this.field(name).read();
+  }
+
+  nextUnit(): VarImpl {
+    return readCunitPointer(epdAdd(this.epd, 1));
+  }
+
+  next_unit(): VarImpl {
+    return this.nextUnit();
+  }
+
+  prevUnit(): VarImpl {
+    return readCunitPointer(this.epd);
+  }
+
+  prev_unit(): VarImpl {
+    return this.prevUnit();
+  }
+
+  spriteEpd(): VarImpl {
+    return readEpdPointerAt(epdAdd(this.epd, 3));
+  }
+
+  sprite_epd(): VarImpl {
+    return this.spriteEpd();
+  }
+
+  sprite(): MemViewInstance {
+    return CSprite(this.spriteEpd());
+  }
+
+  isBurrowed(): VarImpl {
+    return readStatusBitAt(epdAdd(this.epd, 55), 4);
+  }
+
+  is_burrowed(): VarImpl {
+    return this.isBurrowed();
+  }
+
+  setInvincible(on = true): void {
+    if (typeof on !== "boolean") {
+      throw new EudslError(
+        "EUDSL-TYPE",
+        `setInvincible on must be a bool, got ${describeValue(on)}`,
+      );
+    }
+    writeMaskedAt(
+      epdAdd(this.epd, 55),
+      on ? 0x04000000 : 0,
+      0x04000000,
+    );
+  }
+
+  set_invincible(on = true): void {
+    this.setInvincible(on);
+  }
+
+  giveTo(player: number): void {
+    const owner = requirePlayerId(player, "giveTo player");
+    writeMaskedAt(epdAdd(this.epd, 19), owner, 0x000000ff);
+  }
+
+  give_to(player: number): void {
+    this.giveTo(player);
+  }
+
+  setColor(player: number): void {
+    const color = requirePlayerId(player, "setColor player");
+    const spriteEpd = this.spriteEpd();
+    writeMaskedAt(
+      epdAdd(spriteEpd, 2),
+      (color << 16) >>> 0,
+      0x00ff0000,
+    );
+  }
+
+  set_color(player: number): void {
+    this.setColor(player);
+  }
+
+  die(): void {
+    writeMaskedAt(epdAdd(this.epd, 19), 0, 0x0000ff00);
+  }
+
+  remove(): void {
+    writeMaskedAt(epdAdd(this.epd, 36), 0x04000000, 0xff000000);
+    this.die();
+  }
+
+  setLocation(location: number): void {
+    const loc = requireLocationId(location);
+    const record = EPD(LOCATION_TABLE_BASE) + loc * LOCATION_STRIDE_EPDS;
+    const left = readEpd(record, 32, 0);
+    const top = readEpd(record + 1, 32, 0);
+    left.iand(0xffff);
+    top.ishl(16);
+    top.ior(left);
+    storeOneDword(epdAdd(this.epd, 10), top);
+  }
+
+  set_location(location: number): void {
+    this.setLocation(location);
+  }
 }
