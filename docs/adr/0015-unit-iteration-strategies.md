@@ -348,13 +348,51 @@ Eudkit lands first, using eudplib as the reference. Upstream later sends
 exactly two candidates, both as **opt-in new functions with tests**, not
 in-place behavior changes to existing `EUDLoopUnit2`:
 
-1. **20T executed pointer reader.** Valid CUnit EPDs live in
-   `[0x167F2A, 0x18A052]`, so bit 20 is always set. Read only bits 0–19
-   (pointer bits 2–21), seed the accumulator with `0x100000`, and treat
-   `< 0x167F2A` as end-of-list. This cuts each pointer read from 32T executed to
-   20T executed (~37.5% fewer executed tests) and applies to all three list loops.
+1. **20T executed pointer reader — implemented in eudkit by `T-WP6`; the
+   upstream hand-off is still a candidate.** The CUnit slot pool is
+   `[0x59CCA8, 0x628297]`: 1699 slots of 336 bytes, so slot starts are 84
+   dwords apart. In the shifted pointer space `S = A >> 2`, slot starts span
+   `[0x16732A, 0x18A052]` (`142,632 = 84 × 1698` dwords). The earlier text's
+   upper bound `0x18A052` was correct, but its lower bound `0x167F2A` was
+   `0xC00` too high, its span `139,560` wrong, its bit window and seed wrong,
+   and its end-of-list test wrong. The corrected facts:
+
+   | Fact | Value |
+   |---|---|
+   | pool base / last slot start | `0x59CCA8` / `0x628148` |
+   | shifted space `S = A >> 2` | `[0x16732A, 0x18A052]` |
+   | `EPD_BASE >> 2` | `0x1628D9` |
+   | `EPD(A) = S - 0x1628D9` | base `19025`, last slot `161657` |
+   | invariant `S` bits | 0 is 0, 1 is 1, 20 is 1 |
+   | tested bits | `S` bits 2–19 = `A` bits 4–21 |
+   | mask / shift | `0x3FFFF0` / `2` |
+   | seed | `0x100002` |
+   | one-shot bias | `-0x1628D9` = `0xFFE9D727` |
+   | null-pointer result | `0xFFF9D729` |
+
+   So the reader is exactly 1 seeded reset + 18 bit tests + 1 bias = **20T
+   executed**, down from 32T (37.5% fewer executed tests), and applies to all
+   three list loops. A null pointer reads as `0xFFF9D729`, which is **above**
+   `CUNIT_LAST_EPD` (161,657), so end-of-list is an EPD outside
+   `[19025, 161657]` — the upper bound, not `S < 0x167F2A`, rejects it.
+   `in_cunit_pool` returns the two bound conditions and never raises: a
+   hijacked list must stay observable.
+
+   | Form | Executed |
+   |---|---|
+   | literal `int` EPD, inline | **20T** (1 reset + 18 tests + 1 bias) |
+   | shared CP body, per call | 20T + call sequence (~5T) |
+   | `read_cunit_pointer(Var)` | 33T ambient read + 1 store + ~5T call + 20T + 1 restore ≈ **60T** |
+   | `read_cunit_pointer_saved` per loop node | 1 store + ~5T call + 20T + 1 restore + 1 advance ≈ **28T** |
+   | ambient CP save, once per loop site | 33T (hoisted by `T-WP7`) |
+
+   The per-node ambient read is why the loop form is
+   `read_cunit_pointer_saved`: the 33T read belongs outside the loop, not
+   repeated per node.
+
    Tests: null head, first/last slot, unlimiter on/off, closed maps.
-2. **2T executed/slot scan fusion.** Fuse the loop-bound and death checks into the
+2. **2T executed/slot scan fusion — still unimplemented and unclaimed.** Fuse
+   the loop-bound and death checks into the
    body-entry trigger (`ptr < end`, alive); the advance trigger handles
    continue/exit. This drops the scan to ~2T executed per slot (~3.4kT executed per
    invocation), with a break/continue/nesting audit before it ships.

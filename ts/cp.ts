@@ -46,6 +46,7 @@ import {
   EudslError,
   MemFieldHandle,
   MemViewInstance,
+  _registerCpFactories,
   defineMemView,
   emitBitTestRead,
   type FieldSpec,
@@ -416,3 +417,62 @@ export function withEpd<R = void>(
 }
 
 export const with_epd = withEpd;
+
+/**
+ * Bind CP to `epd` for `fn()` without reading the ambient CP.
+ *
+ * The loop contract behind {@link readCunitPointerSaved} in `view`: the caller
+ * hoists the 33T ambient read once, passes its `Var` as `savedCp`, then calls
+ * this per node. It emits exactly one CP store, `fn()` and one restore, and
+ * never reads `CP_ADDR`.
+ *
+ * `epd` is materialised with {@link toVar} and only read, so a caller's `Var`
+ * is never mutated and an `Expr` (e.g. `ptr.add(1)`) is accepted. `savedCp`
+ * must be a `Var`; anything else is `EUDSL-TYPE`.
+ */
+export function _withEpdSaved<R>(
+  savedCp: VarImpl,
+  epd: number | VarImpl | ReadonlyVar | Expr,
+  fn: () => R,
+): R {
+  if (!(savedCp instanceof VarImpl)) {
+    throw new EudslError(
+      "EUDSL-TYPE",
+      `_withEpdSaved savedCp must be a Var; got ${String(savedCp)}`,
+    );
+  }
+  if (
+    typeof epd === "boolean" ||
+    !(
+      typeof epd === "number" ||
+      epd instanceof VarImpl ||
+      epd instanceof ReadonlyVar ||
+      epd instanceof Expr
+    )
+  ) {
+    throw new EudslError(
+      "EUDSL-TYPE",
+      `_withEpdSaved epd must be an EPD-bearing value (int, Var, ReadonlyVar, or Expr); got ${String(epd)}`,
+    );
+  }
+  if (typeof fn !== "function") {
+    throw new EudslError(
+      "EUDSL-TYPE",
+      `_withEpdSaved fn must be a function; got ${String(fn)}`,
+    );
+  }
+
+  // `toVar` allocates a private scratch Var for an int or Expr; a Var or
+  // ReadonlyVar is only read, never mutated.
+  const scratch = toVar(epd as VarOperand);
+  emitVarStore(scratch.id, AddrReloc(CP_ADDR), SetTo);
+  try {
+    return fn();
+  } finally {
+    emitVarStore(savedCp.id, AddrReloc(CP_ADDR), SetTo);
+  }
+}
+
+// `view` cannot import `cp` (cp imports view), so hand it the runtime CP
+// bindings the CUnit pointer reader resolves at call time.
+_registerCpFactories(withEpd, _withEpdSaved);
