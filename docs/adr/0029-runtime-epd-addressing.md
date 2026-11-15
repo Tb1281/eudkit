@@ -134,12 +134,60 @@ v = epd_of_db(d + 4)
 
 The `Var` id differs only by the surrounding module's allocation order.
 
+### 7. Runtime CP binding: `with_epd`
+
+`with_epd(epd, body=None, offset=0)` in Python and `withEpd(epd, fn, offset =
+0)` in TypeScript bind CurrentPlayer to a **runtime** EPD for the duration of a
+body. The operand is an `int`, `Var`, `ReadonlyVar`, `Expr`, or `Db`/`DbRef`
+(the last routed through `epd_of_db`); `bool` and every other value is
+`EUDSL-TYPE` before any act is queued. `offset` must be a plain integer in the
+signed 32-bit range (`EUDSL-RANGE`). The runtime base is copied into a private
+scratch `Var`, so a caller's `Var` is never mutated, and a non-zero `offset`
+pre-hops that copy with one relative `Add`.
+
+Hops are **relative** (`Add k - currentOffset`), not absolute. The base is not
+known at build time, so `SetTo base + target` is impossible; repeating the
+current offset emits nothing. `EpdCursor.restore()` resets only the build-time
+offset and emits nothing.
+
+The ambient CurrentPlayer dword is read with the shared
+`read_current_player_register` before binding and restored **unconditionally**
+in a `finally`, so it survives a body that clobbers CP and survives an
+exception. Nesting is LIFO because each call owns its own saved `Var` and
+scratch base: an inner call restores the outer binding, and the outer call
+restores the ambient value.
+
+The four restore policies, stated once:
+
+| surface | CP after the call |
+|---|---|
+| `with_cp` / `withCP` | cursor-only: re-anchored to the constant base when the cursor moved; a read at offset 0 can leave CP at 0 |
+| `with_epd` / `withEpd` | the ambient pre-call value, always |
+| `PageSlotEPD` read | 0 |
+| `memcpyEPD` / `memsetEPD` | the seed/advance end value (still clobbers) |
+
+Cost: one full-dword ambient read (the shared reader is a 33T body or a call),
+one bind store, one restore, plus the optional one-act pre-hop — at most 36T
+per non-shared site, the budget in ticket `T-WP5`. A private
+`_with_epd_saved(saved, ...)` form for callers that already hold the ambient CP
+is deferred rather than widening the public signature.
+
+What remains rejected: a runtime **base** for `with_cp` (the int-only guard
+is a correctness requirement), a general `store(computed_addr, value)`, and a
+public runtime-indexed container (ADR 0030).
+
 ## Consequences
 
 - Callers get a first-class EPD-bearing `Var` from a payload blob without
   duplicating the private `_seed_epd_cursor` trigger shape.
-- `blockio.py`/`blockio.ts` keep their private shape in this ticket; ticket
-  `T-WP5` refactors them onto the public primitive next wave.
+- `blockio.py`/`blockio.ts` share the CP seed and mode-1 blob-reloc shapes
+  through `_set_cp_from_var` / `_emit_epd_reloc_into` (ticket `T-WP5`) without
+  changing a single HIR byte: `memcpyEPD`/`memsetEPD`/`connectDList` still
+  leave CP clobbered, so wrapping them in `with_epd` would be a behavior
+  change, not a refactor.
+- `with_epd` adds the missing runtime CP binding without widening the
+  addressing model: it is a scalar base plus constant relative hops, not a
+  general computed-address store or a runtime-indexed container.
 - No HIR schema change, no new LIR item, and no new diagnostic code.
 - The relocation writes the full 32-bit EPD into the destination value field,
   so an EPD-bearing variable has to remain full-width. The simulator test pins

@@ -14,11 +14,14 @@ import {
   AddrReloc,
   AtLeast,
   CurrentPlayer,
+  Db,
+  DbRef,
   Deaths,
   Exactly,
   SetDeaths,
   SetTo,
   emitVarStore,
+  epdOfDb,
   type HirAct,
 } from "./hir.ts";
 import {
@@ -30,7 +33,14 @@ import {
 } from "./trigger.ts";
 import { when, whileLoop } from "./temporal.ts";
 import { ACT_FIELD_OFFSETS } from "./stock-spec.ts";
-import { Var, type VarImpl } from "./var.ts";
+import {
+  Expr,
+  ReadonlyVar,
+  Var,
+  VarImpl,
+  toVar,
+  type VarOperand,
+} from "./var.ts";
 import {
   EPD_CURRENT_PLAYER,
   EudslError,
@@ -149,6 +159,17 @@ export function emitCpSweep(
   emitVarStore(saved.id, AddrReloc(CP_ADDR));
 }
 
+/**
+ * Store `src`'s value into the runtime CurrentPlayer register.
+ *
+ * The one CP-seed shape shared by `withEpd` and `blockio`'s private seeders.
+ * `memcpyEPD` still leaves CP clobbered at its end value; only `withEpd`
+ * pairs this store with an unconditional ambient restore.
+ */
+export function _setCpFromVar(src: VarImpl): void {
+  emitVarStore(src.id, AddrReloc(CP_ADDR), SetTo);
+}
+
 function requireIntBase(baseEpd: unknown): asserts baseEpd is number {
   if (typeof baseEpd !== "number" || !Number.isInteger(baseEpd)) {
     throw new EudslError(
@@ -237,3 +258,161 @@ export function withCP<R = void>(
 }
 
 export const with_cp = withCP;
+
+/** Public documentation name for the accepted `withEpd` operand domain. */
+export type EpdOperand = number | VarImpl | ReadonlyVar | Expr | Db | DbRef;
+
+function requireEpdOperand(epd: unknown): asserts epd is EpdOperand {
+  if (typeof epd === "boolean") {
+    throw new EudslError(
+      "EUDSL-TYPE",
+      `withEpd epd must be an EPD-bearing value; got ${String(epd)}`,
+    );
+  }
+  if (typeof epd === "number") {
+    if (!Number.isInteger(epd)) {
+      throw new EudslError(
+        "EUDSL-TYPE",
+        `withEpd epd must be an EPD-bearing value; got ${String(epd)}`,
+      );
+    }
+    return;
+  }
+  if (epd instanceof DbRef || epd instanceof VarImpl || epd instanceof Expr) {
+    return;
+  }
+  throw new EudslError(
+    "EUDSL-TYPE",
+    `withEpd epd must be an EPD-bearing value (int, Var, ReadonlyVar, Expr, Db, or DbRef); got ${String(epd)}`,
+  );
+}
+
+function requireEpdOffset(offset: unknown): asserts offset is number {
+  if (
+    typeof offset !== "number" ||
+    !Number.isInteger(offset) ||
+    offset < -(2 ** 31) ||
+    offset > 2 ** 31 - 1
+  ) {
+    throw new EudslError(
+      "EUDSL-RANGE",
+      `withEpd offset must be a signed 32-bit integer; got ${String(offset)}`,
+    );
+  }
+}
+
+function materializeEpdBase(epd: EpdOperand): VarImpl {
+  if (epd instanceof DbRef) return epdOfDb(epd);
+  if (typeof epd === "number") return new Var(epd >>> 0);
+  return toVar(epd as VarOperand);
+}
+
+function bindEpd(base: VarImpl, offset: number): { cursor: EpdCursor; saved: VarImpl } {
+  const cursorBase = new Var(0);
+  cursorBase.set(base);
+  if (offset !== 0) cursorBase.iadd(offset);
+  const saved = readCurrentPlayerRegister();
+  _setCpFromVar(cursorBase);
+  return { cursor: new EpdCursor(cursorBase, 0), saved };
+}
+
+/**
+ * CP cursor over a **runtime** EPD base, with relative dword hops.
+ *
+ * Unlike {@link CPCursor}, the base lives in a `Var`, so hops must be relative
+ * (`Add`) rather than absolute (`SetTo base + target`). Each call owns its own
+ * base copy; the public constructor is {@link withEpd}, which also saves and
+ * restores the ambient CP.
+ */
+export class EpdCursor {
+  readonly base: VarImpl;
+  currentOffset: number;
+
+  constructor(base: VarImpl, offset = 0) {
+    if (!(base instanceof VarImpl)) {
+      throw new EudslError(
+        "EUDSL-TYPE",
+        `EpdCursor base must be a Var; got ${String(base)}`,
+      );
+    }
+    requireEpdOffset(offset);
+    this.base = base;
+    this.currentOffset = offset;
+  }
+
+  get current_offset(): number {
+    return this.currentOffset;
+  }
+
+  /**
+   * Hop CP by the relative delta to `targetDwordOffset`.
+   *
+   * Repeating the current offset emits nothing. `restore` only resets this
+   * build-time offset; the ambient CP restore belongs to {@link withEpd}.
+   */
+  moveTo(targetDwordOffset: number): void {
+    if (targetDwordOffset !== this.currentOffset) {
+      SetDeaths(
+        EPD_CURRENT_PLAYER,
+        Add,
+        targetDwordOffset - this.currentOffset,
+        0,
+      );
+      this.currentOffset = targetDwordOffset;
+    }
+  }
+
+  move_to(targetDwordOffset: number): void {
+    this.moveTo(targetDwordOffset);
+  }
+
+  /**
+   * Hop to `dwordOffset` and return the live-CP dword handle.
+   *
+   * The returned handle is anchored at CP's current position
+   * (`new CPCursor(0).at(0)`), so its `_prepareTarget` hop is a no-op and the
+   * relative hop is never emitted twice.
+   */
+  at(dwordOffset: number): MemFieldHandle {
+    this.moveTo(dwordOffset);
+    return new CPCursor(0).at(0);
+  }
+
+  /** Reset the build-time offset; emit nothing (see {@link withEpd}). */
+  restore(): void {
+    this.currentOffset = 0;
+  }
+}
+
+/**
+ * Bind CurrentPlayer to a runtime EPD for the duration of `fn`.
+ *
+ * `epd` may be a plain int, a `Var`/`ReadonlyVar`/`Expr`, or a `Db`/`DbRef`
+ * (routed through {@link epdOfDb}). The runtime base is copied into a private
+ * scratch `Var`, so a caller's `Var` is never mutated; `offset` pre-hops that
+ * copy by a constant dword count.
+ *
+ * The ambient CurrentPlayer value is saved with the shared 32-bit reader and
+ * restored **unconditionally** (including the exception path and when the body
+ * clobbers CP). Nesting is LIFO: each call owns its own save and base copy, so
+ * an inner call restores the outer binding and the outer call restores the
+ * ambient value. This is strictly stronger than {@link CPCursor.restore},
+ * which no-ops at offset 0.
+ */
+export function withEpd<R = void>(
+  epd: EpdOperand,
+  fn: (cp: EpdCursor) => R,
+  offset = 0,
+): R {
+  requireEpdOperand(epd);
+  requireEpdOffset(offset);
+  const base = materializeEpdBase(epd);
+  const { cursor, saved } = bindEpd(base, offset);
+  try {
+    return fn(cursor);
+  } finally {
+    _setCpFromVar(saved);
+  }
+}
+
+export const with_epd = withEpd;

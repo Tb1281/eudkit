@@ -51,17 +51,20 @@ entire point of the plugin.
    `EPD(t[i]) + 86 + k`, matching the source's per-trigger base plus `+8`
    stride.
 
-4. **Patch through a scratch write trigger.** eudkit's HIR has no runtime
-   store to a computed address: `emitVarStore` destinations are static, and a
-   `Var` used as a `SetMemoryEPD` destination resolves to the variable's
-   *storage address*, not its value. The port therefore keeps the source's
-   shape — one write per iteration — by writing through one scratch trigger
-   whose own `dest`/`value` fields the loop advances in place, the same idiom
-   as the unlimiter port. One mode-1 relocation points the seed action's
-   `dest` field at the scratch's `dest` field and fills its `value` field with
-   `EPD(t[0].act(0).dest)`; a variable store then writes the table EPD `P`
-   into the scratch's value field. Per iteration the loop emits the scratch
-   trigger, then `dest += 8`, `value += 1`, `k += 8`.
+4. **Patch through a scratch write trigger.** eudkit's HIR has no general
+   runtime store to a computed address: `emitVarStore` destinations are static,
+   and a `Var` used as a `SetMemoryEPD` destination resolves to the variable's
+   *storage address*, not its value. ADR 0029 §7 supersedes this only for the
+   CP-relative constructor (`with_epd`, a scalar runtime base with constant
+   relative hops); the scrubber here still needs arbitrary per-iteration
+   destinations and keeps the static path. The port therefore keeps the
+   source's shape — one write per iteration — by writing through one scratch
+   trigger whose own `dest`/`value` fields the loop advances in place, the
+   same idiom as the unlimiter port. One mode-1 relocation points the seed
+   action's `dest` field at the scratch's `dest` field and fills its `value`
+   field with `EPD(t[0].act(0).dest)`; a variable store then writes the table
+   EPD `P` into the scratch's value field. Per iteration the loop emits the
+   scratch trigger, then `dest += 8`, `value += 1`, `k += 8`.
 
 5. **Keep the source's loop bounds.** A full trigger walks `k <= 63 * 8 =
    504`; the outer loop lowers the bound to `15 * 8 = 120` under a

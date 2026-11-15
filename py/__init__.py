@@ -72,7 +72,7 @@ from .dat import (
     weaponsDat,
     weapons_dat,
 )
-from .cp import CP_ADDR, CPCursor, withCP, with_cp
+from .cp import CP_ADDR, CPCursor, EpdCursor, withCP, withEpd, with_cp, with_epd
 from .camera import (
     CAMERA_TILE_X_ADDR,
     CAMERA_TILE_Y_ADDR,
@@ -407,6 +407,7 @@ __all__ = [
     "COND_STRIDE_EPDS",
     "CP_ADDR",
     "CPCursor",
+    "EpdCursor",
     "CAMERA_TILE_X_ADDR",
     "CAMERA_TILE_Y_ADDR",
     "CAMERA_X_ADDR",
@@ -697,7 +698,9 @@ __all__ = [
     "whileLoop",
     "while_loop",
     "withCP",
+    "withEpd",
     "with_cp",
+    "with_epd",
     "word",
 ]
 __all__ += list(_STOCK_EXPORTS)

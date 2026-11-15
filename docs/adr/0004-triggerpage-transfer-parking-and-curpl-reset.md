@@ -51,6 +51,12 @@ the map blank. eudplib's finalizer resets it in `inj_finalizer.py`.
    known-lane run (static text, `{:x}`) never borrows the register and emits no
    reset. The reset uses the same resting value (0 = player 1) as decision 4 and
    the `camera.py` restore.
+7. **`with_cp` and `with_epd` have different restore policies.** `with_cp`
+   takes a constant int EPD and its `restore()` only re-anchors the cursor
+   (a no-op at offset 0); `with_epd` takes a runtime EPD and restores the
+   ambient CurrentPlayer value unconditionally
+   ([ADR 0029](./0029-runtime-epd-addressing.md) §7). The C7 writer and the
+   per-loop reset above keep their cursor-only/resting-0 behavior.
 
 ## Consequences
 

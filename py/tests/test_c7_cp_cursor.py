@@ -14,13 +14,28 @@ import json
 import unittest
 from typing import Any
 
-from py import FixedString, Var, build_module
-from py.tests.helpers import flatten_stmts, read_text, run_sim
+from py import FixedString, SetMemory, Var, build_module, with_epd
+from py.cp import read_current_player_register
+from py.hir import AddrReloc, SetTo, emitVarStore
+from py.tests.helpers import EPD_BASE, flatten_stmts, read_dword, read_text, run_sim
 from py.view import EPD_CURRENT_PLAYER
 
 CP_ADDR = 0x6509B0
 SET_DEATHS = 45
 SET_TO = 7
+
+#: External observation dword (outside the synthetic payload).
+OBSERVE = 0x6D0000
+
+
+def _observe(addr: int) -> None:
+    """Store the live CurrentPlayer value into an external observation dword."""
+    saved = read_current_player_register()
+    emitVarStore(saved.id, AddrReloc(addr), SetTo)
+
+
+def _epd(addr: int) -> int:
+    return (addr - EPD_BASE) // 4
 
 
 def _module(fmt: str, values: list[int], size: int = 32) -> Any:
@@ -102,6 +117,38 @@ class CpCursorWriterTest(unittest.TestCase):
 
         # The known-lane path (`{:x}`) never touches curpl.
         self.assertEqual(_cp_borrow_counts(_hir("{:x}", [42])), (0, 0))
+
+
+class CpCursorAmbientTest(unittest.TestCase):
+    """ADR 0004: the C7 borrow is cursor-only, but ``with_epd`` restores.
+
+    The writer itself still resets CP to 0 (its documented cursor-only
+    restore). Wrapping the format run in ``with_epd`` adds the unconditional
+    ambient save/restore, so a non-zero ambient value survives a render.
+    """
+
+    def _write(self, fmt: str, values: list[int], size: int = 32) -> None:
+        s = FixedString(size)
+        s.write(fmt, *[Var(value) for value in values])
+
+    def test_writer_restores_zero_not_the_ambient_value(self) -> None:
+        def prog() -> None:
+            SetMemory(CP_ADDR, SetTo, 77)
+            self._write("{}", [42])
+            _observe(OBSERVE)
+
+        report = run_sim(build_module(prog).to_json())
+        self.assertEqual(read_dword(report, _epd(OBSERVE)), 0)
+
+    def test_with_epd_restores_the_ambient_value_around_a_format_run(self) -> None:
+        def prog() -> None:
+            SetMemory(CP_ADDR, SetTo, 77)
+            with_epd(1000, lambda cp: self._write("{}", [42]))
+            _observe(OBSERVE)
+
+        report = run_sim(build_module(prog).to_json())
+        self.assertEqual(read_text(report, 0), "42")
+        self.assertEqual(read_dword(report, _epd(OBSERVE)), 77)
 
 
 if __name__ == "__main__":
