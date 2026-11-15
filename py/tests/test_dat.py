@@ -9,6 +9,7 @@ from __future__ import annotations
 import unittest
 
 from py import (
+    FixedString,
     FlingyType,
     TechType,
     UnitType,
@@ -17,6 +18,7 @@ from py import (
     WeaponType,
     build_module,
     flingy_dat,
+    lazy_fixed_string,
     tech_dat,
     units_dat,
     upgrades_dat,
@@ -29,6 +31,16 @@ from py.dat import (
     dat_symbols_for,
 )
 from py.view import EudslError, EPD
+
+
+def _find_mode6_reloc(mod):
+    """Return the one trigger/act/reloc carrying a ``mode == 6`` relocation."""
+    for trig in mod.triggers:
+        for act in trig.acts:
+            for reloc in act.get("relocs", ()):
+                if reloc.get("mode") == 6:
+                    return trig, act, reloc
+    raise AssertionError("module has no mode-6 string-id relocation")
 
 
 class DatTablesTests(unittest.TestCase):
@@ -200,6 +212,105 @@ class DatTablesTests(unittest.TestCase):
 
     def test_epd_matches_view_helper(self) -> None:
         self.assertEqual(units_dat[0].maxHp.epd, EPD(6_693_712))
+
+    def test_name_string_set_string_emits_lane_masked_wire_id_reloc(self) -> None:
+        captured = {}
+
+        def build() -> None:
+            fs = FixedString(8)
+            captured["index"] = fs.message_index
+            units_dat[UnitType.Marine].nameString.set_string(fs)
+
+        mod = build_module(build)
+        trig, act, reloc = _find_mode6_reloc(mod)
+
+        self.assertEqual(trig.conds, ())
+        self.assertEqual(len(trig.acts), 1)
+        self.assertTrue(trig.preserved)
+        self.assertEqual(act["dest"], 219_071)
+        self.assertEqual(act["value"], 0)
+        self.assertEqual(act["modifier"], 7)  # SetTo
+        self.assertEqual(act["acttype"], 45)
+        self.assertEqual(act["mask"], 0x0000FFFF)
+        self.assertEqual(
+            reloc,
+            {
+                "field_offset": 20,
+                "target_string": captured["index"],
+                "target_offset": 0,
+                "mode": 6,
+            },
+        )
+
+    def test_name_string_odd_entry_targets_high_lane_and_keeps_neighbour(self) -> None:
+        captured = {}
+
+        def build() -> None:
+            fs = FixedString(8)
+            captured["index"] = fs.message_index
+            handle = units_dat[UnitType.ZergZergling].nameString
+            captured["handle"] = handle
+            handle.set_string(fs)
+
+        mod = build_module(build)
+        _, act, reloc = _find_mode6_reloc(mod)
+        handle = captured["handle"]
+
+        self.assertEqual(handle.address, 0x6602AA)
+        self.assertEqual(handle.epd, 219_089)
+        self.assertEqual(act["dest"], 219_089)
+        # The mask covers only the high lane, so the neighbouring (even) unit
+        # type's nameString id in the low lane is untouched.
+        self.assertEqual(act["mask"], 0xFFFF0000)
+        self.assertEqual(act["mask"] & 0x0000FFFF, 0)
+        self.assertEqual(reloc["target_offset"], 16)
+        self.assertEqual(reloc["target_string"], captured["index"])
+
+    def test_name_string_set_string_accepts_lazy_fixed_string(self) -> None:
+        lazy = lazy_fixed_string(8)
+        captured = {}
+
+        def build() -> None:
+            units_dat[UnitType.Marine].nameString.set_string(lazy)
+            captured["index"] = lazy.message_index
+
+        mod = build_module(build)
+        _, _, reloc = _find_mode6_reloc(mod)
+
+        self.assertEqual(reloc["target_string"], captured["index"])
+        self.assertEqual(reloc["target_offset"], 0)
+
+    def test_name_string_set_string_rejects_non_string_operands(self) -> None:
+        for bad in (b"\x00", 5, True, None):
+            with self.assertRaisesRegex(EudslError, "EUDSL-TYPE"):
+                units_dat[UnitType.Marine].nameString.set_string(bad)
+
+    def test_set_string_requires_a_16_bit_field(self) -> None:
+        def build() -> None:
+            fs = FixedString(8)
+            with self.assertRaisesRegex(EudslError, "EUDSL-BOUNDS"):
+                units_dat[UnitType.Marine].maxHp.set_string(fs)
+
+        build_module(build)
+
+    def test_set_string_camel_alias_is_the_same_method(self) -> None:
+        self.assertIs(DatFieldHandle.set_string, DatFieldHandle.setString)
+
+    def test_rank_is_still_a_plain_byte_write(self) -> None:
+        def build() -> None:
+            units_dat[UnitType.Marine].rank.set(2)
+
+        mod = build_module(build)
+        acts = [act for trig in mod.triggers for act in trig.acts]
+        self.assertTrue(
+            any(
+                act["dest"] == 222_875
+                and act["value"] == 2
+                and act["mask"] == 0x000000FF
+                for act in acts
+            ),
+            acts,
+        )
 
 
 if __name__ == "__main__":

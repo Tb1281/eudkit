@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  FixedString,
   FlingyType,
   SetTo,
   TechType,
@@ -18,12 +19,26 @@ import {
   WeaponType,
   buildModule,
   flingyDat,
+  lazyFixedString,
   techDat,
   unitsDat,
   upgradesDat,
   weaponsDat,
   type DatFieldHandle,
 } from "../index.ts";
+
+function findMode6Reloc(mod: ReturnType<typeof buildModule>) {
+  for (const trig of mod.triggers) {
+    for (const act of trig.acts) {
+      for (const reloc of act.relocs ?? []) {
+        if ((reloc.mode as number) === 6) {
+          return { trig, act, reloc };
+        }
+      }
+    }
+  }
+  throw new Error("module has no mode-6 string-id relocation");
+}
 
 test("DAT tables load their schema metadata and entry counts", () => {
   assert.equal(unitsDat.table, "TrgUnit");
@@ -193,4 +208,114 @@ test("out-of-range, dynamic, and unknown DAT lookups fail with DSL errors", () =
     const dynamic = Var(0);
     assert.throws(() => unitsDat.at(dynamic as never), /EUDSL-TARGET/);
   });
+});
+
+test("nameString setString emits a lane-masked wire-id relocation", () => {
+  let index = -1;
+  const mod = buildModule(() => {
+    const fs = new FixedString(8);
+    index = fs.messageIndex;
+    unitsDat[UnitType.Marine].nameString.setString(fs);
+  });
+  const { trig, act, reloc } = findMode6Reloc(mod);
+
+  assert.deepEqual(trig.conds, []);
+  assert.equal(trig.acts.length, 1);
+  assert.equal(trig.preserved, true);
+  assert.equal(act.dest, 219_071);
+  assert.equal(act.value, 0);
+  assert.equal(act.modifier, SetTo);
+  assert.equal(act.acttype, 45);
+  assert.equal(act.mask, 0x0000ffff);
+  assert.deepEqual(reloc, {
+    field_offset: 20,
+    target_string: index,
+    target_offset: 0,
+    mode: 6,
+  });
+});
+
+test("nameString odd entry targets the high lane and keeps its neighbour", () => {
+  let index = -1;
+  let address = -1;
+  let epd = -1;
+  const mod = buildModule(() => {
+    const fs = new FixedString(8);
+    index = fs.messageIndex;
+    const handle = unitsDat[UnitType.ZergZergling].nameString;
+    address = handle.address;
+    epd = handle.epd as number;
+    handle.setString(fs);
+  });
+  const { act, reloc } = findMode6Reloc(mod);
+
+  assert.equal(address, 0x6602aa);
+  assert.equal(epd, 219_089);
+  assert.equal(act.dest, 219_089);
+  // Only the high lane is in the mask, so the even neighbour is untouched.
+  assert.equal(act.mask, 0xffff0000);
+  assert.equal(act.mask & 0x0000ffff, 0);
+  assert.equal(reloc.target_offset, 16);
+  assert.equal(reloc.target_string, index);
+});
+
+test("nameString setString accepts a lazy FixedString", () => {
+  const lazy = lazyFixedString(8);
+  let index = -1;
+  const mod = buildModule(() => {
+    unitsDat[UnitType.Marine].nameString.setString(lazy);
+    index = lazy.messageIndex;
+  });
+  const { reloc } = findMode6Reloc(mod);
+
+  assert.equal(reloc.target_string, index);
+  assert.equal(reloc.target_offset, 0);
+});
+
+test("nameString setString rejects non-string operands", () => {
+  for (const bad of [new Uint8Array([0]), 5, true, null]) {
+    assert.throws(
+      () => unitsDat[UnitType.Marine].nameString.setString(bad as never),
+      /EUDSL-TYPE/,
+    );
+  }
+});
+
+test("setString requires a 16-bit field", () => {
+  buildModule(() => {
+    const fs = new FixedString(8);
+    assert.throws(
+      () => unitsDat[UnitType.Marine].maxHp.setString(fs),
+      /EUDSL-BOUNDS/,
+    );
+  });
+});
+
+test("set_string is a parity alias for setString", () => {
+  const handle = unitsDat[UnitType.Marine].nameString;
+  assert.equal(handle.set_string, handle.setString);
+
+  const snake = buildModule(() => {
+    const fs = new FixedString(8);
+    unitsDat[UnitType.Marine].nameString.set_string(fs);
+  }).toJson();
+  const camel = buildModule(() => {
+    const fs = new FixedString(8);
+    unitsDat[UnitType.Marine].nameString.setString(fs);
+  }).toJson();
+  assert.equal(snake, camel);
+});
+
+test("rank is still a plain byte write", () => {
+  const mod = buildModule(() => {
+    unitsDat[UnitType.Marine].rank.set(2);
+  });
+  const acts = mod.triggers.flatMap((trig) => trig.acts);
+  assert.ok(
+    acts.some(
+      (act) =>
+        act.dest === 222_875 && act.value === 2 && act.mask === 0x000000ff,
+    ),
+    JSON.stringify(acts),
+  );
 });

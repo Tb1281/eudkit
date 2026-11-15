@@ -1198,6 +1198,9 @@ pub enum HirTriggerPtr {
 ///
 /// `mode == 1`: EPD relocation (`(addr - 0x58A364) / 4`)
 /// `mode == 4`: byte-address pointer relocation (`addr`)
+/// `mode == 6`: 16-bit wire string id (`template_count + index + 1`), shifted
+/// left by `target_offset` bits and written into the field. `target_offset`
+/// is a **bit shift**, not a byte offset, for this mode only.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HirReloc {
     pub field_offset: usize,

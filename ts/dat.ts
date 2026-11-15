@@ -22,10 +22,15 @@ import {
   EudslError,
   MemFieldHandle,
   defineMemView,
+  describeValue,
   locateSchemaFile,
   type FieldWidth,
   type MemViewSchema,
 } from "./view.ts";
+import { EUDX_MAGIC, SetTo, type HirAct, type HirReloc } from "./hir.ts";
+import { ACT_FIELD_OFFSETS } from "./stock-spec.ts";
+import type { FixedString, lazyFixedString } from "./string.ts";
+import { Trigger } from "./trigger.ts";
 import type {
   FlingyEntry,
   FlingyFields,
@@ -121,6 +126,62 @@ export class DatFieldHandle extends MemFieldHandle {
     this.field = field;
     this.address = address;
   }
+
+  /**
+   * Write `fs`'s 16-bit wire string id into this 16-bit field.
+   *
+   * The id is resolved at assembly as `template_count + messageIndex + 1`,
+   * which the frontend cannot know. The field's lane mask and bit shift keep
+   * the neighbouring entry's id intact.
+   */
+  setString(fs: FixedString | ReturnType<typeof lazyFixedString>): void {
+    if (this.size !== 2) {
+      throw new EudslError(
+        "EUDSL-BOUNDS",
+        `setString() requires a 16-bit field; '${this.field}' is ${this.size} bytes`,
+      );
+    }
+    const index =
+      fs === null || typeof fs !== "object"
+        ? undefined
+        : (fs as { messageIndex?: unknown }).messageIndex;
+    if (typeof index !== "number" || !Number.isInteger(index)) {
+      throw new EudslError(
+        "EUDSL-TYPE",
+        "setString() requires a FixedString with an integer messageIndex, " +
+          `got ${describeValue(fs)}`,
+      );
+    }
+    // `HirReloc.mode` is still typed `1 | 4` in trigger.ts; the HIR accepts
+    // mode 6 (Rust validates the value), so widen only this literal.
+    const reloc: HirReloc = {
+      field_offset: ACT_FIELD_OFFSETS.value!,
+      target_string: index,
+      target_offset: this.shift,
+      mode: 6 as unknown as HirReloc["mode"],
+    };
+    // Match `SetDeathsX(dest, SetTo, 0, 0, mask)` exactly, including the
+    // EUDX marker that makes the mask meaningful at runtime.
+    const act: HirAct = Object.freeze({
+      mask: this.bitMask,
+      strid: 0,
+      wavid: 0,
+      time: 0,
+      dest: this.epd!,
+      value: 0,
+      unit: 0,
+      acttype: 45,
+      modifier: SetTo,
+      flags: 20,
+      padding: 0,
+      eudx: EUDX_MAGIC,
+      relocs: [reloc],
+    });
+    new Trigger({ conds: [], acts: [act], preserved: true });
+  }
+
+  // Python/TS parity alias, like `memcpyEPD` / `memcpy_epd` in view.ts.
+  set_string = this.setString;
 }
 
 /**
