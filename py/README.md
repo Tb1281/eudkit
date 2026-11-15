@@ -1,5 +1,7 @@
 # eudkit (Python DSL)
 
+> **한국어 안내:** [py/README.ko.md](./README.ko.md) (English document is the SSOT).
+
 Python implementation of the eudkit DSL. Mirrors `ts/` 1:1 at the canonical
 vocabulary level. A small number of builder-seam behaviours differ by design;
 see [ADR 0026](../docs/adr/0026-builder-seam-divergence.md).

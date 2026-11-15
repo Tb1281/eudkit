@@ -71,7 +71,7 @@ jobs:
         working-directory: ts
         run: npm ci && npm run build
       - name: Build release binaries
-        run: cargo build --release -p eudkit -p eudkit-lsp -j 2 --target ${{ matrix.target }}
+        run: cargo build --release -p eudkit -p eudkit-lsp --target ${{ matrix.target }}
       - name: Assemble and verify bundle
         shell: bash
         run: |

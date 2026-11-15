@@ -1,22 +1,20 @@
 #!/usr/bin/env python3
-"""Check that every eudkit manifest carries the version it should.
+"""Check that every eudkit manifest carries the same unified version.
 
-Two version series are intentional:
-
-* The Rust workspace, the CLI/LSP crates, and both editor extensions share one
-  version. Crates inherit it with ``version.workspace = true`` so there is a
-  single source of truth in ``[workspace.package] version``.
-* The Python and npm packages share their own, independently bumped version.
+The Rust workspace, the CLI/LSP crates, both editor extensions, and the Python
+and npm packages share one unified version. Rust crates inherit it with
+``version.workspace = true`` so there is a single source of truth in
+``[workspace.package] version``.
 
 Run from anywhere::
 
     python3 scripts/check_versions.py
-    python3 scripts/check_versions.py --tag v0.3.0
+    python3 scripts/check_versions.py --tag v0.1.0
 
 ``--tag`` accepts the git tag form ``vMAJOR.MINOR.PATCH`` (or the bare
-``MAJOR.MINOR.PATCH``) and must exactly match the Rust/CLI/editor version.
-Prerelease suffixes must match exactly too, so ``v0.4.0-rc.1`` is only valid
-when the manifests also say ``0.4.0-rc.1``.
+``MAJOR.MINOR.PATCH``) and must exactly match every manifest version.
+Prerelease suffixes must match exactly too, so ``v0.2.0-rc.1`` is only valid
+when the manifests also say ``0.2.0-rc.1``.
 """
 
 from __future__ import annotations
@@ -46,7 +44,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--tag",
-        help="Release tag to check, e.g. v0.3.0; must equal the Rust version",
+        help="Release tag to check, e.g. v0.1.0; must equal the manifest version",
     )
     return parser.parse_args(argv)
 
@@ -119,6 +117,11 @@ def collect(root: Path) -> dict[str, str]:
     )
     if ts != py:
         raise VersionError(f"ts/package.json={ts} must match py/pyproject.toml={py}")
+    if ts != workspace_version or py != workspace_version:
+        raise VersionError(
+            f"DSL packages must match the workspace version {workspace_version!r}: "
+            f"ts/package.json={ts}, py/pyproject.toml={py}"
+        )
 
     return {
         "rust": workspace_version,

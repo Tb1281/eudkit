@@ -1,5 +1,7 @@
 # eudkit LSP for VS Code
 
+> **한국어 안내:** [editors/vscode/README.ko.md](./README.ko.md) (English document is the SSOT).
+
 Completion, hover documentation, and capacity diagnostics for
 [eudkit](https://github.com/Tb1281/eudkit) TypeScript and Python DSL
 files. This extension is a thin client for the `eudkit-lsp` language server in

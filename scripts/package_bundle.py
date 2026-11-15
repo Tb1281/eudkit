@@ -59,7 +59,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Assemble an eudkit release bundle from a release build.",
     )
-    parser.add_argument("--version", required=True, help="Bundle version, e.g. 0.3.0")
+    parser.add_argument("--version", required=True, help="Bundle version, e.g. 0.1.0")
     parser.add_argument(
         "--target",
         required=True,

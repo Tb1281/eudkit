@@ -1,5 +1,7 @@
 # eudkit
 
+> **한국어 안내:** [README.ko.md](README.ko.md) (English document is the SSOT).
+
 eudkit is a compiler toolchain and unified TypeScript/Python DSL for authoring
 StarCraft: Remastered EUD maps around the native `Trigger (16C, 64A)`
 execution and storage model. You write build-time macros in TypeScript or
@@ -203,9 +205,11 @@ For the full first-run path, including basemap choice and in-game checks, see
 
 | Document | What it covers |
 | --- | --- |
+| [README.ko.md](README.ko.md) | Korean overview and setup guide (English README is the SSOT) |
 | [docs/quickstart.md](docs/quickstart.md) | End-to-end first-run walkthrough |
 | [docs/quickstart.ko.md](docs/quickstart.ko.md) | Korean quickstart and beginner guide (English document is the SSOT) |
 | [examples/quickstart/README.md](examples/quickstart/README.md) | Runnable Hello World examples |
+| [examples/quickstart/README.ko.md](examples/quickstart/README.ko.md) | Korean quickstart examples guide (English document is the SSOT) |
 | [examples/README.md](examples/README.md) | Migration examples and Py/TS parity |
 | [examples/README.ko.md](examples/README.ko.md) | Korean migration examples and Py/TS parity guide |
 | [docs/diagnostics.md](docs/diagnostics.md) | `EUDSL-*` diagnostic codes and fixes |
@@ -216,8 +220,10 @@ For the full first-run path, including basemap choice and in-game checks, see
 | [docs/stock-triggers.md](docs/stock-triggers.md) | Stock and extension trigger catalog |
 | [docs/benchmarking.md](docs/benchmarking.md) | Compile-stage benchmark harness |
 | [tests/outputmap/smoke/README.md](tests/outputmap/smoke/README.md) | Manual in-game smoke-map checks |
-| [py/README.md](py/README.md) | Python DSL entry, catalog, and DAT tables |
-| [ts/README.md](ts/README.md) | TypeScript DSL entry, catalog, and DAT tables |
+| [py/README.md](py/README.md) | Python DSL entry, catalog, and DAT tables ([한국어](py/README.ko.md)) |
+| [ts/README.md](ts/README.md) | TypeScript DSL entry, catalog, and DAT tables ([한국어](ts/README.ko.md)) |
+| [editors/vscode/README.md](editors/vscode/README.md) | VS Code extension for `eudkit-lsp` ([한국어](editors/vscode/README.ko.md)) |
+| [editors/zed/README.md](editors/zed/README.md) | Zed extension for `eudkit-lsp` ([한국어](editors/zed/README.ko.md)) |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Build/test matrix, schema sync, and runtime contract |
 
 ## Build and test
@@ -227,8 +233,8 @@ repository root:
 
 | Target | What it runs |
 | --- | --- |
-| `make build` | `cargo build --workspace -j 2` |
-| `make release` | `cargo build --release --workspace -j 2` |
+| `make build` | `cargo build --workspace` |
+| `make release` | `cargo build --release --workspace` |
 | `make test-rust` | Workspace tests plus the focused `map_bridge` suite |
 | `make test-ts` | TypeScript typecheck and tests (installs `ts/` dependencies first) |
 | `make test-py` | Python `unittest` discovery from the repository root |
@@ -261,14 +267,13 @@ in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 | Component | Version | Source |
 | --- | --- | --- |
-| `eudkit` CLI and Rust workspace | 0.3.0 | `Cargo.toml` (`[workspace.package] version`) |
-| Python `eudkit` package | 3.0.0 | `py/pyproject.toml` |
-| npm `eudkit` package | 3.0.0 | `ts/package.json` |
+| `eudkit` CLI, Rust workspace, and LSP editor extensions | 0.1.0 | `Cargo.toml` (`[workspace.package] version`), `editors/` |
+| Python `eudkit` package | 0.1.0 | `py/pyproject.toml` |
+| npm `eudkit` package | 0.1.0 | `ts/package.json` |
 
-The compiler crate and the DSL packages use separate version series:
-`eudkit --version` reports `0.3.0`, while both language packages are `3.0.0`.
-Release packaging, registry publishing, and the standalone bundle layout are
-documented in [docs/release.md](docs/release.md).
+All backend crates, editor extensions, and Python/npm packages share the same
+unified version (`0.1.0`). Release packaging, registry publishing, and the
+standalone bundle layout are documented in [docs/release.md](docs/release.md).
 
 ## Status and limitations
 

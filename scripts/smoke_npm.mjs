@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Install a packed eudkit tarball into a clean project and import it.
 //
-// Usage (from ts/): node ../scripts/smoke_npm.mjs eudkit-3.0.0.tgz
+// Usage (from ts/): node ../scripts/smoke_npm.mjs eudkit-0.1.0.tgz
 
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";

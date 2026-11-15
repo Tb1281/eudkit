@@ -12,9 +12,9 @@ repository root:
 
 | Target | What it runs |
 | --- | --- |
-| `make build` | `cargo build --workspace -j 2` |
-| `make release` | `cargo build --release --workspace -j 2` |
-| `make test-rust` | `cargo test --workspace -j 2`, then `cargo test -p eudkit-lower --test map_bridge -j 2` |
+| `make build` | `cargo build --workspace` |
+| `make release` | `cargo build --release --workspace` |
+| `make test-rust` | `cargo test --workspace`, then `cargo test -p eudkit-lower --test map_bridge` |
 | `make test-ts` | `typecheck`, then `npm test` in `ts/` |
 | `make test-py` | `PYTHONPATH=. $(PYTHON) -m unittest discover -s py/tests -p 'test_*.py' -t .` |
 | `make test-quickstart` | `PYTHONPATH=. $(PYTHON) -m unittest py/tests/test_quickstart_examples.py` |
@@ -26,9 +26,9 @@ repository root:
 The direct commands are:
 
 ```sh
-cargo build --workspace -j 2
-cargo test --workspace -j 2
-cargo test -p eudkit-lower --test map_bridge -j 2
+cargo build --workspace
+cargo test --workspace
+cargo test -p eudkit-lower --test map_bridge
 (cd ts && npm install && npm run typecheck && npm test)
 PYTHONPATH=. python3 -m unittest discover -s py/tests -p 'test_*.py' -t .
 ```
@@ -41,9 +41,7 @@ PYTHONPATH=. python3 -m unittest discover -s py/tests -p 'test_*.py' -t .
   collides with pytest's own `py` dependency, and running from inside `py/`
   makes `py/struct.py` shadow the standard-library `struct` module.
 - Use `npm`, not `bun`, for the TypeScript workspace.
-- The commands use `-j 2`; keep it on memory-constrained machines and drop it
-  when you have headroom.
-- `cargo test -p eudkit-lower --test map_bridge -j 2` is the focused
+- `cargo test -p eudkit-lower --test map_bridge` is the focused
   map-bridge suite.
 
 For the Py/TS migration examples and their byte-identical HIR/`.scx` parity

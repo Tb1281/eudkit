@@ -1,5 +1,7 @@
 # Beginner Quickstart Examples
 
+> **한국어 안내:** [examples/quickstart/README.ko.md](./README.ko.md) (English document is the SSOT).
+
 Four small, progressive, **runnable** programs. Every `py/` and `ts/` pair is
 checked to synthesize with zero warnings, produce byte-identical compact HIR,
 keep the simulator's self-target invariant, and compile to byte-identical
@@ -29,7 +31,7 @@ Each file starts with the exact `synth` and `compile` commands for that file.
 Build the CLI once from the repository root:
 
 ```sh
-cargo build --workspace -j 2
+cargo build --workspace
 ./target/debug/eudkit --version
 ```
 

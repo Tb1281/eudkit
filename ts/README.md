@@ -1,5 +1,7 @@
 # eudkit (TypeScript DSL)
 
+> **한국어 안내:** [ts/README.ko.md](./README.ko.md) (English document is the SSOT).
+
 TypeScript implementation of the eudkit DSL. Mirrors `py/` 1:1.
 
 ## Install

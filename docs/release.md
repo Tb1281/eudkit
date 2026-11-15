@@ -128,35 +128,29 @@ artifact is built.
 
 ## Version conventions
 
-Six manifests must agree on the Rust/CLI/editor version:
+All eight manifests share one unified version (`0.1.0`):
 
 | Manifest | Value |
 | --- | --- |
-| [`Cargo.toml`](../Cargo.toml) `[workspace.package] version` | `0.3.0` (source of truth) |
+| [`Cargo.toml`](../Cargo.toml) `[workspace.package] version` | `0.1.0` (source of truth) |
 | [`crates/eudkit-cli/Cargo.toml`](../crates/eudkit-cli/Cargo.toml) | `version.workspace = true` |
 | [`crates/eudkit-lsp/Cargo.toml`](../crates/eudkit-lsp/Cargo.toml) | `version.workspace = true` |
-| [`editors/vscode/package.json`](../editors/vscode/package.json) | `0.3.0` |
-| [`editors/zed/Cargo.toml`](../editors/zed/Cargo.toml) | `0.3.0` |
-| [`editors/zed/extension.toml`](../editors/zed/extension.toml) | `0.3.0` |
+| [`editors/vscode/package.json`](../editors/vscode/package.json) | `0.1.0` |
+| [`editors/zed/Cargo.toml`](../editors/zed/Cargo.toml) | `0.1.0` |
+| [`editors/zed/extension.toml`](../editors/zed/extension.toml) | `0.1.0` |
+| [`py/pyproject.toml`](../py/pyproject.toml) | `0.1.0` |
+| [`ts/package.json`](../ts/package.json) | `0.1.0` |
 
-The Python and npm packages use their own major series and must match each
-other:
-
-| Manifest | Version |
-| --- | --- |
-| [`py/pyproject.toml`](../py/pyproject.toml) | `3.0.0` |
-| [`ts/package.json`](../ts/package.json) | `3.0.0` |
-
-Tags use the form `v<MAJOR.MINOR.PATCH>`, for example `v0.3.0`. A prerelease
-tag such as `v0.4.0-rc.1` is accepted only when every Rust/CLI/editor manifest
-also says `0.4.0-rc.1`. Validate the whole checklist before tagging:
+Tags use the form `v<MAJOR.MINOR.PATCH>`, for example `v0.1.0`. A prerelease
+tag such as `v0.2.0-rc.1` is accepted only when every manifest
+also says `0.2.0-rc.1`. Validate the whole checklist before tagging:
 
 ```sh
-python3 scripts/check_versions.py --tag v0.3.0
+python3 scripts/check_versions.py --tag v0.1.0
 ```
 
-The binary and Zed bundle names are derived from the Cargo workspace version,
-while the Python and npm artifacts carry their own manifest versions.
+All release bundles, editor extensions, and Python/npm artifacts carry this
+unified version.
 
 ## Required GitHub configuration
 
@@ -206,7 +200,7 @@ For each release:
    [eudkit]
    submodule = "extensions/eudkit"
    path = "editors/zed"
-   version = "0.3.0"
+   version = "0.1.0"
    ```
 
 4. Sort the index and run the repository's checks:
@@ -226,11 +220,11 @@ and a local installation input; it is not itself submitted to the registry.
 Build the inputs first, then assemble and verify a bundle:
 
 ```sh
-cargo build --release -p eudkit -p eudkit-lsp -j 2
+cargo build --release -p eudkit -p eudkit-lsp
 (cd ts && npm run build)
 
 python3 scripts/package_bundle.py \
-  --version 0.3.0 \
+  --version 0.1.0 \
   --target x86_64-unknown-linux-gnu \
   --bin-dir target/release \
   --repo-root . \
@@ -245,7 +239,7 @@ and confirms the `.sha256` checksum. Unpack and exercise both binaries:
 
 ```sh
 mkdir -p /tmp/eudkit-bundle
-tar -xzf dist/eudkit-0.3.0-x86_64-unknown-linux-gnu.tar.gz -C /tmp/eudkit-bundle
+tar -xzf dist/eudkit-0.1.0-x86_64-unknown-linux-gnu.tar.gz -C /tmp/eudkit-bundle
 BUNDLE=$(find /tmp/eudkit-bundle -mindepth 1 -maxdepth 1 -type d | head -n 1)
 cd "$BUNDLE"
 ./bin/eudkit doctor

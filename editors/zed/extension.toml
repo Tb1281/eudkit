@@ -1,6 +1,6 @@
 id = "eudkit"
 name = "eudkit LSP"
-version = "0.3.0"
+version = "0.1.0"
 schema_version = 1
 authors = ["Tb1281 <Tb1281@users.noreply.github.com>"]
 description = "eudkit DSL completion, hover docs, and capacity diagnostics for TypeScript and Python"

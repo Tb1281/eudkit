@@ -33,11 +33,11 @@ class PackageBundleTests(unittest.TestCase):
         self._write("LICENSE", "MIT\n")
         self._write("README.md", "# eudkit\n")
         self._write("ts/index.ts", "export {};\n")
-        self._write("ts/package.json", '{ "name": "eudkit", "version": "3.0.0" }\n')
+        self._write("ts/package.json", '{ "name": "eudkit", "version": "0.1.0" }\n')
         self._write("ts/dist/index.js", "export {};\n")
         self._write("ts/schema/layouts/cunit.json", "{}\n")
-        self._write("py/__init__.py", "VERSION = '3.0.0'\n")
-        self._write("py/pyproject.toml", '[project]\nname = "eudkit"\nversion = "3.0.0"\n')
+        self._write("py/__init__.py", "VERSION = '0.1.0'\n")
+        self._write("py/pyproject.toml", '[project]\nname = "eudkit"\nversion = "0.1.0"\n')
         self._write("py/schema/layouts/cunit.json", "{}\n")
         self._write("py/schema/stock-rows.json", "{}\n")
         self.bin_dir.mkdir(parents=True)
@@ -49,7 +49,7 @@ class PackageBundleTests(unittest.TestCase):
     def _package(self, *, verify: bool = True) -> Path:
         args = [
             "--version",
-            "0.3.0",
+            "0.1.0",
             "--target",
             "x86_64-unknown-linux-gnu",
             "--bin-dir",
@@ -62,10 +62,10 @@ class PackageBundleTests(unittest.TestCase):
         if verify:
             args.append("--verify")
         self.assertEqual(package_bundle.main(args), 0)
-        return self.out_dir / "eudkit-0.3.0-x86_64-unknown-linux-gnu.tar.gz"
+        return self.out_dir / "eudkit-0.1.0-x86_64-unknown-linux-gnu.tar.gz"
 
     def test_rejects_path_traversal_versions_and_targets(self) -> None:
-        for version in ("../escape", "..", "0.3.0/evil", "0.3.0\\evil", "/abs"):
+        for version in ("../escape", "..", "0.1.0/evil", "0.1.0\\evil", "/abs"):
             with self.subTest(version=version):
                 with self.assertRaises(package_bundle.BundleError):
                     package_bundle.stage_bundle(
@@ -75,7 +75,7 @@ class PackageBundleTests(unittest.TestCase):
             with self.subTest(target=target):
                 with self.assertRaises(package_bundle.BundleError):
                     package_bundle.stage_bundle(
-                        self.root, self.bin_dir, self.out_dir, "0.3.0", target
+                        self.root, self.bin_dir, self.out_dir, "0.1.0", target
                     )
 
     def test_verify_accepts_complete_bundle_and_normalizes_tar_metadata(self) -> None:
@@ -89,9 +89,9 @@ class PackageBundleTests(unittest.TestCase):
         for member in members:
             self.assertEqual((member.uid, member.gid, member.mtime), (0, 0, 0))
         names = {member.name for member in members}
-        self.assertIn("eudkit-0.3.0-x86_64-unknown-linux-gnu/bin/eudkit-lsp", names)
+        self.assertIn("eudkit-0.1.0-x86_64-unknown-linux-gnu/bin/eudkit-lsp", names)
         self.assertIn(
-            "eudkit-0.3.0-x86_64-unknown-linux-gnu/share/eudkit/ts/schema/layouts/cunit.json",
+            "eudkit-0.1.0-x86_64-unknown-linux-gnu/share/eudkit/ts/schema/layouts/cunit.json",
             names,
         )
 
@@ -100,7 +100,7 @@ class PackageBundleTests(unittest.TestCase):
         archive = self._package(verify=False)
         with self.assertRaisesRegex(package_bundle.BundleError, "stock-rows.json"):
             package_bundle.verify_archive(
-                archive, "0.3.0", "x86_64-unknown-linux-gnu"
+                archive, "0.1.0", "x86_64-unknown-linux-gnu"
             )
 
     def test_verify_rejects_missing_layouts(self) -> None:
@@ -109,7 +109,7 @@ class PackageBundleTests(unittest.TestCase):
         archive = self._package(verify=False)
         with self.assertRaisesRegex(package_bundle.BundleError, "TypeScript layouts"):
             package_bundle.verify_archive(
-                archive, "0.3.0", "x86_64-unknown-linux-gnu"
+                archive, "0.1.0", "x86_64-unknown-linux-gnu"
             )
 
 

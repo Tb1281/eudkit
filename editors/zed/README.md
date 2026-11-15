@@ -1,5 +1,7 @@
 # eudkit LSP for Zed
 
+> **한국어 안내:** [editors/zed/README.ko.md](./README.ko.md) (English document is the SSOT).
+
 A Zed extension that launches [`eudkit-lsp`](../../crates/eudkit-lsp), the
 language server for the eudkit TypeScript and Python DSLs. It provides
 completion, hover documentation, and fixed-capacity diagnostics. The server

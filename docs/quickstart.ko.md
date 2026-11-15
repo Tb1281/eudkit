@@ -3,7 +3,7 @@
 > **SSOT**: 이 문서의 영문 정본(SSOT)은 [docs/quickstart.md](./quickstart.md)입니다. 내용이 다를 경우 영문 정본을 우선합니다.
 
 이 문서는 새로 체크아웃한 저장소에서 시작해 StarCraft: Remastered에서 바로
-열 수 있는 맵을 만드는 과정을 안내합니다. [`examples/quickstart/`](../examples/quickstart/README.md)에
+열 수 있는 맵을 만드는 과정을 안내합니다. [`examples/quickstart/README.ko.md`](../examples/quickstart/README.ko.md)에
 있는 점진적인 예제 네 개를 사용합니다.
 
 용어가 낯설다면 정본 정의가 모여 있는 [`GLOSSARY.md`](../GLOSSARY.md)를 먼저
@@ -38,7 +38,7 @@ tests/outputmap/basemap/basemap_silent.scx
 저장소 루트에서 실행합니다.
 
 ```sh
-cargo build --workspace -j 2
+cargo build --workspace
 ./target/debug/eudkit --version
 ```
 
@@ -331,7 +331,7 @@ PYTHONPATH=. python3 -m unittest py/tests/test_examples.py
 ```
 
 quickstart 스위트는 `target/debug/eudkit`과 `target/debug/eudkit-compile`을 모두
-필요로 합니다. `cargo build --workspace -j 2`가 둘 다 만들어 줍니다.
+필요로 합니다. `cargo build --workspace`가 둘 다 만들어 줍니다.
 
 루트 `Makefile`은 두 스위트를 다음과 같이 감싸고 있습니다.
 
@@ -354,8 +354,8 @@ quickstart 예제 네 개가 이해되었다면 다음 순서로 진행하세요
 2. 정본 용어를 확인할 수 있도록 [`GLOSSARY.md`](../GLOSSARY.md)를 곁에 두세요.
 3. 설계 선택이 의외로 보이면 [`docs/adr/README.md`](adr/README.md)의 결정 기록을
    읽어 보세요.
-4. 전체 API 표면과 스톡 트리거 카탈로그는 [`py/README.md`](../py/README.md)와
-   [`ts/README.md`](../ts/README.md)에서 확인하세요.
+4. 전체 API 표면과 스톡 트리거 카탈로그는 [`py/README.ko.md`](../py/README.ko.md)와
+   [`ts/README.ko.md`](../ts/README.ko.md)에서 확인하세요([영문 py/README.md](../py/README.md), [영문 ts/README.md](../ts/README.md)).
 5. 스모크 맵과 예상 줄 표를
    [`tests/outputmap/smoke/README.md`](../tests/outputmap/smoke/README.md)에서
    참고해 여러분만의 게임 내 테스트를 만드세요.
@@ -371,7 +371,7 @@ quickstart 예제 네 개가 이해되었다면 다음 순서로 진행하세요
 | 파일을 직접 실행할 때 `ImportError: cannot import name ... from 'py'` | `python3 file.py`가 아니라 `./target/debug/eudkit`으로 소스를 실행하세요. PyPI 패키지 `py`가 저장소 패키지를 가릴 수 있습니다. |
 | `EUDSL-COND-TRUTHIFY` | `if`/`while`/`assert`에서 런타임 조건을 사용했습니다. `when`, `once`, `while_loop`, `every`, `after`, `dispatch` 중 하나를 쓰세요. |
 | `EUDSL-TS-TRUTHIFY` | TypeScript 런타임 조건을 JS 불리언처럼 사용했습니다. 옵트인 lint가 켜져 있을 때 발생하니 `when`/`once` 같은 시간 표현으로 바꾸세요. |
-| 테스트에서 `missing compiled binary: .../target/debug/eudkit` | 먼저 `cargo build --workspace -j 2`를 실행하세요. |
+| 테스트에서 `missing compiled binary: .../target/debug/eudkit` | 먼저 `cargo build --workspace`를 실행하세요. |
 | `synth` 중 stderr에 프런트엔드 경고 | 소스가 권장하지 않는 관용구를 씁니다. `--no-warnings`를 붙이지 말고 소스를 고치세요. quickstart 테스트는 빈 stderr를 요구합니다. |
 | `compile: cannot infer frontend` / DSL을 찾을 수 없음 | 체크아웃에서 실행하거나 `EUDKIT_ROOT`를 체크아웃 루트로 설정하세요. |
 | 맵은 컴파일되지만 작성된 `Hello World!` 줄이 보임 | `basemap.scx`를 사용했습니다. `basemap_silent.scx`를 쓰거나 작성된 트리거를 감안하세요. |

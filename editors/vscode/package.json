@@ -2,7 +2,7 @@
   "name": "eudkit-lsp",
   "displayName": "eudkit LSP",
   "description": "Completion, hover docs, and capacity diagnostics for eudkit TypeScript and Python DSL files",
-  "version": "0.3.0",
+  "version": "0.1.0",
   "publisher": "Tb1281",
   "license": "MIT",
   "repository": {

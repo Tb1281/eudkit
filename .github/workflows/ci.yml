@@ -19,11 +19,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - name: Build workspace
-        run: cargo build --workspace -j 2
+        run: cargo build --workspace
       - name: Test workspace
-        run: cargo test --workspace -j 2
+        run: cargo test --workspace
       - name: Test map bridge
-        run: cargo test -p eudkit-lower --test map_bridge -j 2
+        run: cargo test -p eudkit-lower --test map_bridge
 
   typescript:
     name: TypeScript
@@ -41,7 +41,7 @@ jobs:
         working-directory: ts
         run: npm ci
       - name: Build workspace
-        run: cargo build --workspace -j 2
+        run: cargo build --workspace
       - name: Typecheck
         working-directory: ts
         run: npm run typecheck
@@ -63,7 +63,7 @@ jobs:
         with:
           node-version: "22"
       - name: Build workspace
-        run: cargo build --workspace -j 2
+        run: cargo build --workspace
       - name: Test Python
         run: PYTHONPATH=. python3 -m unittest discover -s py/tests -p 'test_*.py' -t .
 
@@ -87,7 +87,7 @@ jobs:
       - name: Test bundle tooling
         run: python3 -m unittest scripts/test_package_bundle.py
       - name: Build release binaries
-        run: cargo build --release -p eudkit -p eudkit-lsp -j 2
+        run: cargo build --release -p eudkit -p eudkit-lsp
       - name: Build TypeScript
         working-directory: ts
         run: npm ci && npm run build

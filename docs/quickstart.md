@@ -38,7 +38,7 @@ trigger to run first.
 From the repository root:
 
 ```sh
-cargo build --workspace -j 2
+cargo build --workspace
 ./target/debug/eudkit --version
 ```
 
@@ -330,7 +330,7 @@ PYTHONPATH=. python3 -m unittest py/tests/test_examples.py
 ```
 
 The quickstart suite requires both `target/debug/eudkit` and
-`target/debug/eudkit-compile`; `cargo build --workspace -j 2` produces both.
+`target/debug/eudkit-compile`; `cargo build --workspace` produces both.
 
 The root `Makefile` wraps both suites for convenience:
 
@@ -367,7 +367,7 @@ Once the four quickstart examples make sense:
 | `ERR_MODULE_NOT_FOUND: Cannot find package 'eudkit'` | In-checkout sources import `"../../../ts/index.ts"`. Installed consumers need `cd ts && npm run build` and an install/link. |
 | `ImportError: cannot import name ... from 'py'` when running a file directly | Run sources through `./target/debug/eudkit`, not `python3 file.py`; the PyPI package `py` may shadow the repository package. |
 | `EUDSL-COND-TRUTHIFY` | You used a runtime condition in `if`/`while`/`assert`. Use `when`, `once`, `while_loop`, `every`, `after`, or `dispatch`. |
-| `missing compiled binary: .../target/debug/eudkit` in tests | Run `cargo build --workspace -j 2` first. |
+| `missing compiled binary: .../target/debug/eudkit` in tests | Run `cargo build --workspace` first. |
 | Frontend warnings on stderr during `synth` | The source uses a discouraged idiom. Fix the source instead of adding `--no-warnings`; the quickstart tests require empty stderr. |
 | `compile: cannot infer frontend` / cannot find the DSL | Run from the checkout or set `EUDKIT_ROOT` to the checkout root. |
 | Map compiles but shows the authored `Hello World!` line | You used `basemap.scx`; use `basemap_silent.scx` or account for the authored trigger. |

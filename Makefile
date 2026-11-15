@@ -2,19 +2,18 @@
 CARGO ?= cargo
 PYTHON ?= python3
 NPM ?= npm
-JOBS ?= 2
 
 .PHONY: build release test-rust test-ts test-py test-quickstart test-examples typecheck test clean
 
 build:
-	$(CARGO) build --workspace -j $(JOBS)
+	$(CARGO) build --workspace
 
 release:
-	$(CARGO) build --release --workspace -j $(JOBS)
+	$(CARGO) build --release --workspace
 
 test-rust:
-	$(CARGO) test --workspace -j $(JOBS)
-	$(CARGO) test -p eudkit-lower --test map_bridge -j $(JOBS)
+	$(CARGO) test --workspace
+	$(CARGO) test -p eudkit-lower --test map_bridge
 
 typecheck:
 	cd ts && $(NPM) install && $(NPM) run typecheck

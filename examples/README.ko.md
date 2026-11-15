@@ -2,8 +2,8 @@
 
 > **SSOT**: 이 문서의 영문 정본(SSOT)은 [examples/README.md](./README.md)입니다. 내용이 다를 경우 영문 정본을 우선합니다.
 
-eudkit이 처음이라면 [`quickstart/`](./quickstart/README.md)의 점진적인 입문
-예제와 [제로부터 플레이 가능한 맵까지의 안내](../docs/quickstart.md)를 먼저
+eudkit이 처음이라면 [`examples/quickstart/README.ko.md`](./quickstart/README.ko.md)의 점진적인 입문
+예제와 [제로부터 플레이 가능한 맵까지의 안내](../docs/quickstart.ko.md)를 먼저
 읽고, 네 예제가 이해된 뒤에 이 문서로 돌아오세요.
 
 같은 메모리 읽기/쓰기, 커서, 테이블, 구조체/배열, 블록 I/O 의도를
