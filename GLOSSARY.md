@@ -807,7 +807,7 @@ The engine's linked list of vacant CUnit slots, headed at `0x628438` (`CUNIT_FRE
 161845) and tailed at `0x62843C` (`CUNIT_FREE_TAIL`). Its nodes use the CUnit `prev`/`next` links
 (`+0`/`+4`) and the same 336-byte stride, so a forward walk follows `next` from the head. It is the
 `F` list in the stock list family, not a game-unit list: it enumerates unallocated slots and is
-reached through capacity predicates (`free_list_empty`, plus the planned `free_list_walk`) rather
+reached through capacity predicates (`free_list_empty`, plus the one-shot `free_list_walk`) rather
 than a unit-list walk.
 _Avoid_: treating `F` as a unit list, `0x6283F0` (that is the unit count, not a list head).
 
@@ -828,9 +828,34 @@ The three ways to answer "is there room for another unit". Tier 1 is the exact 1
 head test (`free_list_empty`, this wave). Tier 2 is a tracker-derived upper bound,
 `1700 - (|U|+|T|+|S|+|D|)`, using the four list counters; it over-reports (subunits are included)
 and is deferred because it needs the 5-list tracker (WP12, excluded). Tier 3 is the exact one-shot
-free-list walk (`T-WP10-T2`): ~22–28T per free node, once at map start or on author request, never
-per tick.
+free-list walk (`free_list_walk` / `free_slot_count`, `T-WP10-T2`): ~37T per free node (measured),
+once at map start or on author request, never per tick.
 _Avoid_: calling the counter form tier 1, an exact count without the walk.
+
+**free-slot count (tier 3)**:
+`free_slot_count()` / `freeSlotCount()`: the exact number of free CUnit nodes right now, returned as
+a `Var` (`VarImpl`). It delegates to the tier-3 walk from `CUNIT_FREE_HEAD` (161845) through each
+node's `next` link, so it shares the one-call-site budget: `free_slot_count()` plus
+`free_list_walk()` in one module is `EUDSL-BOUNDS`. Measured ~37T executed per free node
+(~29.6kT at 800); use it once at map start, never per tick. `1699 - free_slot_count()` is the
+walk-derived upper bound and deliberately has no API name.
+_Avoid_: per-frame free count, `1700 - 0x6283F0`, `slotsUpperBound` (not shipped).
+
+**one-shot scan**:
+A build-time-enforced usage contract for tier-3 capacity: at most one `free_list_walk` /
+`free_slot_count` call site per module, counted per active builder and checked before any emission.
+The second call is `EUDSL-BOUNDS` with the ADR 0015 §9 citation; `free_list_empty()` does not count.
+The rule exists because the walk costs ~29.6kT at 800 free nodes, so documenting "once per module"
+without enforcement invites a per-tick scan.
+_Avoid_: advisory once, per-tick exact count, automatic runtime gating.
+
+**cycle guard**:
+The `remaining` counter in the tier-3 walk, set to `CUNIT_FREE_SCAN_MAX` (1699) and decremented
+once per node. When it reaches zero the walk sets `done` and stops, so a cycle in a corrupted free
+list costs at most `1699 × 37T ≈ 62.9kT` instead of hanging the game. It is the third termination
+condition, beside a null pointer and an out-of-pool pointer; it never mutates game memory (no
+sentinel node).
+_Avoid_: sentinel node, list rewrite, infinite-loop watchdog.
 
 **advisory capacity check**:
 A capacity signal that answers exactly the question it reads and no more. `free_list_empty` is

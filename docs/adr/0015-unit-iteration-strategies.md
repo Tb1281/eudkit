@@ -475,7 +475,8 @@ in-place behavior changes to existing `EUDLoopUnit2`:
 ### 9. Capacity truth and tiers
 
 Capacity questions get different tools depending on the precision required.
-Three tiers are defined; this series ships tier 1 only.
+Three tiers are defined; this series ships tiers 1 and 3, and defers tier 2
+(the `slotsUpperBound` decision is recorded at the end of this section).
 
 1. **tier 1 — one-condition truth (`free_list_empty`).** `CUNIT_FREE_HEAD =
    0x628438` is the dword holding the head of the CUnit free list;
@@ -488,14 +489,83 @@ Three tiers are defined; this series ships tier 1 only.
    16-condition budget is untouched and `when`/`once`/`until` can fuse it.
    `CUNIT_FREE_TAIL = 0x62843C` documents the other end of the list, but no
    helper is built on it; the head alone carries the one-condition answer.
-2. **tier 2 — tracker-derived upper bound (deferred).** An upper bound of the
-   form `1700 − Σ(the four list counters)` needs the five-list tracker (WP12),
-   which is excluded from this wave. It is an upper bound at best, contaminated
-   by subunits, and not a free-slot count; it does not ship here.
-3. **tier 3 — exact one-shot walk (`T-WP10-T2`).** Walk the free list node by
-   node at ~22–28T executed per free node, once at map start or on author
-   request, never per tick. It answers the exact count and is out of scope for
-   tier 1.
+2. **tier 2 — tracker-derived upper bound (`slotsUpperBound`, deferred).** The
+   cheap form is `1699 − (|U|+|T|+|S|+|D|)` from the four list counters, which
+   needs the five-list membership tracker (**WP12**, excluded from this ticket
+   set and awaiting seven Remastered measurements). It is an upper bound at
+   best, contaminated by subunits, and not a free-slot count; it does not ship
+   here. See the deferred decision below.
+3. **tier 3 — exact one-shot walk (`T-WP10-T2`) — implemented.** Walk the free
+   list node by node from `CUNIT_FREE_HEAD` through each node's `next` link
+   (`ptr + 1`), at a measured ~37T executed per free node, once per module (map
+   start or on author request), never per tick. It answers the exact count and
+   is tracker-independent.
+
+   | Surface | Python | TypeScript |
+   |---|---|---|
+   | walk | `free_list_walk(body, *, max_nodes=CUNIT_FREE_SCAN_MAX)` | `freeListWalk(body, { maxNodes = CUNIT_FREE_SCAN_MAX } = {})` |
+   | count | `free_slot_count() -> Var` | `freeSlotCount(): VarImpl` |
+   | bound | `CUNIT_FREE_SCAN_MAX = CUNIT_SLOT_COUNT = 1699` | same |
+
+   `body` takes no arguments (a free node has no meaningful identity, and
+   exposing a raw slot EPD invites writes into an unallocated CUnit). It may
+   return the `BREAK` singleton from `py.units` / `ts/units.ts` to stop after
+   the current node; the identity check is `ret is BREAK` / `ret === BREAK`,
+   so every other return continues. `max_nodes` must be a plain int in
+   `1..1699`: a bool or non-integer is `EUDSL-TYPE`, an out-of-range value is
+   `EUDSL-BOUNDS`.
+
+   **One call site per module.** A module-level counter keyed by the active
+   builder increments on every call; the second call is `EUDSL-BOUNDS` with
+   the message `free_list_walk()/free_slot_count() is a tier-3 one-shot scan;
+   one call site per module (ADR 0015 §9)`. The check runs **before any
+   emission**, so a rejected call leaves no HIR. `free_slot_count()` delegates
+   to `free_list_walk`, so using both in one module is the same rejection.
+   `free_list_empty()` does not consume the budget. This is enforced at build
+   time rather than documented because a per-frame exact count is a ~29.6kT
+   scan at 800 free nodes — structurally the wrong tool for a capacity check.
+
+   **Termination is three-way and cycle-safe.** The loop gate is
+   `[*in_cunit_pool(ptr), done.eq(0)]`, and each pass reads the successor
+   (`next` at `ptr + 1`) **before** the body, runs the body, decrements
+   `remaining`, sets `done` when `remaining == 0`, and advances only while
+   `done == 0`. The walk therefore stops on (a) a null pointer, whose reader
+   result `0xFFF9D729` is above `CUNIT_LAST_EPD` and is rejected by the
+   **upper** pool bound; (b) any pointer outside `[CUNIT_BASE_EPD,
+   CUNIT_LAST_EPD]`; or (c) `remaining == 0` after exactly `max_nodes` nodes.
+   Because every pass performs exactly one decrement, a cycle cannot outlast
+   `1699` iterations, so a corrupted or hijacked list costs at most
+   `1699 × 37T ≈ 62.9kT` and can never hang the game. The 2T/node guard is
+   cheaper than any sentinel-node scheme, which would mutate game memory and
+   is not acceptable.
+
+   **Cost table (measured by `crates/eudkit-cli/tests/free_list_walk.rs`).**
+
+   | Item | Executed |
+   |---|---|
+   | ambient CP save (`read_current_player_register`) | 33T, once per site |
+   | head bind (`ptr.set(read_cunit_pointer_saved(saved, 161845))`) | once per site |
+   | per free node (gate 2T + link add 2T + reader ~29T + guard/advance 4T) | **37T** |
+   | 800 free nodes | **≈ 29.6kT, once per map** |
+   | empty list | zero iterations; the CP restore still runs |
+   | `free_list_empty()` (tier 1) | 1T |
+
+   The per-node figure is one T above `T-WP7`'s forward `U` walk because the
+   tier-3 scan adds the `remaining` guard. That table is the argument for tier
+   1 existing at all: a per-frame capacity check must be `free_list_empty()`,
+   and the exact count belongs at map start.
+
+**Deferred: `slotsUpperBound` (tier 2).** The decision is recorded, not coded;
+there is no stub, no `NotImplementedError`, and no dead export.
+
+- The cheap form is `1699 − (|U|+|T|+|S|+|D|)` from the four list counters,
+  which requires the five-list membership tracker (**WP12**, excluded from
+  this ticket set and awaiting seven Remastered measurements).
+- `0x6283F0` is **not** a substitute: it is `|U|+|T|+|S|+|D|+subunits`, so it
+  both over-reports headroom and goes stale when a list is hijacked.
+- The walk-derived form is `CUNIT_SLOT_COUNT - free_slot_count()` and needs no
+  API. Shipping it would be a second name for one subtraction and would invite
+  per-tick use of a ~29.6kT scan.
 
 Cost contract:
 
@@ -504,14 +574,15 @@ Cost contract:
 | `when([free_list_empty()], body)` idle | 1T + body | 1T + body |
 | `when([free_list_empty()], body)` empty | 1T + body | 1T + body |
 | counter form (`1700 −` four list counters) | 1C + 1T + read | 6–7T and wrong |
+| tier-3 walk, `N` free nodes | one loop scaffold | 33T + head bind + 37T × N |
 
 **Rejection: `0x6283F0`.** The counter at `0x6283F0` is
 `|U|+|T|+|S|+|D|+subunits`, not the number of free CUnit slots.
 `1700 − 0x6283F0` therefore over-reports headroom, and it goes stale the
 moment any of the lists is hijacked by a runtime list rewrite. It is rejected
 as an upper bound and must not be reintroduced; the one-condition head read
-above is the tier-1 truth. Tier 2 remains blocked on WP12, and tier 3 is
-`T-WP10-T2`.
+above is the tier-1 truth and the tier-3 walk is the exact count. Tier 2
+remains blocked on WP12.
 
 **Series note.** §8 item 1 (the 20T pointer reader) is rewritten by `T-WP6` in
 the same series; this section does not touch it.

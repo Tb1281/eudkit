@@ -272,9 +272,14 @@ from .blockio import (
 )
 from .capacity import (
     CUNIT_FREE_HEAD,
+    CUNIT_FREE_SCAN_MAX,
     CUNIT_FREE_TAIL,
     freeListEmpty,
+    freeListWalk,
+    freeSlotCount,
     free_list_empty,
+    free_list_walk,
+    free_slot_count,
 )
 from .player import (
     PLAYER_NAME_BYTES,
@@ -744,9 +749,14 @@ __all__ = [
     "with_epd",
     "word",
     "CUNIT_FREE_HEAD",
+    "CUNIT_FREE_SCAN_MAX",
     "CUNIT_FREE_TAIL",
     "freeListEmpty",
+    "freeListWalk",
+    "freeSlotCount",
     "free_list_empty",
+    "free_list_walk",
+    "free_slot_count",
     "CUNIT_BASE_EPD",
     "CUNIT_LAST_EPD",
     "CUNIT_POOL_BASE",
