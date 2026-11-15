@@ -680,6 +680,47 @@ mod tests {
         assert_eq!(out, want);
     }
 
+    /// STRx is a byte container: a UTF-8 payload written by `save_tbl`
+    /// must parse back byte-identically. Sizes are bytes, not characters:
+    /// "한글🙂" is 3 + 3 + 4 = 10 bytes.
+    #[test]
+    fn save_tbl_roundtrips_utf8_bytes() {
+        let datatb = vec![
+            "한글🙂".as_bytes().to_vec(),
+            "🙂".as_bytes().to_vec(),
+            "é".as_bytes().to_vec(),
+        ];
+        assert_eq!(datatb[0].len(), 10, "fixture must be 10 UTF-8 bytes");
+        let dataindextb: Vec<u32> = (0..datatb.len() as u32).collect();
+
+        let mut chkt = synthetic_template();
+        chkt.setsection(*b"STRx", save_tbl(&datatb, &dataindextb));
+        let tpl = TemplateStrings::parse(&chkt).expect("STRx must accept UTF-8 bytes");
+
+        assert_eq!(tpl.count(), datatb.len());
+        assert_eq!(tpl.datatb, datatb, "UTF-8 payloads must round-trip exactly");
+        for (i, want) in datatb.iter().enumerate() {
+            assert_eq!(tpl.string_by_id(i + 1), Some(want.as_slice()));
+        }
+    }
+
+    /// A 4-byte code point's NUL terminator lands on a 4-byte boundary.
+    /// The serializer's fill after the NUL is zero, never `0x1A`.
+    #[test]
+    fn save_tbl_utf8_nul_boundary_is_zero_padded() {
+        let datatb = vec!["🙂".as_bytes().to_vec()];
+        let out = save_tbl(&datatb, &[0]);
+        // count + one offset = roundup(4 * (1 + 1)) = 8 bytes of header.
+        assert_eq!(&out[8..12], "🙂".as_bytes());
+        assert_eq!(&out[12..], &[0, 0, 0, 0], "NUL then zero padding");
+        assert!(!out.contains(&0x1A), "STR padding is NUL, not 0x1A");
+
+        let mut chkt = synthetic_template();
+        chkt.setsection(*b"STRx", out);
+        let tpl = TemplateStrings::parse(&chkt).unwrap();
+        assert_eq!(tpl.string_by_id(1), Some("🙂".as_bytes()));
+    }
+
     /// Build a synthetic template CHK the way `load_tbl_with_chk` sees
     /// it: 6 strings, ids 1..6 = ["aa", "", "bb", "cc", "", ""],
     /// load_entry=2 (`STR `), no MRGN/SWNM names, no reserved ids.

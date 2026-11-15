@@ -37,11 +37,14 @@ the ADR is linked; where no ADR exists, the owning source file is named.
 
 ## `EUDSL-ASCII`
 
-**Meaning.** A format-spec fill byte is outside ASCII. The v1 string formatter
-only emits ASCII bytes.
+**Meaning.** A format-spec `fill` byte is outside ASCII. Literal string content
+is stored as UTF-8 bytes ([ADR 0003](./adr/0003-capacity-aware-aligned-string-writes.md));
+only `fill` is restricted, because the formatter repeats it as one byte.
 
-**Trigger.** `s.write("{:٤>4d}", v)` (Arabic-Indic digit as fill) or any fill
-character with a code point above `0x7F`.
+**Trigger.** `s.write("{:٤>4d}", v)` (Arabic-Indic digit as fill),
+`s.write("{:한>4d}", v)`, or any fill character with a code point above `0x7F`.
+Non-ASCII literal content such as `s.write("한")` is legal and is not this
+error.
 
 **Before**
 
@@ -416,12 +419,17 @@ shape by position and arity.
 - `memcpyEPD(dst, readonly_var, 1)` (the block primitives reject a
   `ReadonlyVar`).
 - `Queue(Point, 4).push(1)` where `Point` has two fields.
+- `s.write("a\x00b")` or `s.write("\ud800")`: an embedded NUL would terminate
+  the `STRx` entry, and a lone UTF-16 surrogate is never valid UTF-8. Valid
+  non-ASCII content such as `s.write("한")` is accepted and stored as UTF-8
+  bytes ([ADR 0003](./adr/0003-capacity-aware-aligned-string-writes.md)).
 
 **Before**
 
 ```python
 u.hp.set("100")
 v.eq(1.5)
+s.write("a\x00b")
 ```
 
 **After**
@@ -429,6 +437,7 @@ v.eq(1.5)
 ```python
 u.hp.set(100)
 v.eq(2)
+s.write("ab")
 ```
 
 **ADR.** [ADR 0019](./adr/0019-operand-domain-validation.md).
