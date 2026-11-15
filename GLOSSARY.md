@@ -837,6 +837,60 @@ cannot see (placement, sprite limits, a hijacked list). An empty list means "try
 succeed", and a non-empty list is not a slot count.
 _Avoid_: capacity guarantee, authoritative free count.
 
+**CUnit pool**:
+The game's fixed array of 1699 CUnit slots starting at `0x59CCA8`, 336 bytes (84 dwords) apart;
+slot starts therefore range over `S in [0x16732A, 0x18A052]` and map to EPDs `[19025, 161657]`.
+`CUNIT_POOL_BASE`, `CUNIT_BASE_EPD`, `CUNIT_LAST_EPD`, `CUNIT_SLOT_COUNT`, and `CUNIT_SLOT_SIZE`
+name it ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) §8).
+_Avoid_: unit array, CUnit heap, slot table (for the pool itself).
+
+**shifted pointer space `S`**:
+The dword-aligned byte address divided by four, `S = A >> 2`. For a CUnit slot start, `S` bits 0
+and 1 are invariant (0 and 1) and bit 20 is always 1, so `S` bits 2-19 (18 tests) recover the slot
+index; the reader seeds the invariant bits with `0x100002` and subtracts `0x1628D9` to land in EPD
+space ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) §8).
+_Avoid_: byte address, EPD (for `S`), unqualified pointer space.
+
+**CP-relative read**:
+A dword read whose condition target is `CURRENT_PLAYER`, so the engine reads the EPD currently
+held in the CP register rather than a constant address. `read_cunit_pointer(Var)` binds CP through
+`with_epd` and restores it; `read_cunit_pointer_saved` is the loop form that saves the ambient CP
+once and advances it per node ([ADR 0029](./docs/adr/0029-runtime-epd-addressing.md) §5).
+_Avoid_: indirect read, dynamic address read, CP hop.
+
+**null-pointer sentinel (`0xFFF9D729`)**:
+The value the CUnit pointer reader yields for a null pointer: `0x100002 + 0xFFE9D727`. It is
+above `CUNIT_LAST_EPD` (161,657), so `in_cunit_pool`'s **upper** bound, not its lower bound,
+terminates a list walk. Never use it as the reader's bias
+([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) §8).
+_Avoid_: null EPD, end-of-list marker (for the value).
+
+**`in_cunit_pool`**:
+`in_cunit_pool(epd)` / `inCunitPool(epd)`: the validity predicate for a reader result, returning
+`[epd.ge(CUNIT_BASE_EPD), epd.le(CUNIT_LAST_EPD)]` as two conditions that splice into a loop gate
+(`[*in_cunit_pool(ptr), done.eq(0)]`). It never raises: a map with a hijacked list stays
+diagnosable, and the upper bound rejects the null sentinel.
+_Avoid_: assert-in-pool, `EUDSL-BOUNDS` for a dead list, wrapping the check in a trigger.
+
+## Player Names
+
+**player name record**:
+One of twelve 36-byte (9-dword) records at `0x57EEE8`, holding a player's nickname as UTF-8 bytes
+plus its NUL. The table is below `EPD_BASE`, so `player_name_epd(p) = (EPD(0x57EEE8) + 9*p) & 0xFFFFFFFF`
+is an ordinary wrapped EPD that the engine reads and writes; `player_name_addr(p)` is the byte
+form. A name may encode to at most 35 bytes, leaving room for the NUL
+([ADR 0032](./docs/adr/0032-player-name-matching.md) §1).
+_Avoid_: player struct, name string table, `0x57F014` header.
+
+**nickname matcher (layout A)**:
+`match_names` / `matchNames`: a build-time unroll that emits one ordered `when` chain per player
+and compares the name record dword by dword with `DeathsX`. Each `(player, name)` arm is one
+trigger with `len(bytes)//4 + 1 <= 9` conditions; the final mask includes the NUL, so matching is
+exact and `"Armo"` cannot match `"Armoha"`. Nickname bytes come from `encode_utf8` / `encodeUtf8`;
+the runtime byte-reader walk (layout C) is deferred because it needs rejected `SetNextPtr` rewiring
+([ADR 0032](./docs/adr/0032-player-name-matching.md) §2-§5).
+_Avoid_: name dispatch (when naming the unroll), prefix match, substring match, layout C.
+
 ## Lazy Declarations
 
 **Lazy declaration**:

@@ -1440,3 +1440,6 @@ def MemCond(
 
 readEpd = read_epd
 readEpdPointer = read_epd_pointer
+readCunitPointer = read_cunit_pointer
+readCunitPointerSaved = read_cunit_pointer_saved
+inCunitPool = in_cunit_pool
