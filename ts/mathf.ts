@@ -21,8 +21,10 @@ import { when } from "./temporal.ts";
 import { Trigger } from "./trigger.ts";
 import {
   saturatingSubInto,
+  toVar,
   Var,
   VarImpl,
+  type VarOperand,
 } from "./var.ts";
 import { EudslError, requirePlainInt } from "./view.ts";
 
@@ -37,14 +39,30 @@ function plainInt(name: string, value: unknown, minimum: number, maximum: number
   return checked;
 }
 
+/**
+ * Materialize the full operand domain through the canonical `toVar`.
+ *
+ * `boolean` is checked explicitly because `toVar` would reject it with the
+ * generic "Var operand" text, and `isqrt` owns its diagnostic.
+ */
 function asVar(value: unknown): VarImpl {
-  if (value instanceof VarImpl) {
-    return value;
+  if (typeof value === "boolean") {
+    throw new EudslError(
+      "EUDSL-TYPE",
+      `isqrt(): value must be a Var, ReadonlyVar, Expr, or integer constant, got ${String(value)}`,
+    );
   }
-  throw new EudslError(
-    "EUDSL-TYPE",
-    `isqrt(): value must be a Var or integer constant, got ${String(value)}`,
-  );
+  try {
+    return toVar(value as VarOperand);
+  } catch (err) {
+    if (err instanceof EudslError) {
+      throw new EudslError(
+        "EUDSL-TYPE",
+        `isqrt(): value must be a Var, ReadonlyVar, Expr, or integer constant, got ${String(value)}`,
+      );
+    }
+    throw err;
+  }
 }
 
 /** Exact integer square root of a non-negative bigint. */
@@ -69,9 +87,11 @@ function bigintSqrt(value: bigint): bigint {
  * `ceil(valueBits / 2) + fixedBits <= 32`.
  *
  * A constant `value` folds to a single constant `Var` at build time but still
- * returns a `VarImpl`, so the result composes with runtime arithmetic. An
- * `Expr` is outside the operand domain: materialize it (for example
- * `Var(expr)`) before calling `isqrt`. Static
+ * returns a `VarImpl`, so the result composes with runtime arithmetic. `value`
+ * is the full operand domain — `number | VarImpl | ReadonlyVar | Expr`
+ * (ADR 0019): a `ReadonlyVar` forwards its underlying var without a copy and
+ * an `Expr` is materialized through the canonical `toVar`, exactly as a
+ * hand-written temp would be. Static
  * cost is one trigger per compared input bit plus five per step
  * (`2 * valueBits + 5 * steps`); executed cost is proportional to `steps`
  * because untaken subtract branches are skipped.
@@ -81,7 +101,7 @@ function bigintSqrt(value: bigint): bigint {
  * zero init only holds for the first pass.
  */
 export function isqrt(
-  value: VarImpl | number,
+  value: VarOperand,
   valueBits = 32,
   fixedBits = 0,
 ): VarImpl {
