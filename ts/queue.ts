@@ -54,11 +54,26 @@ import {
   type AnyTriggerStructInstance,
   type AnyTriggerStructSchema,
 } from "./struct.ts";
-import { FixedArray, arrayDword, type FixedArrayImpl } from "./array.ts";
+import {
+  FixedArray,
+  arrayDword,
+  type FixedArrayElemType,
+  type FixedArrayImpl,
+} from "./array.ts";
 import { ELEM_MASK, pageSlotBitCond } from "./backing.ts";
 import { when } from "./temporal.ts";
 import { cpEmpty, cpLive, emitCpReadInto, emitCpSweep } from "./cp.ts";
-import { CURRENT_PLAYER, EudslError, describeValue, warnLazyInBuilder, type TriggerFieldRef } from "./view.ts";
+import {
+  CURRENT_PLAYER,
+  EudslError,
+  POOL_NULL,
+  describeValue,
+  requirePlainInt,
+  warnLazyInBuilder,
+  type TriggerFieldRef,
+} from "./view.ts";
+
+export { POOL_NULL };
 
 export type ContainerElem = "byte" | "word" | "dword" | "var" | AnyTriggerStructSchema;
 
@@ -1108,3 +1123,124 @@ export const EUDQueue = Queue;
 export const EUDDeque = Deque;
 export const EUDStack = Stack;
 export const EUDUnitGroup = UnitGroup;
+
+/**
+ * Fixed-capacity free-list pool over a `FixedArray`.
+ *
+ * The free list is a LIFO `Stack` of indices, so a fresh pool hands out
+ * `0, 1, 2, ...` deterministically. `POOL_NULL` (`0xffffffff`) is returned
+ * when the pool is exhausted and is distinguishable from every legal index
+ * because capacity is capped at `0xfffffffe`.
+ *
+ * `release` performs no bounds check (documented): releasing an index twice
+ * or outside `0..capacity-1` corrupts the free list.
+ */
+export class ObjectPool {
+  readonly capacity: number;
+  readonly storage: FixedArrayImpl<any>;
+  readonly freeList: Stack;
+  readonly free_list: Stack;
+
+  constructor(
+    capacity: number,
+    schemaOrWidth: FixedArrayElemType = arrayDword,
+  ) {
+    const cap = requirePlainInt(capacity, "ObjectPool capacity");
+    if (cap <= 0) {
+      throw new EudslError(
+        "EUDSL-BOUNDS",
+        `ObjectPool capacity must be positive, got ${cap}`,
+      );
+    }
+    if (cap > 0xfffffffe) {
+      throw new EudslError(
+        "EUDSL-RANGE",
+        `ObjectPool capacity must be at most 0xfffffffe, got ${cap}`,
+      );
+    }
+    this.capacity = cap;
+    this.storage = FixedArray<any>(schemaOrWidth, cap) as FixedArrayImpl<any>;
+    this.freeList = new Stack(cap);
+    this.free_list = this.freeList;
+    this.fillFree();
+  }
+
+  /**
+   * Seed the stack body statically so a pop yields `0, 1, 2, ...`.
+   *
+   * `Stack.push` would emit a dynamic-write trigger per slot; writing the
+   * constant body and setting `pos` is the same state with one packed
+   * initialization.
+   */
+  private fillFree(): void {
+    for (let index = 0; index < this.capacity; index++) {
+      this.freeList.storage.set(index, this.capacity - 1 - index);
+    }
+    this.freeList.pos.set(this.capacity);
+  }
+
+  /** Pop one free index, or return `POOL_NULL` when full. */
+  allocate(): VarImpl {
+    const out = Var(0);
+    // Reset per call, not just at module init: a reused allocation site
+    // inside a loop must return POOL_NULL after the pool becomes full.
+    out.set(POOL_NULL);
+    when(this.freeList.pos.ge(1), () => out.set(this.freeList.pop()));
+    return out;
+  }
+
+  allocateObject(): VarImpl {
+    return this.allocate();
+  }
+
+  /** Push `index` back onto the free list. */
+  release(index: number | VarImpl): void {
+    if (typeof index !== "number" && !(index instanceof VarImpl)) {
+      throw new EudslError(
+        "EUDSL-TYPE",
+        `ObjectPool.release index must be an integer or a Var; got ${describeValue(index)}`,
+      );
+    }
+    if (typeof index === "number") {
+      requirePlainInt(index, "ObjectPool.release index");
+    }
+    this.freeList.push(index);
+  }
+
+  releaseObject(index: number | VarImpl): void {
+    this.release(index);
+  }
+
+  /** A condition that holds when there are no free slots. */
+  full(): ReturnType<VarImpl["eq"]> {
+    return this.freeList.pos.eq(0);
+  }
+
+  /** A condition that holds when every slot is free. */
+  empty(): ReturnType<VarImpl["eq"]> {
+    return this.freeList.pos.eq(this.capacity);
+  }
+
+  /** Reset the free list to its fresh LIFO order; storage is untouched. */
+  clear(): void {
+    this.freeList.clear();
+    this.fillFree();
+  }
+
+  /** Read a user-data slot through the backing array. */
+  get(index: number | VarImpl): unknown {
+    if (typeof index === "number") {
+      return this.storage.get(index);
+    }
+    return this.storage.get(index);
+  }
+
+  /** Write a user-data slot through the backing array. */
+  set(index: number | VarImpl, value: unknown): void {
+    if (typeof index === "number") {
+      this.storage.set(index, value as any);
+      return;
+    }
+    this.storage.set(index, value as any);
+  }
+}

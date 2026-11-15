@@ -1438,3 +1438,420 @@ readEpdPointer = read_epd_pointer
 readCunitPointer = read_cunit_pointer
 readCunitPointerSaved = read_cunit_pointer_saved
 inCunitPool = in_cunit_pool
+
+
+# ---------------------------------------------------------------------------
+# Raw dword/word bit helpers and the CUnitView façade
+# ---------------------------------------------------------------------------
+
+#: Sentinel returned by :class:`~py.queue.ObjectPool` when it is exhausted.
+POOL_NULL: int = 0xFFFFFFFF
+
+#: The scenario location table starts at this byte address.
+_LOCATION_TABLE_BASE = 0x58DC4C
+#: Each location record is five dwords; dwords 0 and 1 are ``left``/``top``.
+_LOCATION_STRIDE_EPDS = 5
+
+#: ``GroupFlags`` are unit-type data, never CUnit field masks.
+GROUP_FLAGS_TARGET = "unit-type"
+
+
+class StatusFlags:
+    """Full-dword CUnit ``statusFlags`` masks (byte offset 220)."""
+
+    Completed = 0x00000001
+    GroundedBuilding = 0x00000002
+    InAir = 0x00000004
+    Disabled = 0x00000008
+    Burrowed = 0x00000010
+    InBuilding = 0x00000020
+    InTransport = 0x00000040
+    CanBeChased = 0x00000080
+    RequiresDetection = 0x00000100
+    Cloaked = 0x00000200
+    DoodadStatesThing = 0x00000400
+    CloakingForFree = 0x00000800
+    CanNotReceiveOrders = 0x00001000
+    NoBrkCodeStart = 0x00002000
+    UNKNOWN2 = 0x00004000
+    CanNotAttack = 0x00008000
+    CanTurnAroundToAttack = 0x00010000
+    IsBuilding = 0x00020000
+    IgnoreTileCollision = 0x00040000
+    Unmovable = 0x00080000
+    IsNormal = 0x00100000
+    NoCollide = 0x00200000
+    UNKNOWN5 = 0x00400000
+    IsGathering = 0x00800000
+    SubunitWalking = 0x01000000
+    SubunitFollow = 0x02000000
+    Invincible = 0x04000000
+    HoldingPosition = 0x08000000
+    SpeedUpgrade = 0x10000000
+    CooldownUpgrade = 0x20000000
+    IsHallucination = 0x40000000
+    IsSelfDestructing = 0x80000000
+
+
+class PathingFlags:
+    """CUnit ``pathingFlags`` byte masks (byte offset 261)."""
+
+    HasCollision = 0x01
+    IsStacked = 0x02
+    Decollide = 0x04
+
+
+class GroupFlags:
+    """Unit-type ``groupFlags`` byte masks at byte address ``0x6637A0``.
+
+    These are unit-type dat-array bits, **not** masks for any CUnit field;
+    never write them through :class:`CUnitView`.
+    """
+
+    Zerg = 0x01
+    Terran = 0x02
+    Protoss = 0x04
+    Men = 0x08
+    Building = 0x10
+    Factory = 0x20
+    Independent = 0x40
+    Neutral = 0x80
+
+
+class AvailabilityFlags:
+    """Unit-type ``availabilityFlags`` word masks at byte address ``0x661518``.
+
+    These are unit-type dat-array bits, **not** masks for any CUnit field.
+    """
+
+    NonNeutral = 0x001
+    UnitListing = 0x002
+    MissionBriefing = 0x004
+    PlayerSettings = 0x008
+    AllRaces = 0x010
+    SetDoodadState = 0x020
+    NonLocationTriggers = 0x040
+    UnitHeroSettings = 0x080
+    LocationTriggers = 0x100
+    BroodWarOnly = 0x200
+
+
+def _require_dword_address(addr: object, subject: str) -> int:
+    """Return an aligned 32-bit dword address or raise ``EUDSL-*``."""
+    value = _require_plain_int(addr, subject)
+    _require_aligned_dword_address(value, subject)
+    return value & 0xFFFFFFFF
+
+
+def _require_bit(bit: object) -> int:
+    """Return a dword-relative bit index in ``0..31``."""
+    value = _require_plain_int(bit, "bit index")
+    if value < 0 or value > 31:
+        raise EudslError(
+            "EUDSL-RANGE", f"bit index must be in 0..31, got {value}"
+        )
+    return value
+
+
+def _split(value: Any, half_bits: int, shift: int, what: str) -> tuple[Any, Any]:
+    """Split one 32-bit value into ``(high, low)`` halves."""
+    from .var import Expr, ReadonlyVar, Var, to_var
+
+    if _is_plain_int(value):
+        constant = int(value) & 0xFFFFFFFF
+        half_mask = (1 << half_bits) - 1
+        return (
+            Var((constant >> shift) & half_mask),
+            Var(constant & half_mask),
+        )
+    if isinstance(value, bool) or not isinstance(value, (Var, ReadonlyVar, Expr)):
+        raise EudslError(
+            "EUDSL-TYPE",
+            f"{what} value must be an integer, a Var, or an Expr; "
+            f"got {_describe_value(value)}",
+        )
+    source = to_var(value)
+    high = Var(0)
+    high.set(source)
+    high.ishr(shift)
+    low = Var(0)
+    low.set(source)
+    low.iand((1 << half_bits) - 1)
+    return high, low
+
+
+def split_dword(value: int | Any) -> tuple[Any, Any]:
+    """Split a 32-bit value into its two 16-bit halves ``(hi16, lo16)``.
+
+    A constant folds to two constant ``Var``s at build time.
+    """
+    return _split(value, 16, 16, "split_dword")
+
+
+def split_word(value: int | Any) -> tuple[Any, Any]:
+    """Split a **word** into its two bytes ``(hi8, lo8)``.
+
+    The mnemonic names the input width: ``split_word`` is not a dword-to-words
+    split (that is :func:`split_dword`).
+    """
+    return _split(value, 8, 8, "split_word")
+
+
+def read_bit(addr: int, bit: int) -> Any:
+    """Return a 1-condition / 0-action test of bit ``bit`` at dword ``addr``."""
+    from .hir import AtLeast, DeathsX
+
+    address = _require_dword_address(addr, "read_bit address")
+    index = _require_bit(bit)
+    mask = (1 << index) & 0xFFFFFFFF
+    return DeathsX(EPD(address), AtLeast, mask, 0, mask)
+
+
+def read_bit_var(addr: int, bit: int) -> Any:
+    """Read bit ``bit`` at dword ``addr`` into a fresh ``Var`` (2T)."""
+    address = _require_dword_address(addr, "read_bit_var address")
+    index = _require_bit(bit)
+    return read_epd(EPD(address), 1, index)
+
+
+def write_bit(addr: int, bit: int, on: bool) -> None:
+    """Set or clear bit ``bit`` at dword ``addr`` (one masked act)."""
+    from .hir import SetDeathsX, SetTo
+    from .trigger import Trigger
+
+    address = _require_dword_address(addr, "write_bit address")
+    index = _require_bit(bit)
+    if not isinstance(on, bool):
+        raise EudslError(
+            "EUDSL-TYPE",
+            f"write_bit on must be a bool, got {_describe_value(on)}",
+        )
+    mask = (1 << index) & 0xFFFFFFFF
+    value = mask if on else 0
+    act = SetDeathsX(EPD(address), SetTo, value, 0, mask)
+    Trigger(conds=[], acts=[act])
+
+
+def write_mask(addr: int, value: int, mask: int) -> None:
+    """Write ``value`` through ``mask`` at dword ``addr`` in one act."""
+    from .hir import SetDeathsX, SetTo
+    from .trigger import Trigger
+
+    address = _require_dword_address(addr, "write_mask address")
+    masked_value = _require_plain_int(value, "write_mask value") & 0xFFFFFFFF
+    bit_mask = _require_plain_int(mask, "write_mask mask") & 0xFFFFFFFF
+    if bit_mask == 0:
+        raise EudslError("EUDSL-RANGE", "write_mask mask must be non-zero")
+    outside = masked_value & (~bit_mask & 0xFFFFFFFF)
+    if outside:
+        raise EudslError(
+            "EUDSL-BOUNDS",
+            f"write_mask value {masked_value:#x} has set bits outside mask "
+            f"{bit_mask:#x}",
+        )
+    act = SetDeathsX(EPD(address), SetTo, masked_value, 0, bit_mask)
+    Trigger(conds=[], acts=[act])
+
+
+def _coerce_epd(epd: Any) -> int | Any:
+    """Normalise an EPD operand to a constant ``int`` or a runtime ``Var``."""
+    from .var import to_var
+
+    if _is_plain_int(epd):
+        return int(epd)
+    return to_var(epd)
+
+
+def _write_masked_at(epd: Any, value: int, mask: int) -> None:
+    """Emit one masked write at constant or runtime EPD ``epd``.
+
+    A runtime EPD uses the ``memsetEPD`` seed shape: one unregistered pointer
+    trigger whose ``dest`` field is patched by ``emitVarStore`` at run time.
+    """
+    from .hir import SetDeathsX, SetTo, TriggerFieldReloc, emitVarStore
+    from .trigger import Trigger, _register_trigger
+    from .var import to_var
+
+    if _is_plain_int(epd):
+        SetDeathsX(int(epd) & 0xFFFFFFFF, SetTo, value, 0, mask)
+        return
+    target = to_var(epd)
+    ptr = Trigger(
+        conds=[],
+        acts=[SetDeathsX(0, SetTo, value, 0, mask)],
+        preserved=True,
+        register=False,
+    )
+    emitVarStore(
+        target.id, TriggerFieldReloc(ptr.id, ptr.act(0).dest.byteOffset)
+    )
+    _register_trigger(ptr)
+
+
+def _read_epd_pointer_at(epd: Any) -> Any:
+    """``read_epd_pointer`` for a constant or runtime EPD."""
+    if _is_plain_int(epd):
+        return read_epd_pointer(int(epd) & 0xFFFFFFFF)
+
+    from .cp import with_epd
+
+    def body(_cp: Any) -> Any:
+        res = read_epd(CURRENT_PLAYER, 30, 2, mask=0xFFFFFFFC)
+        res.isub(EPD_BASE // 4)
+        return res
+
+    return with_epd(epd, body)
+
+
+def _read_status_bit_at(epd: Any, bit: int) -> Any:
+    """Read one bit from a constant or runtime dword EPD."""
+    if _is_plain_int(epd):
+        return read_epd(int(epd) & 0xFFFFFFFF, 1, bit)
+
+    from .cp import with_epd
+
+    return with_epd(epd, lambda _cp: read_epd(CURRENT_PLAYER, 1, bit))
+
+
+def _require_player(player: object, subject: str) -> int:
+    value = _require_plain_int(player, subject)
+    if value < 0 or value > 11:
+        raise EudslError(
+            "EUDSL-RANGE", f"{subject} must be a player id in 0..11, got {value}"
+        )
+    return value
+
+
+def _require_location(location: object) -> int:
+    value = _require_plain_int(location, "set_location location")
+    if value < 0 or value > 255:
+        raise EudslError(
+            "EUDSL-RANGE",
+            f"set_location location must be an id in 0..255, got {value}",
+        )
+    return value
+
+
+def _epd_add(epd: int | Any, offset: int) -> int | Any:
+    """Add a dword offset to a constant or runtime EPD."""
+    if _is_plain_int(epd):
+        return int(epd) + offset
+    if offset == 0:
+        return epd
+    return epd.add(offset)
+
+
+class CUnitView:
+    """Typed façade over a CUnit slot at a constant or runtime EPD.
+
+    Not a :class:`MemViewInstance` subclass: that class intercepts attribute
+    writes, which would swallow this façade's own state. Field access still
+    resolves through the canonical ``CUnit`` schema.
+    """
+
+    def __init__(self, epd: int | Any) -> None:
+        self._epd = _coerce_epd(epd)
+        self._mem = CUnit(self._epd)
+
+    @property
+    def epd(self) -> int | Any:
+        return self._epd
+
+    @property
+    def mem(self) -> MemViewInstance:
+        return self._mem
+
+    def field(self, name: str) -> MemFieldHandle:
+        """Resolve one CUnit field handle by name."""
+        resolved = _resolve_field(CUnitSchema, name)
+        if resolved is None:
+            raise EudslError(
+                "EUDSL-UNKNOWN-FIELD",
+                f"Unknown field '{name}' on layout '{CUnitSchema.name}'",
+            )
+        canonical, spec = resolved
+        return MemFieldHandle(CUnitSchema, spec, self._epd, canonical)
+
+    def read(self, name: str) -> Any:
+        """Read one CUnit field by name."""
+        return self.field(name).read()
+
+    def next_unit(self) -> Any:
+        """Read the slot-biased ``next`` link and return its target EPD."""
+        return read_cunit_pointer(_epd_add(self._epd, 1))
+
+    def prev_unit(self) -> Any:
+        """Read the slot-biased ``prev`` link and return its target EPD."""
+        return read_cunit_pointer(self._epd)
+
+    def sprite_epd(self) -> Any:
+        """Read the absolute ``sprite`` pointer and return its EPD."""
+        return _read_epd_pointer_at(_epd_add(self._epd, 3))
+
+    def sprite(self) -> MemViewInstance:
+        """Return a ``CSprite`` view over this unit's sprite."""
+        return CSprite(self.sprite_epd())
+
+    def is_burrowed(self) -> Any:
+        """Return 1 when ``statusFlags.Burrowed`` is set (always a ``Var``)."""
+        return _read_status_bit_at(_epd_add(self._epd, 55), 4)
+
+    def set_invincible(self, on: bool = True) -> None:
+        """Set or clear ``statusFlags.Invincible``."""
+        if not isinstance(on, bool):
+            raise EudslError(
+                "EUDSL-TYPE",
+                f"set_invincible on must be a bool, got {_describe_value(on)}",
+            )
+        _write_masked_at(
+            _epd_add(self._epd, 55),
+            0x04000000 if on else 0,
+            0x04000000,
+        )
+
+    def give_to(self, player: int) -> None:
+        """Write the ``owner`` byte; the player-list relink is deferred."""
+        owner = _require_player(player, "give_to player")
+        _write_masked_at(_epd_add(self._epd, 19), owner, 0x000000FF)
+
+    def set_color(self, player: int) -> None:
+        """Write ``CSprite.player`` through the sprite's ``+2`` dword."""
+        color = _require_player(player, "set_color player")
+        sprite_epd = self.sprite_epd()
+        _write_masked_at(
+            _epd_add(sprite_epd, 2),
+            (color << 16) & 0xFFFFFFFF,
+            0x00FF0000,
+        )
+
+    def die(self) -> None:
+        """Clear the ``order`` byte."""
+        _write_masked_at(_epd_add(self._epd, 19), 0, 0x0000FF00)
+
+    def remove(self) -> None:
+        """Set ``userActionFlags = 4`` then clear ``order``."""
+        _write_masked_at(
+            _epd_add(self._epd, 36), 0x04000000, 0xFF000000
+        )
+        self.die()
+
+    def set_location(self, location: int) -> None:
+        """Move the unit to the packed ``left``/``top`` of a raw location id."""
+        loc = _require_location(location)
+        from .blockio import memsetEPD
+
+        record = EPD(_LOCATION_TABLE_BASE) + loc * _LOCATION_STRIDE_EPDS
+        left = read_epd(record, 32, 0)
+        top = read_epd(record + 1, 32, 0)
+        left.iand(0xFFFF)
+        top.ishl(16)
+        top.ior(left)
+        memsetEPD(_epd_add(self._epd, 10), top, 1)
+
+
+splitDword = split_dword
+splitWord = split_word
+readBit = read_bit
+readBitVar = read_bit_var
+writeBit = write_bit
+writeMask = write_mask
