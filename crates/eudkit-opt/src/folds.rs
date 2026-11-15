@@ -284,16 +284,20 @@ pub fn render_folds(log: &FoldLog) -> String {
     render_events(log.events())
 }
 
+/// Render one fold event as the shared `  [kind] site: before -> after` line.
+pub fn render_event_line(kind: &str, site: &str, before: &str, after: &str) -> String {
+    format!("  [{kind}] {site}: {before} -> {after}\n")
+}
+
 /// Render events as the `Folds:` text section.
 pub fn render_events(events: &[FoldEvent]) -> String {
     let mut out = format!("Folds: {} event(s)\n", events.len());
     for event in events {
-        out.push_str(&format!(
-            "  [{}] {}: {} -> {}\n",
+        out.push_str(&render_event_line(
             event.kind.as_str(),
-            event.site,
-            event.before,
-            event.after
+            &event.site,
+            &event.before,
+            &event.after,
         ));
     }
     out
@@ -372,6 +376,14 @@ mod tests {
         let plain = optimize_module(&module).unwrap();
         let (folded, _) = crate::optimize_module_with_folds(&module).unwrap();
         assert_eq!(plain, folded);
+    }
+
+    #[test]
+    fn render_conds_uses_compact_stable_spellings() {
+        assert_eq!(
+            render_event_line("fold", "when#0", "A", "B"),
+            "  [fold] when#0: A -> B\n"
+        );
     }
 
     #[test]

@@ -9,6 +9,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  CPCursor,
+  CURRENT_PLAYER,
   FixedString,
   FlingyType,
   SetTo,
@@ -304,6 +306,22 @@ test("set_string is a parity alias for setString", () => {
     unitsDat[UnitType.Marine].nameString.setString(fs);
   }).toJson();
   assert.equal(snake, camel);
+});
+
+test("setString follows a cursor-bound handle target", () => {
+  const mod = buildModule(() => {
+    const fs = new FixedString(8);
+    const handle = unitsDat[UnitType.Marine].nameString;
+    // Exercise the protected `prepareTarget()` seam: a CP-bound base must
+    // resolve to the live CurrentPlayer dword, not the build-time EPD.
+    Object.defineProperty(handle, "baseEpd", { value: new CPCursor(1000) });
+    handle.setString(fs);
+  });
+  const { act, reloc } = findMode6Reloc(mod);
+
+  assert.equal(act.dest, CURRENT_PLAYER);
+  assert.equal(reloc.mode, 6);
+  assert.equal(act.mask, 0x0000ffff);
 });
 
 test("rank is still a plain byte write", () => {

@@ -25,20 +25,14 @@ UNIT_LIST_T = "T"
 UNIT_LIST_S = "S"
 UNIT_LIST_D = "D"
 
-#: EPD of the dword that holds each list's first node byte pointer.
-_UNIT_LIST_HEADS = {
-    UNIT_LIST_U: 161843,  # 0x628430
-    UNIT_LIST_T: 161841,  # 0x628428
-    UNIT_LIST_S: 161844,  # 0x628434
-    UNIT_LIST_D: 161842,  # 0x62842C, the D *tail*; walk prev from here
-}
-
-#: Dword offset from a node's own EPD to its forward link.
-_UNIT_LIST_LINK_OFFSET = {
-    UNIT_LIST_U: 1,  # next at +4
-    UNIT_LIST_T: 1,
-    UNIT_LIST_S: 1,
-    UNIT_LIST_D: 0,  # prev at +0
+#: Per list: EPD of the dword holding the first node byte pointer and the
+#: dword offset from a node's own EPD to its link. ``D`` starts at the tail and
+#: walks ``prev`` at ``+0``; the forward lists walk ``next`` at ``+4``.
+_UNIT_LISTS = {
+    UNIT_LIST_U: (161843, 1),  # 0x628430, next at +4
+    UNIT_LIST_T: (161841, 1),  # 0x628428, next at +4
+    UNIT_LIST_S: (161844, 1),  # 0x628434, next at +4
+    UNIT_LIST_D: (161842, 0),  # 0x62842C, the D *tail*; walk prev from here
 }
 
 _FREE_LIST_MESSAGE = (
@@ -113,7 +107,7 @@ def _validate_list_name(list_name: Any) -> None:
         )
     if list_name == "F":
         raise EudslError("EUDSL-BOUNDS", _FREE_LIST_MESSAGE)
-    if list_name not in _UNIT_LIST_HEADS:
+    if list_name not in _UNIT_LISTS:
         raise EudslError(
             "EUDSL-TYPE",
             "for_each_unit_list list_name must be one of "
@@ -158,23 +152,25 @@ def for_each_unit_list(
     ptr = Var(0)
     done = Var(0)
     saved = read_current_player_register()
-    link_off = _UNIT_LIST_LINK_OFFSET[list_name]
+    head, link_off = _UNIT_LISTS[list_name]
 
-    ptr.set(read_cunit_pointer_saved(saved, _UNIT_LIST_HEADS[list_name]))
+    ptr.set(read_cunit_pointer_saved(saved, head))
 
     def iteration() -> None:
         loop = UnitLoop(list_name, ptr, _done=done)
         link = ptr.add(link_off) if link_off else ptr
         if reentrant:
             nxt = read_cunit_pointer_saved(saved, link)
-            _run_body(body, loop)
-        else:
-            _run_body(body, loop)
+        _run_body(body, loop)
+        if not reentrant:
             nxt = read_cunit_pointer_saved(saved, link)
         when([done.eq(0)], lambda: ptr.set(nxt))
 
     while_loop([*in_cunit_pool(ptr), done.eq(0)], iteration)
     emitVarStore(saved.id, AddrReloc(CP_ADDR))
+
+
+forEachUnitList = for_each_unit_list
 
 
 __all__ = [
@@ -186,4 +182,5 @@ __all__ = [
     "UNIT_LIST_U",
     "UnitLoop",
     "for_each_unit_list",
+    "forEachUnitList",
 ]

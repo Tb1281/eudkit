@@ -186,12 +186,13 @@ one-shot walk (`T-WP10-T2`) instead.
 | **D per node (measured)** | **34T** |
 | final CP restore | once per site, unconditional |
 
-The measured U/T/S figure is above the ticket's ~30–33T estimate because
-`ptr + 1` materialises as a two-act transfer rather than one; both figures
-stay inside the corrected `~35–40T` per-node row. The restore runs after the
-loop unconditionally, including the break and empty-list paths. Do not hoist
-the ambient read into the loop: that is the per-node regression the saved
-reader exists to prevent.
+The measured U/T/S figure is **36T** against the ticket's **35T** band:
+`ptr + 1` materialises as a two-act transfer rather than one. Both the
+measured and the estimated figure stay inside the corrected `~35–40T`
+per-node row, so the variance is accepted rather than optimised away. The
+restore runs after the loop unconditionally, including the break and
+empty-list paths. Do not hoist the ambient read into the loop: that is the
+per-node regression the saved reader exists to prevent.
 
 ### 3. Cost policy and gating (Q5r) — confirmed (not implemented)
 
@@ -519,8 +520,9 @@ Three tiers are defined; this series ships tiers 1 and 3, and defers tier 2
    builder increments on every call; the second call is `EUDSL-BOUNDS` with
    the message `free_list_walk()/free_slot_count() is a tier-3 one-shot scan;
    one call site per module (ADR 0015 §9)`. The check runs **before any
-   emission**, so a rejected call leaves no HIR. `free_slot_count()` delegates
-   to `free_list_walk`, so using both in one module is the same rejection.
+   emission**, so a rejected call leaves no HIR. `free_slot_count()` uses the
+   same emitter and call-site budget as `free_list_walk`, so using both in one
+   module is the same rejection.
    `free_list_empty()` does not consume the budget. This is enforced at build
    time rather than documented because a per-frame exact count is a ~29.6kT
    scan at 800 free nodes — structurally the wrong tool for a capacity check.
@@ -551,9 +553,12 @@ Three tiers are defined; this series ships tiers 1 and 3, and defers tier 2
    | `free_list_empty()` (tier 1) | 1T |
 
    The per-node figure is one T above `T-WP7`'s forward `U` walk because the
-   tier-3 scan adds the `remaining` guard. That table is the argument for tier
-   1 existing at all: a per-frame capacity check must be `free_list_empty()`,
-   and the exact count belongs at map start.
+   tier-3 scan adds the `remaining` guard. The measured **37T** is above the
+   ticket's `~31T` estimate; that estimate predates the guard and the
+   successor read, and the variance is accepted: ADR 0001 ranks executed cost
+   first, and 37T still bounds a full 1699-node cycle at `~62.9kT`. That table
+   is the argument for tier 1 existing at all: a per-frame capacity check must
+   be `free_list_empty()`, and the exact count belongs at map start.
 
 **Deferred: `slotsUpperBound` (tier 2).** The decision is recorded, not coded;
 there is no stub, no `NotImplementedError`, and no dead export.

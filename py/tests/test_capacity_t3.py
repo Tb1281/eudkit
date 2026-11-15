@@ -14,7 +14,6 @@ call site.
 
 from __future__ import annotations
 
-import json
 import unittest
 from typing import Any
 
@@ -37,6 +36,16 @@ from py.capacity import (
 from py.cp import CP_ADDR
 from py.hir import Add
 from py.tests.helpers import flatten_stmts
+from py.tests.units_hir import (
+    acts_targeting,
+    cp_stores,
+    hir_module,
+    loop_done_id,
+    loop_ptr_id,
+    var_init,
+    walk_while,
+    walk_whiles,
+)
 from py.view import (
     CUNIT_BASE_EPD,
     CUNIT_LAST_EPD,
@@ -45,43 +54,9 @@ from py.view import (
 )
 
 
-def _module(prog) -> dict[str, Any]:
-    return json.loads(build_module(prog).to_json())["module"]
-
-
-def _whiles(module: dict[str, Any]) -> list[dict[str, Any]]:
-    return [s for s in module["stmts"] if s["kind"] == "while"]
-
-
-def _while(module: dict[str, Any]) -> dict[str, Any]:
-    whiles = _whiles(module)
-    assert len(whiles) == 1, whiles
-    return whiles[0]
-
-
-def _ptr_id(while_stmt: dict[str, Any]) -> int:
-    return while_stmt["conds"][0]["relocs"][0]["target_var"]
-
-
-def _done_id(while_stmt: dict[str, Any]) -> int:
-    return while_stmt["conds"][2]["relocs"][0]["target_var"]
-
-
-def _cp_stores(stmts: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [
-        s
-        for s in stmts
-        if s["kind"] == "varstore" and s.get("dst_addr") == CP_ADDR
-    ]
-
-
-def _var_init(module: dict[str, Any], var_id: int) -> int:
-    return next(v["init"] for v in module["vars"] if v["id"] == var_id)
-
-
 def _remaining_id(module: dict[str, Any]) -> int:
     """The scan guard: the var the loop decrements by one per node."""
-    body = _while(module)["body"]
+    body = walk_while(module)["body"]
     dec = next(
         s
         for s in body
@@ -100,7 +75,7 @@ def _acts_anywhere(stmts: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
-def _acts_targeting(stmts: list[dict[str, Any]], var_id: int) -> list[dict[str, Any]]:
+def acts_targeting(stmts: list[dict[str, Any]], var_id: int) -> list[dict[str, Any]]:
     return [
         stmt
         for stmt in stmts
@@ -121,7 +96,7 @@ class ConstantsTest(unittest.TestCase):
 
 class WalkShapeTest(unittest.TestCase):
     def test_one_ambient_read_one_while_and_one_final_restore(self) -> None:
-        module = _module(lambda: free_slot_count())
+        module = hir_module(lambda: free_slot_count())
         funcs = module["funcs"]
         self.assertEqual(sorted(len(fn["body"]) for fn in funcs), [20, 33])
         ambient_id = next(fn["id"] for fn in funcs if len(fn["body"]) == 33)
@@ -144,17 +119,17 @@ class WalkShapeTest(unittest.TestCase):
         self.assertEqual(last["src_var"], ambient_call["dst"])
 
     def test_head_store_uses_the_free_list_head_literal(self) -> None:
-        module = _module(lambda: free_slot_count())
+        module = hir_module(lambda: free_slot_count())
         head_stores = [
             s
-            for s in _cp_stores(module["stmts"])
-            if _var_init(module, s["src_var"]) == EPD(CUNIT_FREE_HEAD)
+            for s in cp_stores(module["stmts"])
+            if var_init(module, s["src_var"]) == EPD(CUNIT_FREE_HEAD)
         ]
         self.assertEqual(len(head_stores), 1)
         self.assertIn(EPD(CUNIT_FREE_HEAD), [v["init"] for v in module["vars"]])
 
     def test_gate_is_the_pool_bound_then_done(self) -> None:
-        while_stmt = _while(_module(lambda: free_slot_count()))
+        while_stmt = walk_while(hir_module(lambda: free_slot_count()))
         self.assertEqual(
             [c["amount"] for c in while_stmt["conds"]],
             [CUNIT_BASE_EPD, CUNIT_LAST_EPD, 0],
@@ -167,10 +142,10 @@ class WalkShapeTest(unittest.TestCase):
         self.assertEqual(while_stmt["conds"][1]["amount"], 161657)
 
     def test_link_is_read_from_ptr_plus_one_before_the_body(self) -> None:
-        while_stmt = _while(_module(lambda: free_slot_count()))
+        while_stmt = walk_while(hir_module(lambda: free_slot_count()))
         body = while_stmt["body"]
-        ptr = _ptr_id(while_stmt)
-        bind = _cp_stores(body)[0]
+        ptr = loop_ptr_id(while_stmt)
+        bind = cp_stores(body)[0]
         self.assertNotEqual(bind["src_var"], ptr)
         link = bind["src_var"]
         self.assertTrue(
@@ -183,19 +158,19 @@ class WalkShapeTest(unittest.TestCase):
             "the forward link must be materialised from ptr",
         )
         self.assertTrue(
-            any(act["value"] == 1 for act in _acts_targeting(body, link)),
+            any(act["value"] == 1 for act in acts_targeting(body, link)),
             "the forward link adds +1 to ptr",
         )
 
 
 class CycleGuardTest(unittest.TestCase):
     def test_remaining_starts_at_scan_max_and_decrements_per_node(self) -> None:
-        module = _module(lambda: free_slot_count())
-        while_stmt = _while(module)
+        module = hir_module(lambda: free_slot_count())
+        while_stmt = walk_while(module)
         body = while_stmt["body"]
 
         remaining = _remaining_id(module)
-        self.assertEqual(_var_init(module, remaining), 0)
+        self.assertEqual(var_init(module, remaining), 0)
         init_acts = [
             act
             for act in _acts_anywhere(module["stmts"])
@@ -205,7 +180,7 @@ class CycleGuardTest(unittest.TestCase):
             )
         ]
         self.assertEqual(len(init_acts), 1, "the guard starts at 1699")
-        acts = _acts_targeting(body, remaining)
+        acts = acts_targeting(body, remaining)
         self.assertEqual(len(acts), 1)
         # `Var.isub(1)` emits the two's-complement add; the value is the
         # wrapped -1, which is exactly one subtraction.
@@ -213,10 +188,10 @@ class CycleGuardTest(unittest.TestCase):
         self.assertEqual(acts[0]["modifier"], Add)
 
     def test_remaining_zero_sets_done_and_stops_the_advance(self) -> None:
-        module = _module(lambda: free_slot_count())
-        while_stmt = _while(module)
+        module = hir_module(lambda: free_slot_count())
+        while_stmt = walk_while(module)
         body = while_stmt["body"]
-        done = _done_id(while_stmt)
+        done = loop_done_id(while_stmt)
         remaining = _remaining_id(module)
 
         stop = next(
@@ -228,7 +203,7 @@ class CycleGuardTest(unittest.TestCase):
             and s["conds"][0]["amount"] == 0
         )
         self.assertEqual(
-            [(a["value"], a["modifier"]) for a in _acts_targeting(stop["body"], done)],
+            [(a["value"], a["modifier"]) for a in acts_targeting(stop["body"], done)],
             [(1, SetTo)],
         )
 
@@ -236,9 +211,11 @@ class CycleGuardTest(unittest.TestCase):
 class OneCallSiteTest(unittest.TestCase):
     def test_second_call_is_rejected_before_any_emission(self) -> None:
         errors: list[EudslError] = []
+        ids: dict[str, int] = {}
 
         def prog() -> None:
             marker = Var(0)
+            ids["marker"] = marker.id
             free_slot_count()
 
             def second_body() -> None:
@@ -249,15 +226,15 @@ class OneCallSiteTest(unittest.TestCase):
             except EudslError as exc:  # noqa: PERF203 - assertion under test
                 errors.append(exc)
 
-        module = _module(prog)
+        module = hir_module(prog)
         self.assertEqual(len(errors), 1)
         self.assertEqual(errors[0].code, "EUDSL-BOUNDS")
         self.assertIn("ADR 0015", str(errors[0]))
         self.assertIn("one call site per module", str(errors[0]))
         # The rejected call emitted nothing: its body never ran, so the marker
         # var is untouched, and there is exactly one loop.
-        self.assertEqual(_acts_targeting(flatten_stmts(module["stmts"]), 0), [])
-        self.assertEqual(len(_whiles(module)), 1)
+        self.assertEqual(acts_targeting(flatten_stmts(module["stmts"]), ids["marker"]), [])
+        self.assertEqual(len(walk_whiles(module)), 1)
 
     def test_free_slot_count_consumes_the_call_site(self) -> None:
         with self.assertRaises(EudslError) as ctx:
@@ -271,7 +248,7 @@ class OneCallSiteTest(unittest.TestCase):
         self.assertIn("ADR 0015", str(ctx.exception))
 
     def test_free_slot_count_after_a_walk_leaves_no_var_or_hir(self) -> None:
-        control = _module(lambda: free_list_walk(lambda: None))
+        control = hir_module(lambda: free_list_walk(lambda: None))
         errors: list[EudslError] = []
 
         def prog() -> None:
@@ -281,13 +258,13 @@ class OneCallSiteTest(unittest.TestCase):
             except EudslError as exc:  # noqa: PERF203 - assertion under test
                 errors.append(exc)
 
-        module = _module(prog)
+        module = hir_module(prog)
         self.assertEqual(len(errors), 1)
         self.assertEqual(errors[0].code, "EUDSL-BOUNDS")
         # The rejected call claims the call site before allocating its count
         # var, so it leaves no variable and no HIR behind.
         self.assertEqual(module["vars"], control["vars"])
-        self.assertEqual(len(_whiles(module)), 1)
+        self.assertEqual(len(walk_whiles(module)), 1)
         self.assertEqual(module["stmts"], control["stmts"])
 
     def test_two_explicit_walks_are_rejected(self) -> None:
@@ -309,14 +286,14 @@ class OneCallSiteTest(unittest.TestCase):
             free_slot_count()
             free_list_empty()
 
-        module = _module(prog)
-        self.assertEqual(len(_whiles(module)), 1)
+        module = hir_module(prog)
+        self.assertEqual(len(walk_whiles(module)), 1)
 
     def test_a_fresh_module_gets_a_fresh_call_site(self) -> None:
-        first = _module(lambda: free_slot_count())
-        second = _module(lambda: free_slot_count())
-        self.assertEqual(len(_whiles(first)), 1)
-        self.assertEqual(len(_whiles(second)), 1)
+        first = hir_module(lambda: free_slot_count())
+        second = hir_module(lambda: free_slot_count())
+        self.assertEqual(len(walk_whiles(first)), 1)
+        self.assertEqual(len(walk_whiles(second)), 1)
 
 
 class DiagnosticsTest(unittest.TestCase):
@@ -351,8 +328,11 @@ class DiagnosticsTest(unittest.TestCase):
 
 class BreakTest(unittest.TestCase):
     def test_returning_break_stops_after_the_first_node(self) -> None:
+        ids: dict[str, int] = {}
+
         def prog() -> None:
             count = Var(0)
+            ids["count"] = count.id
 
             def body():
                 count.iadd(1)
@@ -360,15 +340,15 @@ class BreakTest(unittest.TestCase):
 
             free_list_walk(body)
 
-        module = _module(prog)
-        while_stmt = _while(module)
-        done = _done_id(while_stmt)
+        module = hir_module(prog)
+        while_stmt = walk_while(module)
+        done = loop_done_id(while_stmt)
         body = while_stmt["body"]
         marker_index = next(
             i
             for i, stmt in enumerate(body)
             if stmt["kind"] == "act"
-            and any(r.get("target_var") == 0 for r in stmt.get("relocs", []))
+            and any(r.get("target_var") == ids["count"] for r in stmt.get("relocs", []))
         )
         done_indices = [
             i
@@ -389,9 +369,9 @@ class BreakTest(unittest.TestCase):
 
             free_list_walk(body)
 
-        module = _module(prog)
-        while_stmt = _while(module)
-        self.assertEqual(_acts_targeting(while_stmt["body"], _done_id(while_stmt)), [])
+        module = hir_module(prog)
+        while_stmt = walk_while(module)
+        self.assertEqual(acts_targeting(while_stmt["body"], loop_done_id(while_stmt)), [])
 
 
 if __name__ == "__main__":

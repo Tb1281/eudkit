@@ -27,56 +27,17 @@ from py import (
 from py.cp import CP_ADDR
 from py.hir import AtLeast, AtMost, Exactly
 from py.tests.helpers import flatten_stmts
-
-_HEADS = {
-    UNIT_LIST_U: 161843,
-    UNIT_LIST_T: 161841,
-    UNIT_LIST_S: 161844,
-    UNIT_LIST_D: 161842,
-}
-_LINK_OFFSET = {
-    UNIT_LIST_U: 1,
-    UNIT_LIST_T: 1,
-    UNIT_LIST_S: 1,
-    UNIT_LIST_D: 0,
-}
-
-
-def _module(prog) -> dict:
-    return json.loads(build_module(prog).to_json())["module"]
-
-
-def _while(module: dict) -> dict:
-    return next(s for s in module["stmts"] if s["kind"] == "while")
-
-
-def _ptr_id(while_stmt: dict) -> int:
-    return while_stmt["conds"][0]["relocs"][0]["target_var"]
-
-
-def _done_id(while_stmt: dict) -> int:
-    return while_stmt["conds"][2]["relocs"][0]["target_var"]
-
-
-def _cp_stores(stmts: list[dict]) -> list[dict]:
-    return [
-        s
-        for s in stmts
-        if s["kind"] == "varstore" and s.get("dst_addr") == CP_ADDR
-    ]
-
-
-def _var_init(module: dict, var_id: int) -> int:
-    return next(v["init"] for v in module["vars"] if v["id"] == var_id)
-
-
-def _acts_targeting(stmts: list[dict], var_id: int) -> list[dict]:
-    return [
-        stmt
-        for stmt in stmts
-        if stmt["kind"] == "act"
-        and any(r.get("target_var") == var_id for r in stmt.get("relocs", []))
-    ]
+from py.tests.units_hir import (
+    UNIT_LIST_HEADS,
+    UNIT_LIST_LINK_OFFSETS,
+    acts_targeting,
+    cp_stores,
+    hir_module,
+    loop_done_id,
+    loop_ptr_id,
+    var_init,
+    walk_while,
+)
 
 
 class ListConstantsTest(unittest.TestCase):
@@ -86,10 +47,15 @@ class ListConstantsTest(unittest.TestCase):
             ("U", "T", "S", "D"),
         )
 
+    def test_camel_case_alias_is_the_same_helper(self) -> None:
+        from py import forEachUnitList, for_each_unit_list
+
+        self.assertIs(forEachUnitList, for_each_unit_list)
+
 
 class LoopShapeTest(unittest.TestCase):
     def test_one_ambient_read_one_while_and_one_final_restore(self) -> None:
-        module = _module(
+        module = hir_module(
             lambda: for_each_unit_list(UNIT_LIST_U, lambda unit, loop: None)
         )
         funcs = module["funcs"]
@@ -103,7 +69,7 @@ class LoopShapeTest(unittest.TestCase):
             "the 33T ambient CP read must happen exactly once per site",
         )
 
-        while_stmt = _while(module)
+        while_stmt = walk_while(module)
         self.assertEqual(
             [c["amount"] for c in while_stmt["conds"]],
             [19025, 161657, 0],
@@ -126,18 +92,18 @@ class LoopShapeTest(unittest.TestCase):
         self.assertEqual(last["src_var"], ambient_call["dst"])
 
     def test_head_store_uses_the_documented_head_literal(self) -> None:
-        for list_name, head in _HEADS.items():
+        for list_name, head in UNIT_LIST_HEADS.items():
             with self.subTest(list_name=list_name):
-                module = _module(
+                module = hir_module(
                     lambda list_name=list_name: for_each_unit_list(
                         list_name, lambda unit, loop: None
                     )
                 )
-                stores = _cp_stores(module["stmts"])
+                stores = cp_stores(module["stmts"])
                 head_stores = [
                     s
                     for s in stores
-                    if _var_init(module, s["src_var"]) == head
+                    if var_init(module, s["src_var"]) == head
                 ]
                 self.assertEqual(len(head_stores), 1)
                 self.assertIn(head, [v["init"] for v in module["vars"]])
@@ -145,19 +111,19 @@ class LoopShapeTest(unittest.TestCase):
 
 class LinkDirectionTest(unittest.TestCase):
     def test_forward_lists_read_next_and_dying_reads_prev(self) -> None:
-        for list_name in _HEADS:
+        for list_name in UNIT_LIST_HEADS:
             with self.subTest(list_name=list_name):
-                module = _module(
+                module = hir_module(
                     lambda list_name=list_name: for_each_unit_list(
                         list_name, lambda unit, loop: None
                     )
                 )
-                while_stmt = _while(module)
-                ptr = _ptr_id(while_stmt)
+                while_stmt = walk_while(module)
+                ptr = loop_ptr_id(while_stmt)
                 body = while_stmt["body"]
-                bind = _cp_stores(body)[0]
+                bind = cp_stores(body)[0]
 
-                if _LINK_OFFSET[list_name] == 1:
+                if UNIT_LIST_LINK_OFFSETS[list_name] == 1:
                     self.assertNotEqual(bind["src_var"], ptr)
                     link = bind["src_var"]
                     self.assertTrue(
@@ -170,7 +136,7 @@ class LinkDirectionTest(unittest.TestCase):
                         "the forward link must be materialised from ptr",
                     )
                     self.assertTrue(
-                        any(act["value"] == 1 for act in _acts_targeting(body, link)),
+                        any(act["value"] == 1 for act in acts_targeting(body, link)),
                         "the forward link adds +1 to ptr",
                     )
                 else:
@@ -181,16 +147,20 @@ class LinkDirectionTest(unittest.TestCase):
                     )
 
     def test_dying_head_is_the_tail_literal(self) -> None:
-        module = _module(
+        module = hir_module(
             lambda: for_each_unit_list(UNIT_LIST_D, lambda unit, loop: None)
         )
-        self.assertEqual(_HEADS[UNIT_LIST_D], 161842)
-        self.assertIn(161842, [v["init"] for v in module["vars"]])
+        head_stores = [
+            s
+            for s in cp_stores(module["stmts"])
+            if var_init(module, s["src_var"]) == 161842
+        ]
+        self.assertEqual(len(head_stores), 1)
 
     def test_free_list_dwords_never_appear_in_the_hir(self) -> None:
-        for list_name in _HEADS:
+        for list_name in UNIT_LIST_HEADS:
             with self.subTest(list_name=list_name):
-                module = _module(
+                module = hir_module(
                     lambda list_name=list_name: for_each_unit_list(
                         list_name, lambda unit, loop: None
                     )
@@ -252,16 +222,19 @@ class BreakContractTest(unittest.TestCase):
 
             for_each_unit_list(UNIT_LIST_U, body)
 
-        module = _module(prog)
-        while_stmt = _while(module)
-        done = _done_id(while_stmt)
-        acts = _acts_targeting(while_stmt["body"], done)
+        module = hir_module(prog)
+        while_stmt = walk_while(module)
+        done = loop_done_id(while_stmt)
+        acts = acts_targeting(while_stmt["body"], done)
         self.assertEqual(len(acts), 2)
         self.assertTrue(all(act["value"] == 1 for act in acts))
 
     def test_returning_break_emits_done_after_the_body(self) -> None:
+        ids: dict[str, int] = {}
+
         def prog() -> None:
             marker = Var(0)
+            ids["marker"] = marker.id
 
             def body(unit, loop):
                 marker.iadd(1)
@@ -269,21 +242,21 @@ class BreakContractTest(unittest.TestCase):
 
             for_each_unit_list(UNIT_LIST_U, body)
 
-        module = _module(prog)
-        while_stmt = _while(module)
-        done = _done_id(while_stmt)
-        # `marker` is the first allocated var; the loop's internal vars follow.
-        marker = 0
-        body = while_stmt["body"]
+        module = hir_module(prog)
+        while_stmt = walk_while(module)
+        done = loop_done_id(while_stmt)
         marker_index = next(
             i
-            for i, stmt in enumerate(body)
+            for i, stmt in enumerate(while_stmt["body"])
             if stmt["kind"] == "act"
-            and any(r.get("target_var") == marker for r in stmt.get("relocs", []))
+            and any(
+                r.get("target_var") == ids["marker"]
+                for r in stmt.get("relocs", [])
+            )
         )
         done_indices = [
             i
-            for i, stmt in enumerate(body)
+            for i, stmt in enumerate(while_stmt["body"])
             if stmt["kind"] == "act"
             and any(r.get("target_var") == done for r in stmt.get("relocs", []))
         ]
@@ -300,29 +273,32 @@ class BreakContractTest(unittest.TestCase):
 
             for_each_unit_list(UNIT_LIST_U, body)
 
-        module = _module(prog)
-        while_stmt = _while(module)
-        self.assertEqual(_acts_targeting(while_stmt["body"], _done_id(while_stmt)), [])
+        module = hir_module(prog)
+        while_stmt = walk_while(module)
+        self.assertEqual(acts_targeting(while_stmt["body"], loop_done_id(while_stmt)), [])
 
 
 class ReentrantOrderTest(unittest.TestCase):
     def _reader_and_body_indices(self, reentrant: bool) -> tuple[int, int]:
+        ids: dict[str, int] = {}
+
         def prog() -> None:
             marker = Var(0)
+            ids["marker"] = marker.id
 
             def body(unit, loop) -> None:
                 marker.iadd(1)
 
             for_each_unit_list(UNIT_LIST_U, body, reentrant=reentrant)
 
-        module = _module(prog)
-        body = _while(module)["body"]
+        module = hir_module(prog)
+        body = walk_while(module)["body"]
         reader_index = next(i for i, s in enumerate(body) if s["kind"] == "call")
         marker_index = next(
             i
             for i, s in enumerate(body)
             if s["kind"] == "act"
-            and any(r.get("target_var") == 0 for r in s.get("relocs", []))
+            and any(r.get("target_var") == ids["marker"] for r in s.get("relocs", []))
         )
         return reader_index, marker_index
 

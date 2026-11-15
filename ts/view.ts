@@ -811,11 +811,8 @@ export function readCunitPointer(
       acts: [res.act_set(CUNIT_POINTER_SEED)],
       preserved: true,
     });
-    emitBitTestRead(target, 18, 2, res, CUNIT_POINTER_MASK);
-    res.iadd(CUNIT_POINTER_BIAS);
-    return res;
+    return cunitPointerBody(res, target);
   }
-
   return requireWithEpdFactory()(ptrEpd, () => _declareCunitReader()()) as VarImpl;
 }
 
@@ -943,6 +940,28 @@ function requireWithEpdSavedFactory(): WithEpdSavedFactory {
   return withEpdSavedFactory;
 }
 
+function requireFuncFactory(what: string): FuncFactory {
+  if (funcFactory === null || funcFactory === undefined) {
+    throw new EudslError(
+      "EUDSL-SCOPE",
+      `${what} requires the temporal frontend to be loaded`,
+    );
+  }
+  return funcFactory;
+}
+
+/**
+ * Read the 18-bit CUnit pointer at `target` into `res` and bias it.
+ *
+ * Shared by the inline numeric-target reader and the CP-relative kernel; the
+ * caller owns the seed reset so each path keeps its intentional act shape.
+ */
+function cunitPointerBody(res: VarImpl, target: number = CurrentPlayer): VarImpl {
+  emitBitTestRead(target, 18, 2, res, CUNIT_POINTER_MASK);
+  res.iadd(CUNIT_POINTER_BIAS);
+  return res;
+}
+
 /** Callable handle for the shared full-dword reader. */
 export interface SharedDwordReader {
   (epd: number): VarImpl;
@@ -988,13 +1007,7 @@ function sharedDwordReader(): SharedDwordReader {
       }
       return res;
     };
-    if (funcFactory === null || funcFactory === undefined) {
-      throw new EudslError(
-        "EUDSL-SCOPE",
-        "field.read() requires the temporal frontend to be loaded",
-      );
-    }
-    return funcFactory(kernelBody) as () => VarImpl;
+    return requireFuncFactory("field.read()")(kernelBody) as () => VarImpl;
   };
 
   return ((epd: number): VarImpl => {
@@ -1031,17 +1044,9 @@ export function _declareCunitReader(): () => VarImpl {
     const kernelBody = (): VarImpl => {
       const res = Var(0);
       res.set(CUNIT_POINTER_SEED);
-      emitBitTestRead(CurrentPlayer, 18, 2, res, CUNIT_POINTER_MASK);
-      res.iadd(CUNIT_POINTER_BIAS);
-      return res;
+      return cunitPointerBody(res);
     };
-    if (funcFactory === null || funcFactory === undefined) {
-      throw new EudslError(
-        "EUDSL-SCOPE",
-        "readCunitPointer() requires the temporal frontend to be loaded",
-      );
-    }
-    handle = funcFactory(kernelBody) as () => VarImpl;
+    handle = requireFuncFactory("readCunitPointer()")(kernelBody) as () => VarImpl;
     cunitReaders.set(builder, handle);
   }
   return handle;
@@ -1101,7 +1106,7 @@ export class MemFieldHandle {
     return typeof this.baseEpd === "object" && this.baseEpd !== null && "moveTo" in this.baseEpd;
   }
 
-  private prepareTarget(): number {
+  protected prepareTarget(): number {
     if (this.isCP()) {
       (this.baseEpd as CursorLike).moveTo(this.dwordOffset);
       return CurrentPlayer; // 13

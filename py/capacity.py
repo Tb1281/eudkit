@@ -163,9 +163,9 @@ def _emit_free_list_walk(body: Callable[[], Any], limit: int) -> None:
 def free_slot_count() -> Var:
     """Exact number of free CUnit nodes right now (tier 3, one-shot).
 
-    Delegates to :func:`free_list_walk`, so it shares that call site: calling
-    both in one module is ``EUDSL-BOUNDS``. The call-site claim runs **before**
-    the count `Var` is allocated, so a rejected call leaves no HIR.
+    Uses the same emitter and call-site budget as :func:`free_list_walk`, so
+    calling both in one module is ``EUDSL-BOUNDS``. The call-site claim runs
+    **before** the count `Var` is allocated, so a rejected call leaves no HIR.
     """
     _claim_tier3_call_site()
     count = Var(0)

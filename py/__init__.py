@@ -318,6 +318,7 @@ from .units import (
     Break,
     UnitLoop,
     for_each_unit_list,
+    forEachUnitList,
 )
 from .conditions import (
     condAll,
@@ -778,6 +779,7 @@ __all__ = [
     "UNIT_LIST_U",
     "UnitLoop",
     "for_each_unit_list",
+    "forEachUnitList",
     "PLAYER_NAME_BYTES",
     "PLAYER_NAME_EPDS",
     "PLAYER_NAME_MAX_BYTES",

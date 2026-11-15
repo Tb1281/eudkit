@@ -312,6 +312,16 @@ class WithEpdDiagnosticsTests(unittest.TestCase):
 
         self.assertIs(withEpd, with_epd)
 
+    def test_body_must_be_callable_through_both_spellings(self) -> None:
+        from py import withEpd
+
+        for label, fn in (("with_epd", with_epd), ("withEpd", withEpd)):
+            with self.subTest(label=label):
+                with self.assertRaises(EudslError) as ctx:
+                    build_module(lambda fn=fn: fn(1000, 5))
+                self.assertEqual(ctx.exception.code, "EUDSL-TYPE")
+                self.assertIn("callable", str(ctx.exception))
+
 
 #: SHA-256 of the pre-refactor HIR for `_blockio_program` (captured before
 #: `py/blockio.py` was refactored onto `_emit_epd_reloc_into` /

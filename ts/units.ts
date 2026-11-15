@@ -26,20 +26,16 @@ export const UNIT_LIST_T = "T";
 export const UNIT_LIST_S = "S";
 export const UNIT_LIST_D = "D";
 
-/** EPD of the dword that holds each list's first node byte pointer. */
-const UNIT_LIST_HEADS: Record<string, number> = {
-  [UNIT_LIST_U]: 161843, // 0x628430
-  [UNIT_LIST_T]: 161841, // 0x628428
-  [UNIT_LIST_S]: 161844, // 0x628434
-  [UNIT_LIST_D]: 161842, // 0x62842C, the D *tail*; walk prev from here
-};
-
-/** Dword offset from a node's own EPD to its forward link. */
-const UNIT_LIST_LINK_OFFSET: Record<string, number> = {
-  [UNIT_LIST_U]: 1, // next at +4
-  [UNIT_LIST_T]: 1,
-  [UNIT_LIST_S]: 1,
-  [UNIT_LIST_D]: 0, // prev at +0
+/**
+ * Per list: the EPD of the dword holding the first node byte pointer and the
+ * dword offset from a node's own EPD to its link. `D` starts at the tail and
+ * walks `prev` at `+0`; the forward lists walk `next` at `+4`.
+ */
+const UNIT_LISTS: Record<string, { head: number; linkOffset: number }> = {
+  [UNIT_LIST_U]: { head: 161843, linkOffset: 1 }, // 0x628430, next at +4
+  [UNIT_LIST_T]: { head: 161841, linkOffset: 1 }, // 0x628428, next at +4
+  [UNIT_LIST_S]: { head: 161844, linkOffset: 1 }, // 0x628434, next at +4
+  [UNIT_LIST_D]: { head: 161842, linkOffset: 0 }, // 0x62842C, D tail, prev
 };
 
 const FREE_LIST_MESSAGE =
@@ -125,7 +121,7 @@ function validateListName(listName: unknown): asserts listName is string {
   if (listName === "F") {
     throw new EudslError("EUDSL-BOUNDS", FREE_LIST_MESSAGE);
   }
-  if (!(listName in UNIT_LIST_HEADS)) {
+  if (!(listName in UNIT_LISTS)) {
     throw new EudslError(
       "EUDSL-TYPE",
       'forEachUnitList listName must be one of "U", "T", "S", "D"; ' +
@@ -180,19 +176,19 @@ export function forEachUnitList(
   const ptr = Var(0);
   const done = Var(0);
   const saved = readCurrentPlayerRegister();
-  const linkOff = UNIT_LIST_LINK_OFFSET[listName];
+  const { head, linkOffset } = UNIT_LISTS[listName]!;
 
-  ptr.set(readCunitPointerSaved(saved, UNIT_LIST_HEADS[listName]));
+  ptr.set(readCunitPointerSaved(saved, head));
 
   whileLoop([...inCunitPool(ptr), done.eq(0)], () => {
     const loop = new UnitLoop(listName, ptr, done);
-    const link = linkOff ? ptr.add(linkOff) : ptr;
+    const link = linkOffset ? ptr.add(linkOffset) : ptr;
     let nxt: VarImpl;
     if (reentrant) {
       nxt = readCunitPointerSaved(saved, link);
-      runBody(body, loop);
-    } else {
-      runBody(body, loop);
+    }
+    runBody(body, loop);
+    if (!reentrant) {
       nxt = readCunitPointerSaved(saved, link);
     }
     when([done.eq(0)], () => ptr.set(nxt));

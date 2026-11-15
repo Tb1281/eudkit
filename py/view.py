@@ -354,6 +354,17 @@ def read_epd_pointer(epd: int) -> Any:
     return res
 
 
+def _cunit_pointer_body(res: Any, target: int = CURRENT_PLAYER) -> Any:
+    """Read the 18-bit CUnit pointer at ``target`` into ``res`` and bias it.
+
+    Shared by the inline numeric-target reader and the CP-relative kernel; the
+    caller owns the seed reset so each path keeps its intentional act shape.
+    """
+    emit_bit_test_read(target, 18, 2, res, mask=_CUNIT_POINTER_MASK)
+    res.iadd(_CUNIT_POINTER_BIAS)
+    return res
+
+
 def read_cunit_pointer(ptr_epd: Any) -> Any:
     """Read the CUnit byte pointer at ``ptr_epd`` and return its EPD (20T inline).
 
@@ -395,15 +406,7 @@ def read_cunit_pointer(ptr_epd: Any) -> Any:
             acts=[res.act_set(_CUNIT_POINTER_SEED)],
             preserved=True,
         )
-        emit_bit_test_read(
-            int(ptr_epd) & 0xFFFFFFFF,
-            18,
-            2,
-            res,
-            mask=_CUNIT_POINTER_MASK,
-        )
-        res.iadd(_CUNIT_POINTER_BIAS)
-        return res
+        return _cunit_pointer_body(res, int(ptr_epd) & 0xFFFFFFFF)
 
     from .cp import with_epd
 
@@ -542,15 +545,7 @@ def _declare_cunit_reader() -> Any:
         def kernel_body() -> Any:
             res = Var(0)
             res.set(_CUNIT_POINTER_SEED)
-            emit_bit_test_read(
-                CURRENT_PLAYER,
-                18,
-                2,
-                res,
-                mask=_CUNIT_POINTER_MASK,
-            )
-            res.iadd(_CUNIT_POINTER_BIAS)
-            return res
+            return _cunit_pointer_body(res)
 
         handle = func(kernel_body)
         _CUNIT_READERS[builder] = handle

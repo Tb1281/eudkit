@@ -263,29 +263,23 @@ export const with_cp = withCP;
 /** Public documentation name for the accepted `withEpd` operand domain. */
 export type EpdOperand = number | VarImpl | ReadonlyVar | Expr | Db | DbRef;
 
+function isEpdOperand(value: unknown, { allowDb }: { allowDb: boolean }): boolean {
+  if (typeof value === "boolean") return false;
+  if (typeof value === "number") return Number.isInteger(value);
+  if (value instanceof DbRef || value instanceof VarImpl || value instanceof Expr) {
+    if (value instanceof Db) return allowDb;
+    return true;
+  }
+  return false;
+}
+
 function requireEpdOperand(epd: unknown): asserts epd is EpdOperand {
-  if (typeof epd === "boolean") {
+  if (!isEpdOperand(epd, { allowDb: true })) {
     throw new EudslError(
       "EUDSL-TYPE",
-      `withEpd epd must be an EPD-bearing value; got ${String(epd)}`,
+      `withEpd epd must be an EPD-bearing value (int, Var, ReadonlyVar, Expr, Db, or DbRef); got ${String(epd)}`,
     );
   }
-  if (typeof epd === "number") {
-    if (!Number.isInteger(epd)) {
-      throw new EudslError(
-        "EUDSL-TYPE",
-        `withEpd epd must be an EPD-bearing value; got ${String(epd)}`,
-      );
-    }
-    return;
-  }
-  if (epd instanceof DbRef || epd instanceof VarImpl || epd instanceof Expr) {
-    return;
-  }
-  throw new EudslError(
-    "EUDSL-TYPE",
-    `withEpd epd must be an EPD-bearing value (int, Var, ReadonlyVar, Expr, Db, or DbRef); got ${String(epd)}`,
-  );
 }
 
 function requireEpdOffset(offset: unknown): asserts offset is number {
@@ -407,6 +401,12 @@ export function withEpd<R = void>(
 ): R {
   requireEpdOperand(epd);
   requireEpdOffset(offset);
+  if (typeof fn !== "function") {
+    throw new EudslError(
+      "EUDSL-TYPE",
+      `withEpd body must be a function; got ${String(fn)}`,
+    );
+  }
   const base = materializeEpdBase(epd);
   const { cursor, saved } = bindEpd(base, offset);
   try {
@@ -443,12 +443,7 @@ export function _withEpdSaved<R>(
   }
   if (
     typeof epd === "boolean" ||
-    !(
-      typeof epd === "number" ||
-      epd instanceof VarImpl ||
-      epd instanceof ReadonlyVar ||
-      epd instanceof Expr
-    )
+    !isEpdOperand(epd, { allowDb: false })
   ) {
     throw new EudslError(
       "EUDSL-TYPE",
@@ -465,11 +460,11 @@ export function _withEpdSaved<R>(
   // `toVar` allocates a private scratch Var for an int or Expr; a Var or
   // ReadonlyVar is only read, never mutated.
   const scratch = toVar(epd as VarOperand);
-  emitVarStore(scratch.id, AddrReloc(CP_ADDR), SetTo);
+  _setCpFromVar(scratch);
   try {
     return fn();
   } finally {
-    emitVarStore(savedCp.id, AddrReloc(CP_ADDR), SetTo);
+    _setCpFromVar(savedCp);
   }
 }
 

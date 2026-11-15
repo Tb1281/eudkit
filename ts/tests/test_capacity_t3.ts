@@ -34,40 +34,17 @@ import { Add } from "../hir.ts";
 import { CUNIT_BASE_EPD, CUNIT_LAST_EPD, CUNIT_SLOT_COUNT, EPD } from "../view.ts";
 import { REPO_ROOT, flattenStmts, type HirStmtNode } from "./helpers.ts";
 
-// HIR JSON is intentionally loosely typed here: the tests read the exact wire
-// shape, which the typed builder interfaces deliberately do not expose.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Json = { [key: string]: any };
-
-function moduleOf(fn: () => void): Json {
-  return JSON.parse(buildModule(fn).toJson()).module as Json;
-}
-
-function whiles(module: Json): Json[] {
-  return (module.stmts as Json[]).filter((s) => s.kind === "while");
-}
-
-function whileOf(module: Json): Json {
-  const found = whiles(module);
-  assert.equal(found.length, 1, JSON.stringify(found));
-  return found[0];
-}
-
-function ptrOf(whileStmt: Json): number {
-  return whileStmt.conds[0].relocs[0].target_var;
-}
-
-function doneOf(whileStmt: Json): number {
-  return whileStmt.conds[2].relocs[0].target_var;
-}
-
-function cpStores(stmts: Json[]): Json[] {
-  return stmts.filter((s) => s.kind === "varstore" && s.dst_addr === CP_ADDR);
-}
-
-function varInit(module: Json, varId: number): number {
-  return (module.vars as Json[]).find((v) => v.id === varId)!.init;
-}
+import {
+  actsTargeting,
+  cpStores,
+  doneOf,
+  moduleOf,
+  ptrOf,
+  varInit,
+  whileOf,
+  whiles,
+  type Json,
+} from "./units_hir.ts";
 
 function remainingId(module: Json): number {
   const body = whileOf(module).body as Json[];
@@ -83,14 +60,6 @@ function actsAnywhere(stmts: Json[]): Json[] {
     if (stmt.acts) out.push(...(stmt.acts as Json[]));
   }
   return out;
-}
-
-function actsTargeting(stmts: Json[], varId: number): Json[] {
-  return stmts.filter(
-    (s) =>
-      s.kind === "act" &&
-      (s.relocs as Json[] | undefined)?.some((r) => r.target_var === varId),
-  );
 }
 
 function isEudsl(code: string): (err: unknown) => boolean {
@@ -236,8 +205,10 @@ test("remaining zero sets done and stops the advance", () => {
 
 test("second call is rejected before any emission", () => {
   const errors: EudslError[] = [];
+  let markerId = -1;
   const module = moduleOf(() => {
     const marker = Var(0);
+    markerId = marker.id;
     freeSlotCount();
     try {
       freeListWalk(() => {
@@ -252,7 +223,7 @@ test("second call is rejected before any emission", () => {
   assert.match(String(errors[0]), /ADR 0015/);
   assert.match(String(errors[0]), /one call site per module/);
   assert.deepEqual(
-    actsTargeting(flattenStmts(module.stmts as HirStmtNode[]) as Json[], 0),
+    actsTargeting(flattenStmts(module.stmts as HirStmtNode[]) as Json[], markerId),
     [],
   );
   assert.equal(whiles(module).length, 1);
@@ -359,8 +330,10 @@ test("outside a builder is scope", () => {
 });
 
 test("returning BREAK stops after the first node", () => {
+  let countId = -1;
   const module = moduleOf(() => {
     const count = Var(0);
+    countId = count.id;
     freeListWalk(() => {
       count.iadd(1);
       return BREAK;
@@ -372,7 +345,7 @@ test("returning BREAK stops after the first node", () => {
   const markerIndex = body.findIndex(
     (s) =>
       s.kind === "act" &&
-      (s.relocs as Json[] | undefined)?.some((r) => r.target_var === 0),
+      (s.relocs as Json[] | undefined)?.some((r) => r.target_var === countId),
   );
   const doneIndices = body
     .map((s, i) => ({ s, i }))

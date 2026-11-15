@@ -150,9 +150,9 @@ function emitFreeListWalk(body: () => unknown, limit: number): void {
 /**
  * Exact number of free CUnit nodes right now (tier 3, one-shot).
  *
- * Delegates to `freeListWalk`, so it shares that call site: calling both in
- * one module is `EUDSL-BOUNDS`. The call-site claim runs **before** the count
- * `Var` is allocated, so a rejected call leaves no HIR.
+ * Uses the same emitter and call-site budget as `freeListWalk`, so calling
+ * both in one module is `EUDSL-BOUNDS`. The call-site claim runs **before** the
+ * count `Var` is allocated, so a rejected call leaves no HIR.
  */
 export function freeSlotCount(): VarImpl {
   claimTier3CallSite();

@@ -64,7 +64,7 @@ function callback(player: number, _name: string): void {
   SetDeaths(9000 + player, SetTo, 1, 0);
 }
 
-function build(names: readonly string[], players: readonly number[] = [0]) {
+function build(names: readonly string[], players: Iterable<number> = [0]) {
   return buildModule(() => {
     matchNames(names, callback, players);
   });
@@ -203,6 +203,17 @@ test("players validation", () => {
   assertCode(() => build(["A"], new Set([0, 1]) as unknown as number[]), "EUDSL-TYPE");
   assertCode(() => build(["A"], [true] as unknown as number[]), "EUDSL-TYPE");
   assertCode(() => build(["A"], [12]), "EUDSL-RANGE");
+});
+
+test("players accepts an ordered generator (iterable parity with Python)", () => {
+  function* ordered(): Generator<number> {
+    yield 2;
+    yield 0;
+  }
+  const chains = condChains(build(["A"], ordered()));
+  assert.equal(chains.length, 2);
+  assert.equal(chains[0][0][0].player, playerNameEpd(2));
+  assert.equal(chains[1][0][0].player, playerNameEpd(0));
 });
 
 test("onMatch must be callable", () => {

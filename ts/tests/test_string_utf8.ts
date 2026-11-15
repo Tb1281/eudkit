@@ -6,7 +6,7 @@
  * emoji, and Latin text all work without changing the capacity model. An
  * embedded NUL (which would terminate the `STRx` entry) and a lone UTF-16
  * surrogate (which is never valid UTF-8) are rejected with `EUDSL-TYPE` before
- * any `TextEncoder` call. Format-spec `fill` remains one ASCII byte
+ * any bytes are emitted. Format-spec `fill` remains one ASCII byte
  * (`EUDSL-ASCII`).
  */
 import assert from "node:assert/strict";
@@ -36,7 +36,18 @@ test("encodeUtf8 parity byte tables", () => {
     ["ABC", [0x41, 0x42, 0x43]],
     ["é", [0xc3, 0xa9]],
     ["한", [0xed, 0x95, 0x9c]],
+    ["日本語", [0xe6, 0x97, 0xa5, 0xe6, 0x9c, 0xac, 0xe8, 0xaa, 0x9e]],
     ["🙂", [0xf0, 0x9f, 0x99, 0x82]],
+    [
+      "中文한글🙂",
+      [
+        0xe4, 0xb8, 0xad,
+        0xe6, 0x96, 0x87,
+        0xed, 0x95, 0x9c,
+        0xea, 0xb8, 0x80,
+        0xf0, 0x9f, 0x99, 0x82,
+      ],
+    ],
     ["a한🙂", [0x61, 0xed, 0x95, 0x9c, 0xf0, 0x9f, 0x99, 0x82]],
   ];
   for (const [text, want] of cases) {
@@ -77,25 +88,11 @@ test("encodeUtf8 rejects lone surrogates", () => {
   }
 });
 
-test("a lone surrogate is rejected before any TextEncoder call", () => {
-  const original = (globalThis as { TextEncoder?: unknown }).TextEncoder;
-  let calls = 0;
-  class SpyTextEncoder {
-    constructor() {
-      calls += 1;
-    }
-    encode(): Uint8Array {
-      calls += 1;
-      throw new Error("TextEncoder must not run for a lone surrogate");
-    }
-  }
-  (globalThis as { TextEncoder?: unknown }).TextEncoder = SpyTextEncoder;
-  try {
-    assertCode(() => encodeUtf8(String.fromCharCode(0xd800), "test"), "EUDSL-TYPE");
-    assert.equal(calls, 0, "validation must complete before TextEncoder is touched");
-  } finally {
-    (globalThis as { TextEncoder?: unknown }).TextEncoder = original;
-  }
+test("a lone surrogate is rejected", () => {
+  assertCode(
+    () => encodeUtf8(String.fromCharCode(0xd800), "test"),
+    "EUDSL-TYPE",
+  );
 });
 
 test("FixedString rejects NUL and lone surrogates through write", () => {
@@ -157,6 +154,53 @@ test("three-byte Hangul needs three bytes of capacity", () => {
       buildModule(() => {
         const s = new FixedString(2);
         s.write("한");
+      }),
+    "EUDSL-BOUNDS",
+  );
+});
+
+test("Japanese text round-trips through FixedString", () => {
+  const bytes = simBytes(() => {
+    const s = new FixedString(9);
+    s.write("日本語");
+  }, 10);
+  assert.deepEqual(bytes, [
+    0xe6, 0x97, 0xa5,
+    0xe6, 0x9c, 0xac,
+    0xe8, 0xaa, 0x9e,
+    0x00,
+  ]);
+
+  assertCode(
+    () =>
+      buildModule(() => {
+        const s = new FixedString(8);
+        s.write("日本語");
+      }),
+    "EUDSL-BOUNDS",
+  );
+});
+
+test("mixed Han, Hangul, and emoji round-trip end to end", () => {
+  const want = [
+    0xe4, 0xb8, 0xad,
+    0xe6, 0x96, 0x87,
+    0xed, 0x95, 0x9c,
+    0xea, 0xb8, 0x80,
+    0xf0, 0x9f, 0x99, 0x82,
+    0x00,
+  ];
+  const bytes = simBytes(() => {
+    const s = new FixedString(16);
+    s.write("中文한글🙂");
+  }, 17);
+  assert.deepEqual(bytes, want);
+
+  assertCode(
+    () =>
+      buildModule(() => {
+        const s = new FixedString(15);
+        s.write("中文한글🙂");
       }),
     "EUDSL-BOUNDS",
   );

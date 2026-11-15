@@ -33,69 +33,20 @@ import {
 import { CP_ADDR } from "../cp.ts";
 import { REPO_ROOT, runSim } from "./helpers.ts";
 
-const HEADS: Record<string, number> = {
-  [UNIT_LIST_U]: 161843,
-  [UNIT_LIST_T]: 161841,
-  [UNIT_LIST_S]: 161844,
-  [UNIT_LIST_D]: 161842,
-};
-const LINK_OFFSET: Record<string, number> = {
-  [UNIT_LIST_U]: 1,
-  [UNIT_LIST_T]: 1,
-  [UNIT_LIST_S]: 1,
-  [UNIT_LIST_D]: 0,
-};
-
-// HIR JSON is intentionally loosely typed here: the tests read the exact wire
-// shape, which the typed builder interfaces deliberately do not expose.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Json = { [key: string]: any };
-
-function moduleOf(fn: () => void): Json {
-  return JSON.parse(buildModule(fn).toJson()).module as Json;
-}
-
-function whileOf(module: Json): Json {
-  return (module.stmts as Json[]).find((s) => s.kind === "while") as Json;
-}
-
-function ptrOf(whileStmt: Json): number {
-  return whileStmt.conds[0].relocs[0].target_var;
-}
-
-function doneOf(whileStmt: Json): number {
-  return whileStmt.conds[2].relocs[0].target_var;
-}
-
-function cpStores(stmts: Json[]): Json[] {
-  return stmts.filter((s) => s.kind === "varstore" && s.dst_addr === CP_ADDR);
-}
-
-function varInit(module: Json, varId: number): number {
-  return (module.vars as Json[]).find((v) => v.id === varId)!.init;
-}
-
-function actsTargeting(stmts: Json[], varId: number): Json[] {
-  return stmts.filter(
-    (s) =>
-      s.kind === "act" &&
-      (s.relocs as Json[] | undefined)?.some((r) => r.target_var === varId),
-  );
-}
-
-function flatten(stmts: Json[]): Json[] {
-  const out: Json[] = [];
-  for (const stmt of stmts) {
-    out.push(stmt);
-    if (stmt.body) out.push(...flatten(stmt.body as Json[]));
-    if (stmt.else_body) out.push(...flatten(stmt.else_body as Json[]));
-  }
-  return out;
-}
-
-function isEudsl(code: string): (err: unknown) => boolean {
-  return (err) => err instanceof EudslError && err.code === code;
-}
+import {
+  UNIT_LIST_HEADS,
+  UNIT_LIST_LINK_OFFSETS,
+  actsTargeting,
+  cpStores,
+  doneOf,
+  flatten,
+  isEudsl,
+  moduleOf,
+  ptrOf,
+  varInit,
+  whileOf,
+  type Json,
+} from "./units_hir.ts";
 
 test("list names are the four unit lists", () => {
   assert.deepEqual(
@@ -143,11 +94,11 @@ test("one ambient read, one while, and one final restore", () => {
 });
 
 test("head store uses the documented head literal", () => {
-  for (const listName of Object.keys(HEADS)) {
+  for (const listName of Object.keys(UNIT_LIST_HEADS)) {
     const module = moduleOf(() =>
       forEachUnitList(listName, () => undefined),
     );
-    const head = HEADS[listName];
+    const head = UNIT_LIST_HEADS[listName];
     const headStores = cpStores(module.stmts as Json[]).filter(
       (s) => varInit(module, s.src_var) === head,
     );
@@ -160,7 +111,7 @@ test("head store uses the documented head literal", () => {
 });
 
 test("forward lists read next and dying reads prev", () => {
-  for (const listName of Object.keys(HEADS)) {
+  for (const listName of Object.keys(UNIT_LIST_HEADS)) {
     const module = moduleOf(() =>
       forEachUnitList(listName, () => undefined),
     );
@@ -169,7 +120,7 @@ test("forward lists read next and dying reads prev", () => {
     const ptr = ptrOf(whileStmt);
     const bind = cpStores(body)[0];
 
-    if (LINK_OFFSET[listName] === 1) {
+    if (UNIT_LIST_LINK_OFFSETS[listName] === 1) {
       assert.notEqual(bind.src_var, ptr, listName);
       const link = bind.src_var;
       assert.ok(
@@ -199,12 +150,14 @@ test("dying head is the tail literal", () => {
   const module = moduleOf(() =>
     forEachUnitList(UNIT_LIST_D, () => undefined),
   );
-  assert.equal(HEADS[UNIT_LIST_D], 161842);
-  assert.ok((module.vars as Json[]).some((v) => v.init === 161842));
+  const headStores = cpStores(module.stmts as Json[]).filter(
+    (s) => varInit(module, s.src_var) === 161842,
+  );
+  assert.equal(headStores.length, 1);
 });
 
 test("free-list dwords never appear in the HIR", () => {
-  for (const listName of Object.keys(HEADS)) {
+  for (const listName of Object.keys(UNIT_LIST_HEADS)) {
     const text = JSON.stringify(moduleOf(() =>
       forEachUnitList(listName, () => undefined),
     ));
@@ -280,8 +233,10 @@ test("break_ emits done.set and can be called twice", () => {
 });
 
 test("returning BREAK emits done after the body", () => {
+  let markerId = -1;
   const module = moduleOf(() => {
     const marker = Var(0);
+    markerId = marker.id;
     forEachUnitList(UNIT_LIST_U, () => {
       marker.iadd(1);
       return BREAK;
@@ -290,11 +245,10 @@ test("returning BREAK emits done after the body", () => {
   const whileStmt = whileOf(module);
   const body = whileStmt.body as Json[];
   const done = doneOf(whileStmt);
-  // `marker` is the first allocated var; the loop's internal vars follow.
   const markerIndex = body.findIndex(
     (s) =>
       s.kind === "act" &&
-      (s.relocs as Json[] | undefined)?.some((r) => r.target_var === 0),
+      (s.relocs as Json[] | undefined)?.some((r) => r.target_var === markerId),
   );
   const doneIndices = body
     .map((s, i) => ({ s, i }))
@@ -321,8 +275,10 @@ test("returning true continues and never sets done", () => {
 });
 
 function readerAndBodyIndices(reentrant: boolean): [number, number] {
+  let markerId = -1;
   const module = moduleOf(() => {
     const marker = Var(0);
+    markerId = marker.id;
     forEachUnitList(
       UNIT_LIST_U,
       () => {
@@ -336,7 +292,7 @@ function readerAndBodyIndices(reentrant: boolean): [number, number] {
   const marker = body.findIndex(
     (s) =>
       s.kind === "act" &&
-      (s.relocs as Json[] | undefined)?.some((r) => r.target_var === 0),
+      (s.relocs as Json[] | undefined)?.some((r) => r.target_var === markerId),
   );
   return [reader, marker];
 }

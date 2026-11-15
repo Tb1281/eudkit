@@ -9,22 +9,19 @@
 //!   through its **upper** bound;
 //! * the Python and TypeScript frontends emit byte-identical HIR.
 
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-use eudkit::{Frontend, PreparedProgram};
-use eudkit_lir::{LirItem, SimulationState, init_simulation};
-use eudkit_opt::cell::{StorageClass, bit_value};
+use eudkit::Frontend;
+use eudkit_lir::init_simulation;
+
+mod common;
+use common::{repo_root, tempdir};
 
 /// EPDs of three adjacent dwords that the program reads as CUnit list heads.
 const HEAD_EPD: u32 = 161_843; // EPD(0x628430)
 const NULL_EPD: u32 = 161_842;
 const LAST_EPD: u32 = 161_841;
-
-fn repo_root() -> &'static Path {
-    Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
-}
 
 fn eudkit(args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_eudkit"))
@@ -51,69 +48,19 @@ fn assert_ok(output: &Output) {
     );
 }
 
-fn write_ts(dir: &Path, name: &str, body: &str) -> PathBuf {
-    let root = repo_root().display();
-    let source = format!(
-        "import {{ Var, buildModule, when }} from \"{root}/ts/index.ts\";\n\
-         import {{ readCunitPointer, inCunitPool }} from \"{root}/ts/view.ts\";\n\
-         export const module = buildModule(() => {{\n{body}\n}});\n"
-    );
-    let path = dir.join(name);
-    fs::write(&path, source).unwrap();
-    path
-}
+const PY_IMPORTS: &str = "from py import Var, build_module, when\n\
+         from py.view import read_cunit_pointer, in_cunit_pool";
+
+const TS_IMPORTS: &str = "import { Var, buildModule, when } from \"{root}/ts/index.ts\";\n\
+         import { readCunitPointer, inCunitPool } from \"{root}/ts/view.ts\";";
 
 fn write_py(dir: &Path, name: &str, body: &str) -> PathBuf {
-    let source = format!(
-        "from py import Var, build_module, when\n\
-         from py.view import read_cunit_pointer, in_cunit_pool\n\
-         def prog():\n{body}\n\
-         module = build_module(prog)\n"
-    );
-    let path = dir.join(name);
-    fs::write(&path, source).unwrap();
-    path
+    common::write_py(dir, name, PY_IMPORTS, body)
 }
 
-/// Read one scalar variable's runtime value from its storage class.
-///
-/// This mirrors the `var_values` readback in `eudkit-compile sim`; keeping it
-/// here lets the test assert variables rather than side-channel memory writes.
-fn read_var(prepared: &PreparedProgram, sim: &SimulationState, var_id: usize) -> u32 {
-    let plan = &prepared.storage;
-    let lir = &prepared.lir;
-    let num_pages = plan.trigger_pages;
-    let blob_items = lir
-        .module
-        .items
-        .iter()
-        .filter(|item| matches!(item, LirItem::Blob(_)))
-        .count();
-    let num_exec = lir
-        .module
-        .items
-        .len()
-        .saturating_sub(num_pages)
-        .saturating_sub(blob_items);
-    let cell_item = num_exec + num_pages;
-
-    match plan.storage(var_id).expect("variable has storage") {
-        StorageClass::TriggerPage {
-            page_index,
-            slot_index,
-        } => sim.read_page_slot_value(num_exec + page_index, slot_index),
-        StorageClass::DwordCell { dword_index } => {
-            let addr = sim.payload.addrs[cell_item] + (dword_index * 4) as u32;
-            sim.read_epd(eudkit_lir::epd_u32(addr))
-        }
-        StorageClass::BitCell {
-            dword_index,
-            bit_index,
-        } => {
-            let addr = sim.payload.addrs[cell_item] + (dword_index * 4) as u32;
-            bit_value(bit_index, sim.read_epd(eudkit_lir::epd_u32(addr)))
-        }
-    }
+fn write_ts(dir: &Path, name: &str, body: &str) -> PathBuf {
+    let imports = TS_IMPORTS.replace("{root}", &common::repo_root().display().to_string());
+    common::write_ts(dir, name, &imports, body)
 }
 
 /// The same program on both frontends: three head reads plus the pool gate.
@@ -141,10 +88,7 @@ fn ts_body() -> &'static str {
 
 #[test]
 fn python_and_typescript_emit_identical_hir_for_the_reader() {
-    let dir = tempfile::Builder::new()
-        .prefix("cunit-reader-")
-        .tempdir_in(repo_root().join("target"))
-        .unwrap();
+    let dir = tempdir("cunit-reader-");
     let py_path = write_py(dir.path(), "cunit_reader.py", py_body());
     let ts_path = write_ts(dir.path(), "cunit_reader.ts", ts_body());
 
@@ -161,10 +105,7 @@ fn python_and_typescript_emit_identical_hir_for_the_reader() {
 
 #[test]
 fn simulator_reads_pool_base_last_slot_and_null_sentinel() {
-    let dir = tempfile::Builder::new()
-        .prefix("cunit-reader-sim-")
-        .tempdir_in(repo_root().join("target"))
-        .unwrap();
+    let dir = tempdir("cunit-reader-sim-");
     let py_path = write_py(dir.path(), "cunit_reader_sim.py", py_body());
     let ts_path = write_ts(dir.path(), "cunit_reader_sim.ts", ts_body());
 
@@ -184,19 +125,23 @@ fn simulator_reads_pool_base_last_slot_and_null_sentinel() {
         sim.step_loop();
 
         let ids: Vec<usize> = prepared.doc.module.vars.iter().map(|v| v.id).collect();
-        assert_eq!(read_var(&prepared, &sim, ids[0]), 19025, "{label}: pool base");
         assert_eq!(
-            read_var(&prepared, &sim, ids[2]),
+            common::read_var(&prepared, &sim, ids[0]),
+            19025,
+            "{label}: pool base"
+        );
+        assert_eq!(
+            common::read_var(&prepared, &sim, ids[2]),
             0xFFF9D729,
             "{label}: null sentinel"
         );
         assert_eq!(
-            read_var(&prepared, &sim, ids[4]),
+            common::read_var(&prepared, &sim, ids[4]),
             161657,
             "{label}: last slot"
         );
         assert_eq!(
-            read_var(&prepared, &sim, ids[6]),
+            common::read_var(&prepared, &sim, ids[6]),
             0,
             "{label}: in_cunit_pool must reject the null sentinel"
         );

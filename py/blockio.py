@@ -31,9 +31,9 @@ from .hir import (
     SetTo,
     Subtract,
     TriggerFieldReloc,
+    _emit_blob_epd_into,
     emitVarStore,
 )
-from .stock_rows_built import ACT_FIELD_OFFSETS
 from .temporal import when, while_loop
 from .trigger import Trigger, _register_trigger
 from .var import Expr, Var, to_var
@@ -108,25 +108,6 @@ def _count_value(value: object, what: str) -> tuple[bool, int | Var]:
     )
 
 
-def _emit_epd_reloc_into(dst: Var, ref: DbRef) -> None:
-    """Write ``ref``'s assembly-time blob EPD into the existing ``dst`` var.
-
-    Same preserved zero-condition, mode-1 value-field relocation shape as
-    :func:`py.hir.epd_of_db`; that public constructor allocates its own fresh
-    `Var`, while the block-memory seeders already own the destination cursor.
-    """
-    act = dst.act_set(0)
-    act.setdefault("relocs", []).append(
-        {
-            "field_offset": ACT_FIELD_OFFSETS["value"],
-            "target_blob": ref.blobId,
-            "target_offset": ref.byteOffset,
-            "mode": 1,
-        }
-    )
-    Trigger(conds=[], acts=[act], preserved=True)
-
-
 def _seed_epd_cursor(dst: Var, node: int | Var | DbRef) -> None:
     """Seed a source-cursor variable with an EPD.
 
@@ -135,7 +116,7 @@ def _seed_epd_cursor(dst: Var, node: int | Var | DbRef) -> None:
     it into the variable's own slot; nothing else in the loop differs.
     """
     if isinstance(node, DbRef):
-        _emit_epd_reloc_into(dst, node)
+        _emit_blob_epd_into(dst, node)
         return
     dst.set(node)
 

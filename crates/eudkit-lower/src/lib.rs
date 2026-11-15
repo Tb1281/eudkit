@@ -120,7 +120,9 @@ fn resolve_string_field_value(
 ) -> Result<u32, LowerError> {
     if r.mode == 6 {
         let shift = r.target_offset;
-        if shift > 31 {
+        // A 16-bit wire string id must keep all 16 bits; shift 24 would
+        // silently drop the top byte.
+        if shift > 16 {
             return Err(LowerError::StringIdOutOfRange(string_index));
         }
         let id = module_string_base
@@ -3697,7 +3699,7 @@ mod tests {
         assert!(err.to_string().starts_with("EUDSL-BOUNDS:"));
 
         let err = resolve_string_field_value(
-            &HirReloc::string(VALUE_FIELD_OFFSET, 0, 32, 6),
+            &HirReloc::string(VALUE_FIELD_OFFSET, 0, 24, 6),
             0,
             0,
             0,

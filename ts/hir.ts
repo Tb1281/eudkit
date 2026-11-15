@@ -290,7 +290,19 @@ export function epdOfDb(ref: Db | DbRef): VarImpl {
     );
   }
   const out = new VarImpl(0);
-  const base = out.act_set(0);
+  emitBlobEpdInto(out, ref);
+  return out;
+}
+
+/**
+ * Write `ref`'s assembly-time blob EPD into the existing `dst` var.
+ *
+ * One preserved zero-condition trigger whose mode-1 relocation writes the
+ * payload EPD into `dst`'s value field. Shared by {@link epdOfDb} (fresh Var)
+ * and block-memory seeders (caller-owned destination cursor).
+ */
+export function emitBlobEpdInto(dst: VarImpl, ref: DbRef): void {
+  const base = dst.act_set(0);
   const act: HirAct = {
     ...base,
     relocs: [
@@ -305,10 +317,9 @@ export function epdOfDb(ref: Db | DbRef): VarImpl {
   };
   // `act_set` queued `base` as a standalone top-level act. The relocated copy
   // is a different object, so consume the original before `Trigger` owns the
-  // copy (the same seam `ts/blockio.ts:seedEpdCursor` uses).
+  // copy.
   _getActiveModuleBuilder()?.consumeQueuedActs([base]);
   new Trigger({ conds: [], acts: [act], preserved: true });
-  return out;
 }
 
 /** Py-spelling alias of {@link epdOfDb} (parity with `epd_of_db`). */

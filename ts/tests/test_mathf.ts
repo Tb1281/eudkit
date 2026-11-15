@@ -323,4 +323,14 @@ test("value must be in the operand domain", () => {
     "EUDSL-TYPE",
   );
   assert.equal(errorCode(() => isqrt(null as unknown as number)), "EUDSL-TYPE");
+
+  assert.throws(
+    () => buildModule(() => isqrt(1.5 as never)),
+    (error: unknown) =>
+      error instanceof EudslError &&
+      /isqrt\(\): value must be a Var, ReadonlyVar, Expr, or integer constant, got 1\.5$/.test(
+        error.message,
+      ),
+    "the diagnostic must match the Python frontend's operand domain text",
+  );
 });

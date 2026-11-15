@@ -39,7 +39,18 @@ class EncodeUtf8Test(unittest.TestCase):
             ("ABC", [0x41, 0x42, 0x43]),
             ("é", [0xC3, 0xA9]),
             ("한", [0xED, 0x95, 0x9C]),
+            ("日本語", [0xE6, 0x97, 0xA5, 0xE6, 0x9C, 0xAC, 0xE8, 0xAA, 0x9E]),
             ("🙂", [0xF0, 0x9F, 0x99, 0x82]),
+            (
+                "中文한글🙂",
+                [
+                    0xE4, 0xB8, 0xAD,
+                    0xE6, 0x96, 0x87,
+                    0xED, 0x95, 0x9C,
+                    0xEA, 0xB8, 0x80,
+                    0xF0, 0x9F, 0x99, 0x82,
+                ],
+            ),
             ("a한🙂", [0x61, 0xED, 0x95, 0x9C, 0xF0, 0x9F, 0x99, 0x82]),
         ]
         for text, want in cases:
@@ -58,7 +69,8 @@ class EncodeUtf8Test(unittest.TestCase):
         )
 
     def test_valid_astral_scalar_is_four_bytes(self) -> None:
-        # Python spells the valid UTF-16 pair `\ud83d\ude42` as one scalar.
+        # `\U0001F642` is the scalar U+1F642; the UTF-16 surrogate pair
+        # `\ud83d\ude42` is two lone surrogates in Python, not one code point.
         self.assertEqual(encode_utf8("\U0001F642", "test"), [0xF0, 0x9F, 0x99, 0x82])
 
     def test_rejects_embedded_nul(self) -> None:
@@ -133,6 +145,51 @@ class FixedStringUtf8Test(unittest.TestCase):
         def too_small() -> None:
             s = FixedString(2)
             s.write("한")
+
+        assert_code(self, lambda: build_module(too_small), "EUDSL-BOUNDS")
+
+    def test_japanese_literal_round_trips_through_fixed_string(self) -> None:
+        def fits() -> None:
+            s = FixedString(9)
+            s.write("日本語")
+
+        report = build_and_sim(fits)
+        self.assertEqual(
+            raw_string_bytes(report, 10),
+            [
+                0xE6, 0x97, 0xA5,
+                0xE6, 0x9C, 0xAC,
+                0xE8, 0xAA, 0x9E,
+                0x00,
+            ],
+        )
+
+        def too_small() -> None:
+            s = FixedString(8)
+            s.write("日本語")
+
+        assert_code(self, lambda: build_module(too_small), "EUDSL-BOUNDS")
+
+    def test_mixed_han_hangul_emoji_round_trips_end_to_end(self) -> None:
+        want = [
+            0xE4, 0xB8, 0xAD,
+            0xE6, 0x96, 0x87,
+            0xED, 0x95, 0x9C,
+            0xEA, 0xB8, 0x80,
+            0xF0, 0x9F, 0x99, 0x82,
+            0x00,
+        ]
+
+        def fits() -> None:
+            s = FixedString(16)
+            s.write("中文한글🙂")
+
+        report = build_and_sim(fits)
+        self.assertEqual(raw_string_bytes(report, 17), want)
+
+        def too_small() -> None:
+            s = FixedString(15)
+            s.write("中文한글🙂")
 
         assert_code(self, lambda: build_module(too_small), "EUDSL-BOUNDS")
 

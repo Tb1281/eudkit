@@ -12,17 +12,16 @@
 //! exists to catch. The Python and TypeScript frontends are run through the
 //! same seeded simulator and must agree.
 
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use eudkit::{Frontend, PreparedProgram};
-use eudkit_lir::{init_simulation, ExecutedCost, LirItem, SimulationState};
-use eudkit_opt::cell::{bit_value, StorageClass};
+use eudkit::Frontend;
+
+mod common;
+use common::{CP_EPD, CaseResult, repo_root, tempdir};
 
 const U_HEAD: u32 = 161_843; // 0x628430
 const D_TAIL: u32 = 161_842; // 0x62842C
-const CP_EPD: u32 = 203_155; // EPD(0x6509B0)
 const A_EPD: u32 = 19025;
 const B_EPD: u32 = 19109;
 const C_EPD: u32 = 19193;
@@ -30,13 +29,7 @@ const A_ADDR: u32 = 0x59CCA8;
 const B_ADDR: u32 = 0x59CDF8;
 const C_ADDR: u32 = 0x59CF48;
 
-fn repo_root() -> &'static Path {
-    Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
-}
-
-fn write_py(dir: &Path, name: &str, body: &str) -> PathBuf {
-    let source = format!(
-        "from py import (\n\
+const PY_IMPORTS: &str = "from py import (\n\
          \x20   EPD_CURRENT_PLAYER,\n\
          \x20   SetDeaths,\n\
          \x20   SetTo,\n\
@@ -48,19 +41,9 @@ fn write_py(dir: &Path, name: &str, body: &str) -> PathBuf {
          )\n\
          from py.cp import CP_ADDR, read_current_player_register\n\
          from py.hir import AddrReloc, emitVarStore\n\
-         from py.view import in_cunit_pool, read_cunit_pointer_saved\n\n\
-         def prog():\n{body}\n\n\
-         module = build_module(prog)\n"
-    );
-    let path = dir.join(name);
-    fs::write(&path, source).unwrap();
-    path
-}
+         from py.view import in_cunit_pool, read_cunit_pointer_saved";
 
-fn write_ts(dir: &Path, name: &str, body: &str) -> PathBuf {
-    let root = repo_root().display();
-    let source = format!(
-        "import {{\n\
+const TS_IMPORTS: &str = "import {\n\
          \x20 EPD_CURRENT_PLAYER,\n\
          \x20 SetDeaths,\n\
          \x20 SetTo,\n\
@@ -69,80 +52,22 @@ fn write_ts(dir: &Path, name: &str, body: &str) -> PathBuf {
          \x20 forEachUnitList,\n\
          \x20 when,\n\
          \x20 whileLoop,\n\
-         }} from \"{root}/ts/index.ts\";\n\
-         import {{ CP_ADDR, readCurrentPlayerRegister }} from \"{root}/ts/cp.ts\";\n\
-         import {{ AddrReloc, emitVarStore }} from \"{root}/ts/hir.ts\";\n\
-         import {{ inCunitPool, readCunitPointerSaved }} from \"{root}/ts/view.ts\";\n\
-         export const module = buildModule(() => {{\n{body}\n}});\n"
-    );
-    let path = dir.join(name);
-    fs::write(&path, source).unwrap();
-    path
+         } from \"{root}/ts/index.ts\";\n\
+         import { CP_ADDR, readCurrentPlayerRegister } from \"{root}/ts/cp.ts\";\n\
+         import { AddrReloc, emitVarStore } from \"{root}/ts/hir.ts\";\n\
+         import { inCunitPool, readCunitPointerSaved } from \"{root}/ts/view.ts\";";
+
+fn write_py(dir: &Path, name: &str, body: &str) -> PathBuf {
+    common::write_py(dir, name, PY_IMPORTS, body)
 }
 
-/// Read one scalar variable's runtime value from its storage class.
-///
-/// Mirrors the `var_values` readback in `eudkit-compile sim`, so the test can
-/// assert variables rather than side-channel memory writes.
-fn read_var(prepared: &PreparedProgram, sim: &SimulationState, var_id: usize) -> u32 {
-    let plan = &prepared.storage;
-    let lir = &prepared.lir;
-    let num_pages = plan.trigger_pages;
-    let blob_items = lir
-        .module
-        .items
-        .iter()
-        .filter(|item| matches!(item, LirItem::Blob(_)))
-        .count();
-    let num_exec = lir
-        .module
-        .items
-        .len()
-        .saturating_sub(num_pages)
-        .saturating_sub(blob_items);
-    let cell_item = num_exec + num_pages;
-
-    match plan.storage(var_id).expect("variable has storage") {
-        StorageClass::TriggerPage {
-            page_index,
-            slot_index,
-        } => sim.read_page_slot_value(num_exec + page_index, slot_index),
-        StorageClass::DwordCell { dword_index } => {
-            let addr = sim.payload.addrs[cell_item] + (dword_index * 4) as u32;
-            sim.read_epd(eudkit_lir::epd_u32(addr))
-        }
-        StorageClass::BitCell {
-            dword_index,
-            bit_index,
-        } => {
-            let addr = sim.payload.addrs[cell_item] + (dword_index * 4) as u32;
-            bit_value(bit_index, sim.read_epd(eudkit_lir::epd_u32(addr)))
-        }
-    }
+fn write_ts(dir: &Path, name: &str, body: &str) -> PathBuf {
+    let imports = TS_IMPORTS.replace("{root}", &repo_root_ts());
+    common::write_ts(dir, name, &imports, body)
 }
 
-struct CaseResult {
-    count: u32,
-    cost: ExecutedCost,
-    cp_value: u32,
-}
-
-fn run_one(frontend: Frontend, path: &Path, seeds: &[(u32, u32)]) -> CaseResult {
-    let prepared = eudkit::prepare_source(path, Some(frontend), None)
-        .unwrap_or_else(|err| panic!("{}: prepare_source failed: {err}", path.display()));
-    let mut sim = init_simulation(&prepared.lir)
-        .unwrap_or_else(|err| panic!("{}: init_simulation failed: {err}", path.display()));
-    for (epd, value) in seeds {
-        sim.external_epds.insert(*epd, *value);
-    }
-    let cost = sim.step_loop();
-    let count = read_var(&prepared, &sim, 0);
-    let cp_value = sim.read_epd(CP_EPD);
-    CaseResult {
-        count,
-        cost,
-        cp_value,
-    }
+fn repo_root_ts() -> String {
+    common::repo_root().display().to_string()
 }
 
 fn run_case(
@@ -154,14 +79,7 @@ fn run_case(
 ) -> (CaseResult, CaseResult) {
     let py_path = write_py(dir, &format!("{label}.py"), py_body);
     let ts_path = write_ts(dir, &format!("{label}.ts"), ts_body);
-    let py = run_one(Frontend::Py, &py_path, seeds);
-    let ts = run_one(Frontend::Ts, &ts_path, seeds);
-    assert_eq!(py.count, ts.count, "{label}: Py/TS disagree on count");
-    assert_eq!(
-        py.cost.triggers, ts.cost.triggers,
-        "{label}: Py/TS disagree on executed triggers"
-    );
-    (py, ts)
+    common::run_case(label, &py_path, &ts_path, seeds)
 }
 
 fn u_chain() -> Vec<(u32, u32)> {
@@ -198,13 +116,6 @@ fn ts_count(list_name: &str, extra: &str) -> String {
          \x20   count.iadd(1);\n{extra}\n\
          \x20 }});\n"
     )
-}
-
-fn tempdir(prefix: &str) -> tempfile::TempDir {
-    tempfile::Builder::new()
-        .prefix(prefix)
-        .tempdir_in(repo_root().join("target"))
-        .unwrap()
 }
 
 #[test]
@@ -272,8 +183,8 @@ fn empty_list_runs_zero_iterations_and_restores_cp() {
     let seeds = vec![(U_HEAD, 0), (CP_EPD, 0x1234_5678)];
     let py_path = write_py(dir.path(), "empty.py", &py_count("U", ""));
     let ts_path = write_ts(dir.path(), "empty.ts", &ts_count("U", ""));
-    let py = run_one(Frontend::Py, &py_path, &seeds);
-    let ts = run_one(Frontend::Ts, &ts_path, &seeds);
+    let py = common::run_one(Frontend::Py, &py_path, &seeds);
+    let ts = common::run_one(Frontend::Ts, &ts_path, &seeds);
     assert_eq!(py.count, 0);
     assert_eq!(ts.count, 0);
     assert_eq!(py.cp_value, 0x1234_5678, "py: restore must run");

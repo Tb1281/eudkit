@@ -171,18 +171,7 @@ def _validate_players(players: Any) -> list[int]:
     out: list[int] = []
     seen: set[int] = set()
     for player in raw_players:
-        if not _is_plain_int(player):
-            raise EudslError(
-                "EUDSL-TYPE",
-                "match_names(): every player must be a plain integer, got "
-                f"{_describe_value(player)}",
-            )
-        value = int(player)
-        if value < 0 or value > _PLAYER_MAX:
-            raise EudslError(
-                "EUDSL-RANGE",
-                f"match_names(): player must be in 0..{_PLAYER_MAX}, got {value}",
-            )
+        value = _require_player(player, "match_names()")
         if value in seen:
             raise EudslError(
                 "EUDSL-BOUNDS",

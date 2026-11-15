@@ -2,7 +2,7 @@
 
 use eudkit_lir::{ExecutedCost, LirDocument, LirItem, StaticCost};
 use eudkit_opt::cell::StoragePlan;
-use eudkit_opt::folds::{FoldEvent, FoldLog};
+use eudkit_opt::folds::{FoldEvent, FoldLog, render_event_line};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -128,9 +128,7 @@ impl DumpReport {
             self.static_cost.total_bytes
         ));
         if self.pre_assembly {
-            out.push_str(
-                "Cost stage: pre-assembly (excludes the map-build once-per-tick gate)\n",
-            );
+            out.push_str("Cost stage: pre-assembly (excludes the map-build once-per-tick gate)\n");
         }
         if let Some(executed) = &self.executed_cost {
             out.push_str(&format!(
@@ -161,9 +159,11 @@ impl DumpReport {
         if let Some(folds) = &self.folds {
             out.push_str(&format!("Folds: {} event(s)\n", folds.len()));
             for entry in folds {
-                out.push_str(&format!(
-                    "  [{}] {}: {} -> {}\n",
-                    entry.kind, entry.site, entry.before, entry.after
+                out.push_str(&render_event_line(
+                    &entry.kind,
+                    &entry.site,
+                    &entry.before,
+                    &entry.after,
                 ));
             }
         }

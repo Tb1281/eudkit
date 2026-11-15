@@ -31,12 +31,12 @@ import {
   SetTo,
   Subtract,
   TriggerFieldReloc,
+  emitBlobEpdInto,
   emitVarStore,
 } from "./hir.ts";
 import type { HirAct } from "./hir.ts";
-import { ACT_FIELD_OFFSETS } from "./stock-spec.ts";
 import { CP_ADDR, CPCursor, _setCpFromVar } from "./cp.ts";
-import { Trigger, _getActiveModuleBuilder, _registerTrigger } from "./trigger.ts";
+import { Trigger, _registerTrigger } from "./trigger.ts";
 import { when, whileLoop } from "./temporal.ts";
 import { Var, VarImpl, Expr, toVar } from "./var.ts";
 import { EPD_CURRENT_PLAYER, EudslError, describeValue as describe } from "./view.ts";
@@ -109,33 +109,9 @@ function srcEpdValue(
  * payload EPD is only known at assembly time, so the mode-1 relocation writes
  * it into the variable's own slot; nothing else in the loop differs.
  */
-function emitEpdRelocInto(dst: VarImpl, ref: DbRef): void {
-  // Same preserved zero-condition, mode-1 value-field relocation shape as
-  // `epdOfDb`; that public constructor allocates its own fresh `Var`, while
-  // the block-memory seeders already own the destination cursor.
-  const base = dst.act_set(0);
-  const act: HirAct = {
-    ...base,
-    relocs: [
-      ...(base.relocs ?? []),
-      {
-        field_offset: ACT_FIELD_OFFSETS.value,
-        target_blob: ref.blobId,
-        target_offset: ref.byteOffset,
-        mode: 1,
-      },
-    ],
-  };
-  // `act_set` queued `base` as a standalone top-level act. The relocated
-  // copy is a different object, so consume the original explicitly before
-  // `Trigger` owns the copy.
-  _getActiveModuleBuilder()?.consumeQueuedActs([base]);
-  new Trigger({ conds: [], acts: [act], preserved: true });
-}
-
 function seedEpdCursor(dst: VarImpl, node: number | VarImpl | DbRef): void {
   if (node instanceof DbRef) {
-    emitEpdRelocInto(dst, node);
+    emitBlobEpdInto(dst, node);
     return;
   }
   dst.set(node);

@@ -144,14 +144,23 @@ function validateNames(names: readonly string[]): readonly string[] {
   return names;
 }
 
-function validatePlayers(players: readonly number[]): readonly number[] {
-  if (!Array.isArray(players)) {
+function validatePlayers(players: Iterable<number>): readonly number[] {
+  if (players instanceof Set) {
     throw new EudslError(
       "EUDSL-TYPE",
-      "matchNames(): players must be an ordered array; a Set or other iterable is not allowed",
+      "matchNames(): players must be an ordered iterable; a Set is not allowed",
     );
   }
-  if (players.length === 0) {
+  let rawPlayers: number[];
+  try {
+    rawPlayers = Array.from(players);
+  } catch {
+    throw new EudslError(
+      "EUDSL-TYPE",
+      "matchNames(): players must be an iterable of player indices",
+    );
+  }
+  if (rawPlayers.length === 0) {
     throw new EudslError(
       "EUDSL-BOUNDS",
       "matchNames(): players must contain at least one player",
@@ -159,7 +168,7 @@ function validatePlayers(players: readonly number[]): readonly number[] {
   }
   const out: number[] = [];
   const seen = new Set<number>();
-  for (const player of players) {
+  for (const player of rawPlayers) {
     if (typeof player !== "number" || !Number.isInteger(player)) {
       throw new EudslError(
         "EUDSL-TYPE",
@@ -195,7 +204,7 @@ function validatePlayers(players: readonly number[]): readonly number[] {
 export function matchNames(
   names: readonly string[],
   onMatch: (player: number, name: string) => void,
-  players: readonly number[] = [0, 1, 2, 3, 4, 5, 6, 7],
+  players: Iterable<number> = [0, 1, 2, 3, 4, 5, 6, 7],
 ): void {
   if (_getActiveModuleBuilder() === null) {
     throw new EudslError(

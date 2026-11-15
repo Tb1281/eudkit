@@ -133,10 +133,10 @@ fn mode6_overflow_is_a_loud_bounds_error() {
 }
 
 #[test]
-fn mode6_rejects_a_shift_past_the_field_width() {
+fn mode6_rejects_a_shift_past_the_id_width() {
     let mut act = HirAct::set_deaths(NAME_STRING_EPD, 7, 0, 0);
     act.relocs
-        .push(HirReloc::string(VALUE_FIELD_OFFSET, 0, 32, 6));
+        .push(HirReloc::string(VALUE_FIELD_OFFSET, 0, 24, 6));
 
     let err = lower_document(&HirDocument::new(module_with_stmt(HirStmt::Act(act)))).unwrap_err();
 

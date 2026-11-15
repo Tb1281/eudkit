@@ -11,15 +11,14 @@
 //! The Python and TypeScript frontends are run through the same seeded
 //! simulator and must agree on the count and the executed cost.
 
-use std::fs;
 use std::path::{Path, PathBuf};
 
-use eudkit::{Frontend, PreparedProgram};
-use eudkit_lir::{ExecutedCost, LirItem, SimulationState, init_simulation};
-use eudkit_opt::cell::{StorageClass, bit_value};
+use eudkit::Frontend;
+
+mod common;
+use common::{CP_EPD, CaseResult, tempdir};
 
 const FREE_HEAD: u32 = 161_845; // 0x628438
-const CP_EPD: u32 = 203_155; // EPD(0x6509B0)
 const A_EPD: u32 = 19025;
 const B_EPD: u32 = 19109;
 const C_EPD: u32 = 19193;
@@ -27,97 +26,19 @@ const A_ADDR: u32 = 0x59CCA8;
 const B_ADDR: u32 = 0x59CDF8;
 const C_ADDR: u32 = 0x59CF48;
 
-fn repo_root() -> &'static Path {
-    Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
-}
+const PY_IMPORTS: &str = "from py import BREAK, Var, build_module\n\
+         from py.capacity import free_list_walk, free_slot_count";
+
+const TS_IMPORTS: &str = "import { BREAK, Var, buildModule } from \"{root}/ts/index.ts\";\n\
+         import { freeListWalk, freeSlotCount } from \"{root}/ts/capacity.ts\";";
 
 fn write_py(dir: &Path, name: &str, body: &str) -> PathBuf {
-    let source = format!(
-        "from py import BREAK, Var, build_module\n\
-         from py.capacity import free_list_walk, free_slot_count\n\n\
-         def prog():\n{body}\n\n\
-         module = build_module(prog)\n"
-    );
-    let path = dir.join(name);
-    fs::write(&path, source).unwrap();
-    path
+    common::write_py(dir, name, PY_IMPORTS, body)
 }
 
 fn write_ts(dir: &Path, name: &str, body: &str) -> PathBuf {
-    let root = repo_root().display();
-    let source = format!(
-        "import {{ BREAK, Var, buildModule }} from \"{root}/ts/index.ts\";\n\
-         import {{ freeListWalk, freeSlotCount }} from \"{root}/ts/capacity.ts\";\n\n\
-         export const module = buildModule(() => {{\n{body}\n}});\n"
-    );
-    let path = dir.join(name);
-    fs::write(&path, source).unwrap();
-    path
-}
-
-/// Read one scalar variable's runtime value from its storage class.
-///
-/// Mirrors the `var_values` readback in `eudkit-compile sim`, so the test can
-/// assert variables rather than side-channel memory writes.
-fn read_var(prepared: &PreparedProgram, sim: &SimulationState, var_id: usize) -> u32 {
-    let plan = &prepared.storage;
-    let lir = &prepared.lir;
-    let num_pages = plan.trigger_pages;
-    let blob_items = lir
-        .module
-        .items
-        .iter()
-        .filter(|item| matches!(item, LirItem::Blob(_)))
-        .count();
-    let num_exec = lir
-        .module
-        .items
-        .len()
-        .saturating_sub(num_pages)
-        .saturating_sub(blob_items);
-    let cell_item = num_exec + num_pages;
-
-    match plan.storage(var_id).expect("variable has storage") {
-        StorageClass::TriggerPage {
-            page_index,
-            slot_index,
-        } => sim.read_page_slot_value(num_exec + page_index, slot_index),
-        StorageClass::DwordCell { dword_index } => {
-            let addr = sim.payload.addrs[cell_item] + (dword_index * 4) as u32;
-            sim.read_epd(eudkit_lir::epd_u32(addr))
-        }
-        StorageClass::BitCell {
-            dword_index,
-            bit_index,
-        } => {
-            let addr = sim.payload.addrs[cell_item] + (dword_index * 4) as u32;
-            bit_value(bit_index, sim.read_epd(eudkit_lir::epd_u32(addr)))
-        }
-    }
-}
-
-struct CaseResult {
-    count: u32,
-    cost: ExecutedCost,
-    cp_value: u32,
-}
-
-fn run_one(frontend: Frontend, path: &Path, seeds: &[(u32, u32)]) -> CaseResult {
-    let prepared = eudkit::prepare_source(path, Some(frontend), None)
-        .unwrap_or_else(|err| panic!("{}: prepare_source failed: {err}", path.display()));
-    let mut sim = init_simulation(&prepared.lir)
-        .unwrap_or_else(|err| panic!("{}: init_simulation failed: {err}", path.display()));
-    for (epd, value) in seeds {
-        sim.external_epds.insert(*epd, *value);
-    }
-    let cost = sim.step_loop();
-    let count = read_var(&prepared, &sim, 0);
-    let cp_value = sim.read_epd(CP_EPD);
-    CaseResult {
-        count,
-        cost,
-        cp_value,
-    }
+    let imports = TS_IMPORTS.replace("{root}", &common::repo_root().display().to_string());
+    common::write_ts(dir, name, &imports, body)
 }
 
 fn run_case(
@@ -129,14 +50,7 @@ fn run_case(
 ) -> (CaseResult, CaseResult) {
     let py_path = write_py(dir, &format!("{label}.py"), py_body);
     let ts_path = write_ts(dir, &format!("{label}.ts"), ts_body);
-    let py = run_one(Frontend::Py, &py_path, seeds);
-    let ts = run_one(Frontend::Ts, &ts_path, seeds);
-    assert_eq!(py.count, ts.count, "{label}: Py/TS disagree on count");
-    assert_eq!(
-        py.cost.triggers, ts.cost.triggers,
-        "{label}: Py/TS disagree on executed triggers"
-    );
-    (py, ts)
+    common::run_case(label, &py_path, &ts_path, seeds)
 }
 
 fn free_chain() -> Vec<(u32, u32)> {
@@ -171,13 +85,6 @@ const TS_BREAK: &str = "  const count = Var(0);\n\
                         \x20   return BREAK;\n\
                         \x20 });\n";
 
-fn tempdir(prefix: &str) -> tempfile::TempDir {
-    tempfile::Builder::new()
-        .prefix(prefix)
-        .tempdir_in(repo_root().join("target"))
-        .unwrap()
-}
-
 #[test]
 fn three_node_free_chain_counts_three() {
     let dir = tempdir("free-list-three-");
@@ -197,8 +104,8 @@ fn empty_list_runs_zero_iterations_and_restores_cp() {
     let seeds = vec![(FREE_HEAD, 0), (CP_EPD, 0x1234_5678)];
     let py_path = write_py(dir.path(), "empty.py", PY_FREE_SLOT_COUNT);
     let ts_path = write_ts(dir.path(), "empty.ts", TS_FREE_SLOT_COUNT);
-    let py = run_one(Frontend::Py, &py_path, &seeds);
-    let ts = run_one(Frontend::Ts, &ts_path, &seeds);
+    let py = common::run_one(Frontend::Py, &py_path, &seeds);
+    let ts = common::run_one(Frontend::Ts, &ts_path, &seeds);
     assert_eq!(py.count, 0);
     assert_eq!(ts.count, 0);
     assert_eq!(py.cp_value, 0x1234_5678, "py: restore must run");

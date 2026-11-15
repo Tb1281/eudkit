@@ -119,7 +119,7 @@ export function isqrt(
     if (!Number.isInteger(value)) {
       throw new EudslError(
         "EUDSL-TYPE",
-        `isqrt(): value must be a Var or integer constant, got ${value}`,
+        `isqrt(): value must be a Var, ReadonlyVar, Expr, or integer constant, got ${String(value)}`,
       );
     }
     if (value < 0 || value >= 2 ** valueBits) {

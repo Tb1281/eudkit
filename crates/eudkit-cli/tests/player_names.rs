@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use eudkit::{capture_source, prepare_hir_json, Frontend};
 use eudkit_lir::{epd_u32, init_simulation, SimulationState};
 
-const PLAYER_NAME_TABLE: u32 = 0x57EE_E8;
+const PLAYER_NAME_TABLE: u32 = 0x0057_EEE8;
 const PLAYER_NAME_EPDS: u32 = 9;
 const PLAYER_NAME_BYTES: usize = 36;
 const MARKER_EPD: u32 = 9000;
@@ -76,27 +76,27 @@ fn seed_name(sim: &mut SimulationState, player: u32, bytes: &[u8]) {
     }
 }
 
-fn run_match(
-    frontend: Frontend,
-    dir: &Path,
-    stem: &str,
-    names: &[&str],
-    players: &[u32],
-    body_py: &str,
-    body_ts: &str,
-    seed: &[u8],
-) -> SimulationState {
+struct MatchFixture<'a> {
+    stem: &'a str,
+    names: &'a [&'a str],
+    players: &'a [u32],
+    body_py: &'a str,
+    body_ts: &'a str,
+    seed: &'a [u8],
+}
+
+fn run_match(frontend: Frontend, dir: &Path, fixture: &MatchFixture<'_>) -> SimulationState {
     let source = match frontend {
-        Frontend::Py => py_source(names, players, body_py),
-        Frontend::Ts => ts_source(names, players, body_ts),
+        Frontend::Py => py_source(fixture.names, fixture.players, fixture.body_py),
+        Frontend::Ts => ts_source(fixture.names, fixture.players, fixture.body_ts),
     };
-    let path = dir.join(format!("{stem}.{}", frontend.as_str()));
+    let path = dir.join(format!("{}.{}", fixture.stem, frontend.as_str()));
     fs::write(&path, source).expect("write fixture source");
 
     let hir = capture_source(&path, frontend).expect("capture frontend HIR");
     let prepared = prepare_hir_json(&hir, None).expect("lower HIR");
     let mut sim = init_simulation(&prepared.lir).expect("init simulator");
-    seed_name(&mut sim, 0, seed);
+    seed_name(&mut sim, 0, fixture.seed);
     sim.step_loop();
     sim
 }
@@ -110,26 +110,16 @@ fn run_both(
     seed: &[u8],
 ) -> [(usize, usize, usize, u32); 2] {
     let dir = tempdir();
-    let py = run_match(
-        Frontend::Py,
-        dir.path(),
+    let fixture = MatchFixture {
         stem,
         names,
         players,
         body_py,
         body_ts,
         seed,
-    );
-    let ts = run_match(
-        Frontend::Ts,
-        dir.path(),
-        stem,
-        names,
-        players,
-        body_py,
-        body_ts,
-        seed,
-    );
+    };
+    let py = run_match(Frontend::Py, dir.path(), &fixture);
+    let ts = run_match(Frontend::Ts, dir.path(), &fixture);
     let marker = |sim: &SimulationState| sim.external_epds.get(&MARKER_EPD).copied().unwrap_or(0);
     let summarize = |sim: &SimulationState| {
         (

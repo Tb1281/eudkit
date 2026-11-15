@@ -22,6 +22,7 @@ import {
   CP_ADDR,
   Db,
   EPD_CURRENT_PLAYER,
+  EudslError,
   Expr,
   SetMemory,
   SetTo,
@@ -314,6 +315,18 @@ test("withCP still rejects a dynamic base before any act", () => {
 
 test("camelCase alias is the same helper", () => {
   assert.equal(with_epd, withEpd);
+});
+
+test("non-callable bodies are EUDSL-TYPE through both spellings", () => {
+  for (const fn of [withEpd, with_epd]) {
+    assert.throws(
+      () => buildModule(() => fn(1000, 5 as never)),
+      (err) =>
+        err instanceof EudslError &&
+        err.code === "EUDSL-TYPE" &&
+        /callable|function/.test(err.message),
+    );
+  }
 });
 
 // SHA-256 of the pre-refactor HIR for `blockioProgram` (captured before

@@ -27,10 +27,11 @@ import {
   type FieldWidth,
   type MemViewSchema,
 } from "./view.ts";
-import { EUDX_MAGIC, SetTo, type HirAct, type HirReloc } from "./hir.ts";
+import { SetTo, type HirReloc } from "./hir.ts";
+import { SetDeathsX } from "./stock.generated.ts";
 import { ACT_FIELD_OFFSETS } from "./stock-spec.ts";
 import type { FixedString, lazyFixedString } from "./string.ts";
-import { Trigger } from "./trigger.ts";
+import { Trigger, _getActiveModuleBuilder } from "./trigger.ts";
 import type {
   FlingyEntry,
   FlingyFields,
@@ -152,31 +153,23 @@ export class DatFieldHandle extends MemFieldHandle {
           `got ${describeValue(fs)}`,
       );
     }
-    // `HirReloc.mode` is still typed `1 | 4` in trigger.ts; the HIR accepts
-    // mode 6 (Rust validates the value), so widen only this literal.
+    // `SetDeathsX` gives the canonical lane-masked action; the mode-6 reloc
+    // rewrites its value field to the resolved 16-bit wire id.
     const reloc: HirReloc = {
       field_offset: ACT_FIELD_OFFSETS.value!,
       target_string: index,
       target_offset: this.shift,
-      mode: 6 as unknown as HirReloc["mode"],
+      mode: 6,
     };
-    // Match `SetDeathsX(dest, SetTo, 0, 0, mask)` exactly, including the
-    // EUDX marker that makes the mask meaningful at runtime.
-    const act: HirAct = Object.freeze({
-      mask: this.bitMask,
-      strid: 0,
-      wavid: 0,
-      time: 0,
-      dest: this.epd!,
-      value: 0,
-      unit: 0,
-      acttype: 45,
-      modifier: SetTo,
-      flags: 20,
-      padding: 0,
-      eudx: EUDX_MAGIC,
-      relocs: [reloc],
-    });
+    const base = SetDeathsX(this.prepareTarget(), SetTo, 0, 0, this.bitMask);
+    const act = {
+      ...base,
+      relocs: [...(base.relocs ?? []), reloc],
+    };
+    // `SetDeathsX` queued `base` as a standalone top-level act. The relocated
+    // act is a different object, so consume the original before `Trigger`
+    // owns the copy.
+    _getActiveModuleBuilder()?.consumeQueuedActs([base]);
     new Trigger({ conds: [], acts: [act], preserved: true });
   }
 

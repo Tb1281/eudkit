@@ -63,7 +63,11 @@ When a comparison pair *derives* `Never`, it is absorbing: the whole condition
 list collapses to `[Never]`. An already-`Never` single condition is an opaque
 frontend constant (`condAny()`, a statically false field read) and is preserved
 as written; this pass only rewrites a contradiction it derives from the
-comparison pairs above. Folding never crosses different `player`, `unit`,
+comparison pairs above. This is deliberate: `py/tests/test_cond_combinators.py`
+pins `cond_all(cond_any(), other.eq(1))` at **2 conditions** (`Never + other`),
+so an explicit `Never` must not collapse a list or drop its neighbours — it
+keeps the authored gate shape and its existing lowering/cost goldens.
+Folding never crosses different `player`, `unit`,
 `locid`, `eudx`, or `relocs`; a masked `Var` comparison with different
 relocations is a different target. Non-15 condtypes never fold here.
 

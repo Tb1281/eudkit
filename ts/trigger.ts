@@ -81,7 +81,7 @@ export interface HirReloc {
   /** 0-based module blob index; lowering folds it to the blob's payload address/EPD. */
   readonly target_blob?: number;
   readonly target_offset: number;
-  readonly mode: 1 | 4;
+  readonly mode: 1 | 4 | 6;
 }
 
 /** A 4-byte pointer field inside a HIR data blob (`Db`). */

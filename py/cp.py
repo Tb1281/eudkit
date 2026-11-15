@@ -258,11 +258,18 @@ withCP = with_cp
 EpdOperand = int | Var | ReadonlyVar | Expr | Db | DbRef
 
 
+def _is_epd_operand(value: Any, *, allow_db: bool) -> bool:
+    """Whether ``value`` is in the accepted ``with_epd`` operand domain."""
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, (int, Var, ReadonlyVar, Expr)):
+        return True
+    return allow_db and isinstance(value, (Db, DbRef))
+
+
 def _require_epd_operand(epd: Any) -> None:
     """Reject a non-EPD-bearing operand before any act is queued."""
-    if isinstance(epd, bool) or not isinstance(
-        epd, (int, DbRef, Var, ReadonlyVar, Expr)
-    ):
+    if not _is_epd_operand(epd, allow_db=True):
         raise EudslError(
             "EUDSL-TYPE",
             "with_epd epd must be an EPD-bearing value (int, Var, "
@@ -407,6 +414,11 @@ def with_epd(
     """
     cm = EpdContextManager(epd, offset)
     if body is not None:
+        if not callable(body):
+            raise EudslError(
+                "EUDSL-TYPE",
+                f"with_epd body must be callable; got {body!r}",
+            )
         with cm as cp:
             return body(cp)
     return cm
@@ -432,9 +444,7 @@ def _with_epd_saved(saved_cp: Var, epd: Any, body: Callable[[], Any]) -> Any:
             "EUDSL-TYPE",
             f"_with_epd_saved saved_cp must be a Var; got {saved_cp!r}",
         )
-    if isinstance(epd, bool) or not isinstance(
-        epd, (int, Var, ReadonlyVar, Expr)
-    ):
+    if isinstance(epd, bool) or not _is_epd_operand(epd, allow_db=False):
         raise EudslError(
             "EUDSL-TYPE",
             "_with_epd_saved epd must be an EPD-bearing value "
@@ -449,8 +459,8 @@ def _with_epd_saved(saved_cp: Var, epd: Any, body: Callable[[], Any]) -> Any:
     # `to_var` allocates a private scratch Var for an int or Expr; a Var or
     # ReadonlyVar is only read, never mutated.
     scratch = to_var(epd)
-    emitVarStore(scratch.id, AddrReloc(CP_ADDR), SetTo)
+    _set_cp_from_var(scratch)
     try:
         return body()
     finally:
-        emitVarStore(saved_cp.id, AddrReloc(CP_ADDR), SetTo)
+        _set_cp_from_var(saved_cp)

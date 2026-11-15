@@ -255,23 +255,16 @@ class Db(DbRef):
 db = Db
 
 
-def epd_of_db(ref: Db | DbRef) -> Var:
-    """Return a Var holding the EPD of ``ref``'s payload dword.
+def _emit_blob_epd_into(dst: Var, ref: DbRef) -> None:
+    """Write ``ref``'s assembly-time blob EPD into the existing ``dst`` var.
 
-    One preserved zero-condition trigger: a mode-1 blob relocation writes
-    the EPD into the fresh Var's value field. ``ref`` must already be a
-    Db/DbRef (4-byte aligned); ``Db`` means offset 0.
+    One preserved zero-condition trigger whose mode-1 relocation writes the
+    payload EPD into ``dst``'s value field. Shared by :func:`epd_of_db` (fresh
+    Var) and block-memory seeders (caller-owned destination cursor).
     """
     from .stock_rows_built import ACT_FIELD_OFFSETS
-    from .var import Var
 
-    if not isinstance(ref, DbRef):
-        raise EudslError(
-            "EUDSL-TYPE",
-            f"epd_of_db(): expected Db or DbRef, got {_describe_value(ref)}",
-        )
-    out = Var(0)
-    act = out.act_set(0)
+    act = dst.act_set(0)
     act.setdefault("relocs", []).append(
         {
             "field_offset": ACT_FIELD_OFFSETS["value"],
@@ -281,6 +274,24 @@ def epd_of_db(ref: Db | DbRef) -> Var:
         }
     )
     Trigger(conds=[], acts=[act], preserved=True)
+
+
+def epd_of_db(ref: Db | DbRef) -> Var:
+    """Return a Var holding the EPD of ``ref``'s payload dword.
+
+    One preserved zero-condition trigger: a mode-1 blob relocation writes
+    the EPD into the fresh Var's value field. ``ref`` must already be a
+    Db/DbRef (4-byte aligned); ``Db`` means offset 0.
+    """
+    from .var import Var
+
+    if not isinstance(ref, DbRef):
+        raise EudslError(
+            "EUDSL-TYPE",
+            f"epd_of_db(): expected Db or DbRef, got {_describe_value(ref)}",
+        )
+    out = Var(0)
+    _emit_blob_epd_into(out, ref)
     return out
 
 
