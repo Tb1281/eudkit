@@ -279,10 +279,11 @@ The set of values a write or comparison operand may take: a plain integer (Pytho
 `bool`; TypeScript `number` with `Number.isInteger(number) === true`), plus the runtime operand
 forms the particular surface accepts. Most surfaces below accept `Var`/`ReadonlyVar`/`Expr`, but the
 block-memory primitives are narrower: `memcpyEPD` / `memsetEPD` accept `Var` and `Expr`, not the
-read-only view (TypeScript rejects it at the type level; Python at runtime). `isqrt` is split by
-frontend: Python accepts a `Var`/`ReadonlyVar` or a constant (a bare `Expr` is `EUDSL-TYPE`), while
-TypeScript narrows the parameter to `VarImpl | number`, so a `ReadonlyVar` or `Expr` is rejected at
-the type level and a runtime `Expr` is `EUDSL-TYPE`. The guarded surface: writes and comparisons on
+read-only view (TypeScript rejects it at the type level; Python at runtime). `isqrt` accepts
+`int`, `Var`, `ReadonlyVar`, and `Expr` in both frontends; an `Expr` is materialized once through the
+canonical `to_var` / `toVar`, and `bool`, non-integral numbers, and other values are
+`EUDSL-TYPE`. That removes the last documented math-helper frontend divergence; it widens the
+operand domain and does not add a new validation policy. The guarded surface: writes and comparisons on
 both field surfaces and on `Var`, var init, struct field inits, const-array literals and
 comparisons, container element writes on `Queue`/`Deque`/`Stack` and `FixedArray`'s dynamic set, the
 death-table constructors (`Deaths`/`DeathsX`/`SetDeaths`/`SetDeathsX`, `Memory*`, `SetMemory*`)
@@ -389,6 +390,26 @@ _Avoid_: broadcast message, chat to all players, `StringBuffer`.
 **STRx**:
 The 32-bit offset StarCraft: Remastered extended string table section in `scenario.chk`, replacing the 16-bit 64KB-limited classic `STR ` section.
 _Avoid_: `STR` (when referring to the Remastered 4-byte offset string table).
+
+**module string index**:
+The 0-based index of a string in the module's string table (`FixedString.message_index`), allocated
+in first-use order. It is the frontend-side identity and is **not** the value a 16-bit table field
+stores: a table field wants the 1-based wire id, which includes `template_count`.
+_Avoid_: string id (for the 0-based index), local string number.
+
+**wire string id**:
+The 1-based id StarCraft stores in a 16-bit string field such as `unitsDat[t].nameString`:
+`template_count + module string index + 1`. `template_count` is a basemap property known only when
+the map is assembled, so `set_string` / `setString` resolves the id through relocation `mode == 6`
+instead of accepting a precomputed number. An id above `0xFFFF` is a loud `EUDSL-BOUNDS` at
+assembly, never a silent 16-bit truncation.
+_Avoid_: `message_index` (for the table value), frontend string id, `strid`.
+
+**string-table lane**:
+The 16-bit half of the 32-bit dword holding two adjacent 16-bit string ids. An even entry is lane 0
+(`shift 0`, mask `0x0000FFFF`); an odd entry is lane 2 (`shift 16`, mask `0xFFFF0000`). A lane write
+must apply that mask — a whole-dword write clobbers the neighbouring entry.
+_Avoid_: whole-dword name write, byte offset (for the lane bit shift).
 
 **control character**:
 An in-game text formatting byte (`0x01`–`0x1F`) in a StarCraft string specifying text color, alignment, or layout.
@@ -619,17 +640,29 @@ value field carries a mode-1 relocation to the blob. Cross-reference **payload**
 _Avoid_: blob address (for the EPD), blob pointer, mode-4 value.
 
 **CP (CurrentPlayer)**:
-The CurrentPlayer address (`0x6509B0`) used as a pointer register via `withCP`, enabling
-`Deaths(13, ...)` to read or write relative to the bound `EPD`. `DisplayText`/`DisplayTextIndex` use
-the same slot as a player-index display target; the payload runner leaves it at 0 (P1), so text for
-the local human must first set it to the user player id (`0x512684`). A large dynamic
-`FixedArray.get` (`length >= 64`) also uses the slot as scratch: the PageSlotEPD reader seeds CP at
-the addressed element, reads it with 32 guarded bit tests, then resets CP to `0` (the `zero` policy,
-[ADR 0004](./docs/adr/0004-triggerpage-transfer-parking-and-curpl-reset.md)). A **non-zero ambient
-CP is not preserved** across such a read — the read is not a `withCP` hop and `CPCursor.restore()`
-only re-anchors when the build-time offset is non-zero, so a read inside an unmoved `withCP` body
-silently lands CP on `0`, while a body that moved the cursor re-anchors on exit. `memcpyEPD` has the
-same clobbering precedent. The reader costs `35 + ceil(log2 N) + pages` triggers static and
+The CurrentPlayer address (`0x6509B0`) used as a pointer register, enabling `Deaths(13, ...)` to read
+or write relative to the bound `EPD`. `DisplayText`/`DisplayTextIndex` use the same slot as a
+player-index display target; the payload runner leaves it at 0 (P1), so text for the local human
+must first set it to the user player id (`0x512684`).
+
+The **ambient CP** is the value in the register immediately before a helper binds it; it is not
+guaranteed to be 0 or 1, because a prior text write or `PageSlotEPD` read may have moved it.
+`with_cp`/`withCP` binds a constant int EPD and emits **absolute** `SetTo base + k` hops; a
+**relative hop** is the `Add k - currentOffset` delta that `with_epd`/`withEpd` must emit because
+its runtime base is unknown at build time. The restore policies differ, stated once here: `with_cp`
+is cursor-only (re-anchors on exit only when the build-time offset moved, so a read at offset 0 can
+leave CP at 0); `with_epd` saves the ambient CP with the shared reader and restores it
+**unconditionally** in a `finally`, including the exception and body-clobber paths, with nested
+calls restoring LIFO ([ADR 0029](./docs/adr/0029-runtime-epd-addressing.md) §7); and the
+`PageSlotEPD` read resets CP to `0` (the `zero` policy,
+[ADR 0004](./docs/adr/0004-triggerpage-transfer-parking-and-curpl-reset.md)).
+`memcpyEPD`/`memsetEPD` still clobber at their end value.
+
+A large dynamic `FixedArray.get` (`length >= 64`) uses the slot as scratch: the PageSlotEPD reader
+seeds CP at the addressed element, reads it with 32 guarded bit tests, then resets CP to `0`. A
+non-zero ambient CP is therefore not preserved across such a read unless the caller wraps it in
+`with_epd`; the read is not a `with_cp` hop, and `CPCursor.restore()` only re-anchors a moved cursor.
+The reader costs `35 + ceil(log2 N) + pages` triggers static and
 `35 + ceil(log2 N)` executed (N=256: 47T static / 43T executed, 113,184 B, versus the unroll's 772T
 / 259T / 1,858,984 B); the guard costs `+32C`, 0T, 0 B.
 
@@ -676,7 +709,9 @@ recurrence group per step. The kernel carries `u = 2*root` beside `root`, so eac
 accumulators, builds `trial = u + 1`, saturating-compares it against the remainder, and runs the
 take gate; at the default `value_bits=32`, `fixed_bits=0` (`steps=16`) that is 3 setup triggers + 32
 input-bit triggers + 11 recurrence triggers per step = **211T / 48C / 726A** static (48 = 32 bit
-conditions + 16 take gates). Executed cost tracks the steps actually taken. `value` must be
+conditions + 16 take gates). Executed cost tracks the steps actually taken. `value` accepts
+`int`, `Var`, `ReadonlyVar`, and `Expr` in both frontends (an `Expr` materializes once through
+`to_var`/`toVar`); `bool`, non-integral numbers, and other values are `EUDSL-TYPE`. `value` must be
 `< 2**value_bits` at game time (the caller owns the bound) and a constant folds at build time. Used
 by **camera_follow** for `f_sqrt(fpQ² · (dx² + dy²))`.
 _Avoid_: `math.sqrt`, floating-point root, "divide by two until it converges".
@@ -764,6 +799,43 @@ _Avoid_: packed group, runtime group, compact table.
 **runtime-loop API**:
 A loop primitive that emits its body once and iterates at game time, as opposed to a compile-time unroll that duplicates the body per slot.
 _Avoid_: unrolled loop, generator loop.
+
+**free list**:
+The engine's linked list of vacant CUnit slots, headed at `0x628438` (`CUNIT_FREE_HEAD`, EPD
+161845) and tailed at `0x62843C` (`CUNIT_FREE_TAIL`). Its nodes use the CUnit `prev`/`next` links
+(`+0`/`+4`) and the same 336-byte stride, so a forward walk follows `next` from the head. It is the
+`F` list in the stock list family, not a game-unit list: it enumerates unallocated slots and is
+reached through capacity predicates (`free_list_empty`, plus the planned `free_list_walk`) rather
+than a unit-list walk.
+_Avoid_: treating `F` as a unit list, `0x6283F0` (that is the unit count, not a list head).
+
+**CCMU**:
+"Can't Create More Units": the engine state in which no CUnit slot is available and a create order
+fails (the classic error message's abbreviation). It is a capacity condition, not a player or a
+command structure. `free_list_empty` is its exact 1-condition truth.
+_Avoid_: `cannot` count, treating `0x6283F0` as CCMU truth.
+
+**free_list_empty / freeListEmpty**:
+The 1-condition, 0-read capacity predicate `Memory(0x628438, Exactly, 0)`: the free-list head is
+null, so the engine has no free CUnit slot right now. It returns an ordinary condition (no wrapper
+`Trigger`), so it composes into a 16-condition gate without spending a second trigger.
+_Avoid_: free-slot count, `1700 - 0x6283F0`, inserting a gate silently.
+
+**capacity tier (1/2/3)**:
+The three ways to answer "is there room for another unit". Tier 1 is the exact 1-condition free-list
+head test (`free_list_empty`, this wave). Tier 2 is a tracker-derived upper bound,
+`1700 - (|U|+|T|+|S|+|D|)`, using the four list counters; it over-reports (subunits are included)
+and is deferred because it needs the 5-list tracker (WP12, excluded). Tier 3 is the exact one-shot
+free-list walk (`T-WP10-T2`): ~22–28T per free node, once at map start or on author request, never
+per tick.
+_Avoid_: calling the counter form tier 1, an exact count without the walk.
+
+**advisory capacity check**:
+A capacity signal that answers exactly the question it reads and no more. `free_list_empty` is
+advisory, not authoritative: the allocator can still refuse a creation for reasons the head dword
+cannot see (placement, sprite limits, a hijacked list). An empty list means "try", not "this will
+succeed", and a non-empty list is not a slot count.
+_Avoid_: capacity guarantee, authoritative free count.
 
 ## Lazy Declarations
 

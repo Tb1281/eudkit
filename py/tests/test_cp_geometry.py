@@ -15,15 +15,21 @@ or if ``cp`` goes back to restating the numbers.
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 import textwrap
 import unittest
 from pathlib import Path
 
-from py import cp, trigger
+from py import build_module, cp, trigger, with_epd
+from py.hir import Add, SetTo
+from py.tests.helpers import flatten_stmts
+from py.view import EPD_CURRENT_PLAYER
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+
+SET_DEATHS = 45
 
 
 class CPGeometryTest(unittest.TestCase):
@@ -74,6 +80,45 @@ class CPGeometryTest(unittest.TestCase):
             [sys.executable, "-c", script], cwd=REPO_ROOT, text=True
         )
         self.assertEqual(out.strip(), "4 32 372")
+
+
+class EpdCursorGeometryTest(unittest.TestCase):
+    """A runtime-EPD cursor still hops through the derived page geometry.
+
+    ``with_epd`` never emits an absolute ``SetTo base + offset`` anchor: a hop
+    is the relative ``Add`` delta, so a call that moves by ``PAGE_SLOTS`` is
+    pinned to the same ``cp`` geometry constant as the absolute cursor.
+    """
+
+    def test_relative_hop_uses_the_page_slot_geometry(self) -> None:
+        def prog() -> None:
+            with_epd(1000, lambda cursor: cursor.moveTo(cp.PAGE_SLOTS))
+
+        module = json.loads(build_module(prog).to_json())["module"]
+        acts = [
+            act
+            for stmt in flatten_stmts(module["stmts"])
+            for act in (stmt.get("acts") or [])
+        ]
+        self.assertEqual(
+            [
+                act["value"]
+                for act in acts
+                if act.get("acttype") == SET_DEATHS
+                and act.get("dest") == EPD_CURRENT_PLAYER
+                and act.get("modifier") == Add
+            ],
+            [cp.PAGE_SLOTS],
+        )
+        self.assertFalse(
+            any(
+                act.get("acttype") == SET_DEATHS
+                and act.get("dest") == EPD_CURRENT_PLAYER
+                and act.get("modifier") == SetTo
+                for act in acts
+            ),
+            "a runtime base must hop relatively, never re-anchor absolutely",
+        )
 
 
 if __name__ == "__main__":

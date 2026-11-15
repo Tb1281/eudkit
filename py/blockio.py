@@ -21,7 +21,7 @@ is seeded through a mode-1 blob relocation instead of a build-time constant.
 
 from __future__ import annotations
 
-from .cp import CP_ADDR, CPCursor
+from .cp import CP_ADDR, CPCursor, _set_cp_from_var
 from .hir import (
     Add,
     AddrReloc,
@@ -108,6 +108,25 @@ def _count_value(value: object, what: str) -> tuple[bool, int | Var]:
     )
 
 
+def _emit_epd_reloc_into(dst: Var, ref: DbRef) -> None:
+    """Write ``ref``'s assembly-time blob EPD into the existing ``dst`` var.
+
+    Same preserved zero-condition, mode-1 value-field relocation shape as
+    :func:`py.hir.epd_of_db`; that public constructor allocates its own fresh
+    `Var`, while the block-memory seeders already own the destination cursor.
+    """
+    act = dst.act_set(0)
+    act.setdefault("relocs", []).append(
+        {
+            "field_offset": ACT_FIELD_OFFSETS["value"],
+            "target_blob": ref.blobId,
+            "target_offset": ref.byteOffset,
+            "mode": 1,
+        }
+    )
+    Trigger(conds=[], acts=[act], preserved=True)
+
+
 def _seed_epd_cursor(dst: Var, node: int | Var | DbRef) -> None:
     """Seed a source-cursor variable with an EPD.
 
@@ -116,16 +135,7 @@ def _seed_epd_cursor(dst: Var, node: int | Var | DbRef) -> None:
     it into the variable's own slot; nothing else in the loop differs.
     """
     if isinstance(node, DbRef):
-        act = dst.act_set(0)
-        act.setdefault("relocs", []).append(
-            {
-                "field_offset": ACT_FIELD_OFFSETS["value"],
-                "target_blob": node.blobId,
-                "target_offset": node.byteOffset,
-                "mode": 1,
-            }
-        )
-        Trigger(conds=[], acts=[act], preserved=True)
+        _emit_epd_reloc_into(dst, node)
         return
     dst.set(node)
 
@@ -144,7 +154,7 @@ def _seed_cp_from_source(src_node: int | Var | DbRef, tmp: Var) -> None:
     if isinstance(src_node, Var):
         tmp.set(src_node)
         tmp.isub(1)
-        emitVarStore(tmp.id, AddrReloc(CP_ADDR), SetTo)
+        _set_cp_from_var(tmp)
     else:
         SetDeaths(EPD_CURRENT_PLAYER, SetTo, (src_node - 1) & 0xFFFFFFFF, 0)
 
@@ -158,7 +168,7 @@ def _memcpy_constant_one(dst_node: int | Var, src_node: int | Var | DbRef) -> No
     dst_cur.set(dst_node)
 
     def emit_copy() -> None:
-        emitVarStore(src_cur.id, AddrReloc(CP_ADDR), SetTo)
+        _set_cp_from_var(src_cur)
         tmp.set(CPCursor(0).at(0).read())
         emitVarStore(
             dst_cur.id,

@@ -11,13 +11,44 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { FixedString, Var, buildModule } from "../index.ts";
+import {
+  AddrReloc,
+  FixedString,
+  SetMemory,
+  SetTo,
+  Var,
+  buildModule,
+  emitVarStore,
+  readCurrentPlayerRegister,
+  withEpd,
+} from "../index.ts";
 import { EPD_CURRENT_PLAYER } from "../view.ts";
-import { flattenStmts, readText, runSim, type HirActNode, type HirStmtNode } from "./helpers.ts";
+import {
+  EPD_BASE,
+  flattenStmts,
+  readDword,
+  readText,
+  runSim,
+  type HirActNode,
+  type HirStmtNode,
+} from "./helpers.ts";
 
 const CP_ADDR = 0x6509b0;
 const SET_DEATHS = 45;
 const SET_TO = 7;
+
+/** External observation dword (outside the synthetic payload). */
+const OBSERVE = 0x6d0000;
+
+function epd(addr: number): number {
+  return (addr - EPD_BASE) / 4;
+}
+
+/** Store the live CurrentPlayer value into an external observation dword. */
+function observe(addr: number): void {
+  const saved = readCurrentPlayerRegister();
+  emitVarStore(saved.id, AddrReloc(addr), SetTo);
+}
 
 function moduleFor(fmt: string, values: number[], size = 32): ReturnType<typeof buildModule> {
   return buildModule(() => {
@@ -102,4 +133,36 @@ test("C7 bare decimal borrows once and restores curpl", () => {
 
   // The known-lane path (`{:x}`) never touches curpl.
   assert.deepEqual(cpBorrowCounts(topStmts("{:x}", [42])), [0, 0]);
+});
+
+// ADR 0004: the C7 borrow is cursor-only, but `withEpd` restores. The writer
+// itself still resets CP to 0 (its documented cursor-only restore). Wrapping
+// the format run in `withEpd` adds the unconditional ambient save/restore, so
+// a non-zero ambient value survives a render.
+function write(fmt: string, values: number[], size = 32): void {
+  const s = new FixedString(size);
+  s.write(fmt, ...values.map((value) => new Var(value)));
+}
+
+test("C7 writer restores zero, not the ambient value", () => {
+  const report = runSim(
+    buildModule(() => {
+      SetMemory(CP_ADDR, SetTo, 77);
+      write("{}", [42]);
+      observe(OBSERVE);
+    }).toJson(),
+  );
+  assert.equal(readDword(report, epd(OBSERVE)), 0);
+});
+
+test("withEpd restores the ambient value around a format run", () => {
+  const report = runSim(
+    buildModule(() => {
+      SetMemory(CP_ADDR, SetTo, 77);
+      withEpd(1000, () => write("{}", [42]));
+      observe(OBSERVE);
+    }).toJson(),
+  );
+  assert.equal(readText(report, 0), "42");
+  assert.equal(readDword(report, epd(OBSERVE)), 77);
 });
