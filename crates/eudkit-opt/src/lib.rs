@@ -26,13 +26,32 @@ pub static OPTIMIZE_MODULE_CALLS: std::sync::atomic::AtomicUsize =
     std::sync::atomic::AtomicUsize::new(0);
 
 use eudkit_hir::{HirDocument, HirError, HirFunc, HirModule, TriggerRefs};
+use folds::FoldLog;
 
 pub mod calls;
 pub mod cell;
 mod facts;
+pub mod folds;
 mod scheduler;
 pub mod temporal;
 pub mod transfer;
+
+/// Validate and optimize a [`HirDocument`], recording every optimizer-visible
+/// fold in the returned [`FoldLog`].
+pub fn optimize_document_with_folds(
+    doc: &HirDocument,
+) -> Result<(HirDocument, FoldLog), HirError> {
+    doc.validate()?;
+    let mut log = FoldLog::enabled();
+    let module = optimize_module_impl(&doc.module, &mut log)?;
+    Ok((
+        HirDocument {
+            version: doc.version.clone(),
+            module,
+        },
+        log,
+    ))
+}
 
 /// Validate and optimize a [`HirDocument`].
 pub fn optimize_document(doc: &HirDocument) -> Result<HirDocument, HirError> {
@@ -55,6 +74,21 @@ pub fn optimize_document(doc: &HirDocument) -> Result<HirDocument, HirError> {
 /// continuation. The same rule applies at the module root and in every
 /// `when`/`else`, `once`, and `while` body.
 pub fn optimize_module(module: &HirModule) -> Result<HirModule, HirError> {
+    optimize_module_impl(module, &mut FoldLog::disabled())
+}
+
+/// Validate and optimize a [`HirModule`], recording every optimizer-visible
+/// fold in the returned [`FoldLog`].
+///
+/// The produced HIR is byte-identical to [`optimize_module`] for the same
+/// input; only the optional report differs.
+pub fn optimize_module_with_folds(module: &HirModule) -> Result<(HirModule, FoldLog), HirError> {
+    let mut log = FoldLog::enabled();
+    let module = optimize_module_impl(module, &mut log)?;
+    Ok((module, log))
+}
+
+fn optimize_module_impl(module: &HirModule, log: &mut FoldLog) -> Result<HirModule, HirError> {
     #[cfg(feature = "count-calls")]
     OPTIMIZE_MODULE_CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     module.validate()?;
@@ -98,6 +132,7 @@ pub fn optimize_module(module: &HirModule) -> Result<HirModule, HirError> {
         &cells,
         &refs,
         &mut next_synth_id,
+        log,
     )?;
 
     // A subroutine body is a body block: the scheduler keeps its acts as bare
@@ -112,6 +147,7 @@ pub fn optimize_module(module: &HirModule) -> Result<HirModule, HirError> {
             &cells,
             &refs,
             &mut next_synth_id,
+            log,
         )?;
         funcs.push(HirFunc {
             id: func.id,
@@ -135,7 +171,7 @@ pub fn optimize_module(module: &HirModule) -> Result<HirModule, HirError> {
     // surviving trigger ids are not renumbered. Removing a scope boundary can
     // still expose adjacent act runs, which lowering may then pack into fewer
     // triggers, so downstream static counts are not promised byte-identical.
-    temporal::drop_dead_triggers(&mut optimized);
+    temporal::drop_dead_triggers(&mut optimized, log);
     Ok(optimized)
 }
 

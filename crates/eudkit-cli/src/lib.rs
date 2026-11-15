@@ -18,6 +18,8 @@ use eudkit_map::mpq::{QueuedContent, QueuedFile};
 use eudkit_map::stage::Stage;
 use eudkit_map::{MapTailError, TailInputs, assemble_map, assemble_map_with_context};
 use eudkit_opt::cell::StoragePlan;
+use eudkit_opt::folds::FoldLog;
+use eudkit_opt::optimize_document_with_folds;
 use thiserror::Error;
 
 pub use frontend::{
@@ -29,7 +31,7 @@ pub use plan::{
     BasemapFingerprint, BoundEntry, BoundPlan, BuildPlan, PLAN_VERSION, PlanEntry, PlanError,
     bind_plan, rebase_entry_paths, relative_path,
 };
-pub use report::{DumpReport, PackingEntry, StorageSummary};
+pub use report::{DumpReport, FoldEntry, PackingEntry, StorageSummary};
 
 /// Parsed and lowered program plus its storage/cost metadata.
 #[derive(Debug, Clone)]
@@ -51,6 +53,8 @@ pub struct PreparedProgram {
     /// Warnings emitted while the frontend evaluated the source. Empty for
     /// pre-synthesized `.hir.json` input.
     pub warnings: Vec<FrontendWarning>,
+    /// Recorded optimizer folds; `None` unless the caller asked for them.
+    folds: Option<FoldLog>,
 }
 
 impl PreparedProgram {
@@ -96,7 +100,13 @@ impl PreparedProgram {
             self.doc.module.vars.len(),
             &self.storage,
             &self.lir,
+            self.folds.as_ref(),
         ))
+    }
+
+    /// The recorded optimizer folds, when the caller asked to collect them.
+    pub fn fold_log(&self) -> Option<&FoldLog> {
+        self.folds.as_ref()
     }
 
     /// Resolve `HirModule::files` into `MPQAddFile` queue entries.
@@ -137,9 +147,27 @@ pub fn prepare_hir_json(
     hir_json: &str,
     basemap: Option<&Path>,
 ) -> Result<PreparedProgram, PipelineError> {
+    prepare_hir_json_with_folds(hir_json, basemap, false)
+}
+
+/// Like [`prepare_hir_json`], optionally recording optimizer folds.
+///
+/// Collecting folds runs one extra optimize pass over the parsed document; the
+/// lowering pipeline itself is unchanged, so `optimized`/`lir` are identical
+/// whether or not folds are collected.
+pub fn prepare_hir_json_with_folds(
+    hir_json: &str,
+    basemap: Option<&Path>,
+    collect_folds: bool,
+) -> Result<PreparedProgram, PipelineError> {
     let stage = Stage::start("hir.parse");
     let doc = hir_from_json(hir_json)?;
     stage.finish();
+    let folds = if collect_folds {
+        Some(optimize_document_with_folds(&doc)?.1)
+    } else {
+        None
+    };
     // The rest of the pre-assembly pipeline lives in `eudkit-lower`, so this
     // crate, `eudkit-compile`, and the tests all run the same sequence:
     // optimize + storage once, then the probe/final lowering passes.
@@ -153,6 +181,7 @@ pub fn prepare_hir_json(
         basemap_context: lowered.basemap_context,
         source_dir: None,
         warnings: Vec::new(),
+        folds,
     })
 }
 
@@ -198,6 +227,29 @@ pub fn prepare_source(
     frontend: Option<Frontend>,
     basemap: Option<&Path>,
 ) -> Result<PreparedProgram, PipelineError> {
+    prepare_source_impl(source, frontend, basemap, false)
+}
+
+/// Like [`prepare_source`], optionally recording optimizer folds, for
+/// `dump-ir --explain-folds`.
+///
+/// `source` may be a DSL file or an `.hir.json` file, exactly like
+/// [`prepare_source`]. `folds` stays `None` unless `collect_folds` is true, so
+/// the default path never allocates a log.
+pub fn prepare_source_with_folds(
+    source: &Path,
+    frontend: Option<Frontend>,
+    collect_folds: bool,
+) -> Result<PreparedProgram, PipelineError> {
+    prepare_source_impl(source, frontend, None, collect_folds)
+}
+
+fn prepare_source_impl(
+    source: &Path,
+    frontend: Option<Frontend>,
+    basemap: Option<&Path>,
+    collect_folds: bool,
+) -> Result<PreparedProgram, PipelineError> {
     let source_dir = source
         .canonicalize()
         .ok()
@@ -210,7 +262,7 @@ pub fn prepare_source(
             path: source.display().to_string(),
             source: e,
         })?;
-        let mut prepared = prepare_hir_json(&json, basemap)?;
+        let mut prepared = prepare_hir_json_with_folds(&json, basemap, collect_folds)?;
         prepared.source_dir = source_dir;
         return Ok(prepared);
     }
@@ -220,7 +272,7 @@ pub fn prepare_source(
     let stage = Stage::start("frontend");
     let captured = capture_source_with_warnings(source, frontend)?;
     stage.finish();
-    let mut prepared = prepare_hir_json(&captured.hir_json, basemap)?;
+    let mut prepared = prepare_hir_json_with_folds(&captured.hir_json, basemap, collect_folds)?;
     prepared.source_dir = source_dir;
     prepared.warnings = captured.warnings;
     Ok(prepared)

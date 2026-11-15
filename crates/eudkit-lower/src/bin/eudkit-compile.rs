@@ -36,7 +36,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 3 {
         eprintln!(
-            "Usage:\n  {} lower <hir.json>\n  {} sim <hir.json> [loops]\n  {} dump-ir <hir.json>\n  {} map <hir.json> <basemap.scx> <out.scx> [--single-player|--no-tick-gate]",
+            "Usage:\n  {} lower <hir.json>\n  {} sim <hir.json> [loops]\n  {} dump-ir <hir.json> [--explain-folds]\n  {} map <hir.json> <basemap.scx> <out.scx> [--single-player|--no-tick-gate]",
             args[0], args[0], args[0], args[0]
         );
         process::exit(2);
@@ -63,12 +63,33 @@ fn main() {
             }
         },
         "dump-ir" => {
+            let mut explain_folds = false;
+            for arg in &args[3..] {
+                match arg.as_str() {
+                    "--explain-folds" => explain_folds = true,
+                    other => {
+                        eprintln!("Unknown option '{other}'");
+                        process::exit(2);
+                    }
+                }
+            }
             let doc = match hir_from_json(&hir_json) {
                 Ok(d) => d,
                 Err(e) => {
                     eprintln!("{e}");
                     process::exit(1);
                 }
+            };
+            let folds = if explain_folds {
+                match eudkit_opt::optimize_document_with_folds(&doc) {
+                    Ok((_, log)) => Some(log),
+                    Err(e) => {
+                        eprintln!("{e}");
+                        process::exit(1);
+                    }
+                }
+            } else {
+                None
             };
             let prepared = match prepare_lowering(&doc, None) {
                 Ok(p) => p,
@@ -81,6 +102,9 @@ fn main() {
                 "{}",
                 eudkit_opt::cell::render_dump_ir(&prepared.optimized, &prepared.storage)
             );
+            if let Some(log) = &folds {
+                print!("{}", eudkit_opt::folds::render_folds(log));
+            }
             match render_lir(&prepared.lir) {
                 Ok(dump) => println!("\n{dump}"),
                 Err(e) => {

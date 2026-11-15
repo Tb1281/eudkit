@@ -1,0 +1,561 @@
+{
+  "version": "3.2",
+  "module": {
+    "vars": [
+      {
+        "id": 0,
+        "init": 1
+      }
+    ],
+    "stmts": [
+      {
+        "kind": "when",
+        "conds": [
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 5,
+            "unit": 0,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 10,
+            "unit": 0,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          }
+        ],
+        "body": [
+          {
+            "mask": 0,
+            "strid": 0,
+            "wavid": 0,
+            "time": 0,
+            "dest": 0,
+            "value": 1,
+            "unit": 0,
+            "acttype": 45,
+            "modifier": 7,
+            "flags": 20,
+            "padding": 0,
+            "eudx": 0,
+            "kind": "act"
+          }
+        ]
+      },
+      {
+        "kind": "when",
+        "conds": [
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 0,
+            "unit": 0,
+            "comparison": 0,
+            "condtype": 22,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          }
+        ],
+        "body": [
+          {
+            "mask": 0,
+            "strid": 0,
+            "wavid": 0,
+            "time": 0,
+            "dest": 0,
+            "value": 2,
+            "unit": 0,
+            "acttype": 45,
+            "modifier": 7,
+            "flags": 20,
+            "padding": 0,
+            "eudx": 0,
+            "kind": "act"
+          },
+          {
+            "mask": 0,
+            "strid": 0,
+            "wavid": 0,
+            "time": 0,
+            "dest": 0,
+            "value": 3,
+            "unit": 0,
+            "acttype": 45,
+            "modifier": 7,
+            "flags": 20,
+            "padding": 0,
+            "eudx": 0,
+            "kind": "act"
+          }
+        ]
+      },
+      {
+        "kind": "when",
+        "conds": [
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 0,
+            "unit": 0,
+            "comparison": 0,
+            "condtype": 22,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          }
+        ],
+        "body": [
+          {
+            "mask": 0,
+            "strid": 0,
+            "wavid": 0,
+            "time": 0,
+            "dest": 0,
+            "value": 4,
+            "unit": 0,
+            "acttype": 45,
+            "modifier": 7,
+            "flags": 20,
+            "padding": 0,
+            "eudx": 0,
+            "kind": "act"
+          }
+        ]
+      },
+      {
+        "kind": "when",
+        "conds": [],
+        "body": [
+          {
+            "mask": 0,
+            "strid": 0,
+            "wavid": 0,
+            "time": 0,
+            "dest": 0,
+            "value": 5,
+            "unit": 0,
+            "acttype": 45,
+            "modifier": 7,
+            "flags": 20,
+            "padding": 0,
+            "eudx": 0,
+            "kind": "act"
+          }
+        ]
+      },
+      {
+        "kind": "when",
+        "conds": [
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 1,
+            "unit": 0,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 1,
+            "unit": 1,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 1,
+            "unit": 2,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 1,
+            "unit": 3,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 1,
+            "unit": 4,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 1,
+            "unit": 5,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 1,
+            "unit": 6,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 1,
+            "unit": 7,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 1,
+            "unit": 8,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 1,
+            "unit": 9,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 1,
+            "unit": 10,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 1,
+            "unit": 11,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 1,
+            "unit": 12,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 1,
+            "unit": 13,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 1,
+            "unit": 14,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 1,
+            "unit": 15,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 1,
+            "unit": 16,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          }
+        ],
+        "body": [
+          {
+            "mask": 0,
+            "strid": 0,
+            "wavid": 0,
+            "time": 0,
+            "dest": 0,
+            "value": 6,
+            "unit": 0,
+            "acttype": 45,
+            "modifier": 7,
+            "flags": 20,
+            "padding": 0,
+            "eudx": 0,
+            "kind": "act"
+          }
+        ]
+      },
+      {
+        "kind": "when",
+        "conds": [
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 2,
+            "unit": 0,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 2,
+            "unit": 1,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 2,
+            "unit": 2,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 2,
+            "unit": 3,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 2,
+            "unit": 4,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 2,
+            "unit": 5,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 2,
+            "unit": 6,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 2,
+            "unit": 7,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 2,
+            "unit": 8,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 2,
+            "unit": 9,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 2,
+            "unit": 10,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 2,
+            "unit": 11,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 2,
+            "unit": 12,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 2,
+            "unit": 13,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 2,
+            "unit": 14,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 2,
+            "unit": 15,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          },
+          {
+            "locid": 0,
+            "player": 0,
+            "amount": 2,
+            "unit": 16,
+            "comparison": 0,
+            "condtype": 15,
+            "restype": 0,
+            "flags": 0,
+            "eudx": 0
+          }
+        ],
+        "body": []
+      }
+    ]
+  }
+}
