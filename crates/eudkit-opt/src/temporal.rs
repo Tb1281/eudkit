@@ -90,8 +90,111 @@ fn desugar_until(u: HirUntil) -> Vec<HirStmt> {
     }
 }
 
+/// Result of comparing one incoming condition against a previously kept
+/// condition on the same target (ADR 0031).
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum FoldOutcome {
+    /// The pair does not fuse; keep both conditions.
+    KeepBoth,
+    /// The incoming condition adds no constraint; keep only the existing one.
+    DropIncoming,
+    /// The pair fuses into this replacement for the existing condition.
+    Replace(HirCond),
+    /// The conjunction is unsatisfiable; the whole list is `Never`.
+    Never,
+}
+
+/// Whether two conditions read the same comparison target.
+///
+/// ADR 0031 only folds `Deaths`/`DeathsX` (condtype 15) comparisons, and only
+/// when every target field matches exactly: player, unit, mask (`locid`),
+/// `eudx`, and the relocation list. A masked `Var` read with different
+/// relocations is a different target even when the remaining fields match.
+fn same_fold_target(existing: &HirCond, incoming: &HirCond) -> bool {
+    existing.condtype == 15
+        && incoming.condtype == 15
+        && existing.player == incoming.player
+        && existing.unit == incoming.unit
+        && existing.locid == incoming.locid
+        && existing.eudx == incoming.eudx
+        && existing.relocs == incoming.relocs
+}
+
+/// Fold one same-target comparison pair (ADR 0031 §1).
+///
+/// The returned [`FoldOutcome::Replace`] keeps the existing condition in its
+/// original list position, so condition order — and therefore every
+/// satisfiable fixture's bytes — is unchanged. Comparison codes are
+/// `0 = AtLeast`, `1 = AtMost`, `10 = Exactly`.
+fn fold_pair(existing: &HirCond, incoming: &HirCond) -> FoldOutcome {
+    if !same_fold_target(existing, incoming) {
+        return FoldOutcome::KeepBoth;
+    }
+
+    let a = existing.amount;
+    let b = incoming.amount;
+    let with = |comparison, amount| {
+        let mut cond = existing.clone();
+        cond.comparison = comparison;
+        cond.amount = amount;
+        FoldOutcome::Replace(cond)
+    };
+
+    match (existing.comparison, incoming.comparison) {
+        // AtLeast a + AtLeast b -> AtLeast max(a, b).
+        (0, 0) => with(0, max(a, b)),
+        // AtMost a + AtMost b -> AtMost min(a, b).
+        (1, 1) => with(1, min(a, b)),
+        // AtLeast a + AtMost b: equality tightens to Exactly, a > b is the
+        // empty range, and a < b keeps both bounds.
+        (0, 1) if a == b => with(10, a),
+        (0, 1) if a > b => FoldOutcome::Never,
+        (0, 1) => FoldOutcome::KeepBoth,
+        // AtMost a + AtLeast b: equality tightens to Exactly, a < b is the
+        // empty range, and a > b keeps both bounds.
+        (1, 0) if a == b => with(10, a),
+        (1, 0) if a < b => FoldOutcome::Never,
+        (1, 0) => FoldOutcome::KeepBoth,
+        // Exactly a + AtLeast b: redundant when a >= b, unsatisfiable below.
+        (10, 0) if a >= b => FoldOutcome::DropIncoming,
+        (10, 0) => FoldOutcome::Never,
+        // Exactly a + AtMost b: redundant when a <= b, unsatisfiable above.
+        (10, 1) if a <= b => FoldOutcome::DropIncoming,
+        (10, 1) => FoldOutcome::Never,
+        // AtLeast a + Exactly b: the exact value subsumes the bound when
+        // b >= a, and contradicts it below.
+        (0, 10) if b >= a => with(10, b),
+        (0, 10) => FoldOutcome::Never,
+        // AtMost a + Exactly b: the exact value subsumes the bound when
+        // b <= a, and contradicts it above.
+        (1, 10) if b <= a => with(10, b),
+        (1, 10) => FoldOutcome::Never,
+        // Exactly a + Exactly b: equal is a duplicate, different is Never.
+        (10, 10) if a == b => FoldOutcome::DropIncoming,
+        (10, 10) => FoldOutcome::Never,
+        _ => FoldOutcome::KeepBoth,
+    }
+}
+
 /// Fuse comparison bounds and deduplicate common conditions.
+///
+/// ADR 0031 adds the contradictory comparison rows: a `Never` result is the
+/// existing [`HirCond::never()`] (condtype 23) and is absorbing for the whole
+/// list. Only `when` gates consume the contradictory mode; `once`/`while`
+/// use [`fuse_and_dedup_conditions_preserving_never`] because their liveness
+/// is user-visible.
 pub fn fuse_and_dedup_conditions(conds: &[HirCond]) -> Vec<HirCond> {
+    fuse_and_dedup_conditions_mode(conds, true)
+}
+
+/// The `once`/`while` mode: non-contradictory fusion still happens, but a
+/// pair that would form `Never` is left untouched and an explicit `Never`
+/// stays an ordinary condition.
+fn fuse_and_dedup_conditions_preserving_never(conds: &[HirCond]) -> Vec<HirCond> {
+    fuse_and_dedup_conditions_mode(conds, false)
+}
+
+fn fuse_and_dedup_conditions_mode(conds: &[HirCond], allow_never: bool) -> Vec<HirCond> {
     if conds.len() <= 1 {
         return conds.to_vec();
     }
@@ -104,66 +207,39 @@ pub fn fuse_and_dedup_conditions(conds: &[HirCond]) -> Vec<HirCond> {
             continue;
         }
 
+        // `Never` is absorbing when a comparison pair *derives* it below. An
+        // already-`Never` condition is an opaque frontend constant (`condAny()`,
+        // a statically false field read) and is preserved as written: rewriting
+        // it would move goldens outside this ticket's contradictory-pair scope.
+        // A derived contradiction returns immediately from the fold loop.
+
         // Check if exact duplicate already in out
         if out.contains(cond) {
             continue;
         }
 
-        // Try to fuse with existing conditions on the same target
-        // Target match: Deaths/DeathsX (15), same player, unit, mask (locid), eudx, relocs
+        // Try to fuse with existing conditions on the same target. The first
+        // successful fold wins and keeps the existing condition's position.
         let mut fused = false;
-        if cond.condtype == 15 {
-            for existing in out.iter_mut() {
-                if existing.condtype == 15
-                    && existing.player == cond.player
-                    && existing.unit == cond.unit
-                    && existing.locid == cond.locid
-                    && existing.eudx == cond.eudx
-                    && existing.relocs == cond.relocs
-                {
-                    // Case 1: Both AtLeast (0)
-                    if existing.comparison == 0 && cond.comparison == 0 {
-                        existing.amount = max(existing.amount, cond.amount);
-                        fused = true;
-                        break;
+        for existing in out.iter_mut() {
+            match fold_pair(existing, cond) {
+                FoldOutcome::KeepBoth => {}
+                FoldOutcome::DropIncoming => {
+                    fused = true;
+                    break;
+                }
+                FoldOutcome::Replace(replacement) => {
+                    *existing = replacement;
+                    fused = true;
+                    break;
+                }
+                FoldOutcome::Never => {
+                    if allow_never {
+                        return vec![HirCond::never()];
                     }
-                    // Case 2: Both AtMost (1)
-                    if existing.comparison == 1 && cond.comparison == 1 {
-                        existing.amount = min(existing.amount, cond.amount);
-                        fused = true;
-                        break;
-                    }
-                    // Case 3: One AtLeast and One AtMost with same amount -> Exactly (10)
-                    if existing.comparison == 0 && cond.comparison == 1 && existing.amount == cond.amount {
-                        existing.comparison = 10;
-                        fused = true;
-                        break;
-                    }
-                    if existing.comparison == 1 && cond.comparison == 0 && existing.amount == cond.amount {
-                        existing.comparison = 10;
-                        fused = true;
-                        break;
-                    }
-                    // Case 4: Existing Exactly (10), new AtLeast or AtMost is redundant
-                    if existing.comparison == 10 {
-                        if (cond.comparison == 0 && existing.amount >= cond.amount)
-                            || (cond.comparison == 1 && existing.amount <= cond.amount)
-                        {
-                            fused = true;
-                            break;
-                        }
-                    }
-                    // Case 5: New Exactly (10), existing AtLeast or AtMost is redundant
-                    if cond.comparison == 10 {
-                        if (existing.comparison == 0 && cond.amount >= existing.amount)
-                            || (existing.comparison == 1 && cond.amount <= existing.amount)
-                        {
-                            existing.comparison = 10;
-                            existing.amount = cond.amount;
-                            fused = true;
-                            break;
-                        }
-                    }
+                    // In `once`/`while` mode the contradictory pair is left
+                    // exactly as written; keep probing for a non-contradictory
+                    // fusion against another condition.
                 }
             }
         }
@@ -822,13 +898,34 @@ fn extract_leaf_acts(stmts: &[HirStmt]) -> Vec<HirAct> {
 }
 
 /// Fuse `conds` and record the change when a [`FoldLog`] is recording.
-fn fuse_conds(
+fn fuse_conds(conds: &[HirCond], prefix: &str, site: u32, log: &mut FoldLog) -> Vec<HirCond> {
+    fuse_conds_mode(conds, prefix, site, log, true)
+}
+
+/// The `once`/`while` variant: fuse non-contradictory bounds but never form
+/// `Never` (ADR 0031 §2). Their conditions are liveness/spin-wait gates whose
+/// user-visible semantics must not be rewritten.
+fn fuse_conds_preserving_never(
     conds: &[HirCond],
     prefix: &str,
     site: u32,
     log: &mut FoldLog,
 ) -> Vec<HirCond> {
-    let fused = fuse_and_dedup_conditions(conds);
+    fuse_conds_mode(conds, prefix, site, log, false)
+}
+
+fn fuse_conds_mode(
+    conds: &[HirCond],
+    prefix: &str,
+    site: u32,
+    log: &mut FoldLog,
+    allow_never: bool,
+) -> Vec<HirCond> {
+    let fused = if allow_never {
+        fuse_and_dedup_conditions(conds)
+    } else {
+        fuse_and_dedup_conditions_preserving_never(conds)
+    };
     folds::record_cond_fold(log, prefix, site, conds, &fused);
     fused
 }
@@ -876,21 +973,185 @@ fn reschedule_merged_body(
     Ok(())
 }
 
+/// Flatten nested then-only whens and fuse the resulting condition list.
+///
+/// This is the condition half of the `when` pass and runs before any body
+/// recursion so a contradiction is visible before any trigger id is minted
+/// (ADR 0031 §2 step 1).
+fn fold_when_conds(mut w: HirWhen, site: u32, log: &mut FoldLog) -> HirWhen {
+    w = flatten_nested_when(w, site, log);
+    w.conds = fuse_conds(&w.conds, "when", site, log);
+    w
+}
+
+fn conds_are_never(conds: &[HirCond]) -> bool {
+    conds.len() == 1 && conds[0].condtype == 23
+}
+
+fn conds_are_always(conds: &[HirCond]) -> bool {
+    conds.is_empty() || (conds.len() == 1 && conds[0].condtype == 22)
+}
+
+/// Whether `stmts` declares a trigger id the module-wide reference set names.
+///
+/// A `Never` gate normally drops its body. Dropping a body that *defines* a
+/// trigger referenced from a chain pointer, relocation, store, or blob
+/// relocation would leave that reference dangling, so it is kept exactly as
+/// written (ADR 0031 §2, mirroring `drop_dead_triggers`' conservatism).
+fn has_referenced_trigger(stmts: &[HirStmt], refs: &TriggerRefs) -> bool {
+    stmts.iter().any(|stmt| match stmt {
+        HirStmt::Trigger(trigger) => refs.contains(trigger.id),
+        HirStmt::When(w) => {
+            has_referenced_trigger(&w.body, refs) || has_referenced_trigger(&w.else_body, refs)
+        }
+        HirStmt::Once(o) => has_referenced_trigger(&o.body, refs),
+        HirStmt::While(w) => has_referenced_trigger(&w.body, refs),
+        HirStmt::Until(u) => has_referenced_trigger(&u.body, refs),
+        HirStmt::Edge(e) => has_referenced_trigger(&e.body, refs),
+        HirStmt::Every(e) => has_referenced_trigger(&e.body, refs),
+        HirStmt::After(a) => has_referenced_trigger(&a.body, refs),
+        _ => false,
+    })
+}
+
+/// Settle a `when` gate after its condition list has been folded.
+///
+/// Returns the statements that replace the node: the kept `when`, its
+/// optimized body (an `Always` gate opens), its optimized `else_body` (a
+/// `Never` gate promotes the else arm), or nothing (a `Never` gate without an
+/// else). The returned list form matches `else_body`, which may hold more than
+/// one statement.
+///
+/// `bodies_optimized` is false on the pre-recursion call and true after the
+/// normal body/else pass: a dead gate must not mint nested trigger ids before
+/// it is dropped, so the first call only optimizes the arm it actually keeps.
+fn settle_dead_or_open(
+    w: &mut HirWhen,
+    before: &[HirCond],
+    site: u32,
+    cells: &CellMap,
+    refs: &TriggerRefs,
+    next_id: &mut usize,
+    log: &mut FoldLog,
+    bodies_optimized: bool,
+) -> Result<Option<Vec<HirStmt>>, HirError> {
+    // An already-`Never` single-condition gate is a frontend constant marker,
+    // not a contradiction this pass derived. Keep it opaque (see
+    // `fuse_and_dedup_conditions`); only a pair folded to `Never` drops.
+    let explicit_never = before.len() == 1 && before[0].condtype == 23;
+
+    if conds_are_never(&w.conds) && !explicit_never {
+        if has_referenced_trigger(&w.body, refs) {
+            if !bodies_optimized {
+                w.body =
+                    optimize_stmts(w.body.clone(), BlockKind::Body, cells, refs, next_id, log)?;
+                w.else_body = optimize_stmts(
+                    w.else_body.clone(),
+                    BlockKind::Body,
+                    cells,
+                    refs,
+                    next_id,
+                    log,
+                )?;
+            }
+            folds::record_gate_drop_with(log, "when", site, before, "kept(referenced)");
+            return Ok(Some(vec![HirStmt::When(w.clone())]));
+        }
+
+        let else_body = if bodies_optimized {
+            std::mem::take(&mut w.else_body)
+        } else {
+            optimize_stmts(
+                std::mem::take(&mut w.else_body),
+                BlockKind::Body,
+                cells,
+                refs,
+                next_id,
+                log,
+            )?
+        };
+        let after = if else_body.is_empty() {
+            "dropped"
+        } else {
+            "else-promoted"
+        };
+        folds::record_gate_drop_with(log, "when", site, before, after);
+        return Ok(Some(else_body));
+    }
+
+    // A folded `[Always]`/empty gate is unconditional. Keep the pre-existing
+    // late treatment for a then-only gate so existing satisfiable fixtures
+    // stay byte-identical; an else arm must be dropped, which only this pass
+    // can do.
+    if conds_are_always(&w.conds) && !w.else_body.is_empty() {
+        let body = if bodies_optimized {
+            std::mem::take(&mut w.body)
+        } else {
+            optimize_stmts(
+                std::mem::take(&mut w.body),
+                BlockKind::Body,
+                cells,
+                refs,
+                next_id,
+                log,
+            )?
+        };
+        folds::record_gate_open(log, "when", site, &w.conds);
+        return Ok(Some(body));
+    }
+
+    Ok(None)
+}
+
+/// The `when` arm: fold the full condition list before ADR 0027 chunking, then
+/// drop/open the gate and recurse into the surviving arm (ADR 0031 §2).
+fn settle_when(
+    w: HirWhen,
+    site: u32,
+    cells: &CellMap,
+    refs: &TriggerRefs,
+    next_id: &mut usize,
+    log: &mut FoldLog,
+) -> Result<Vec<HirStmt>, HirError> {
+    let before = w.conds.clone();
+    let mut w = fold_when_conds(w, site, log);
+
+    if let Some(replacement) =
+        settle_dead_or_open(&mut w, &before, site, cells, refs, next_id, log, false)?
+    {
+        return Ok(replacement);
+    }
+
+    w.body = optimize_stmts(w.body, BlockKind::Body, cells, refs, next_id, log)?;
+    w.else_body = optimize_stmts(w.else_body, BlockKind::Body, cells, refs, next_id, log)?;
+    w = flatten_nested_when(w, site, log);
+
+    // Body optimization can expose one more nested then-only when; its fusion
+    // may be the first contradictory pair.
+    if let Some(replacement) =
+        settle_dead_or_open(&mut w, &before, site, cells, refs, next_id, log, true)?
+    {
+        return Ok(replacement);
+    }
+
+    folds::record_chunk(log, "when", site, &w.conds);
+    Ok(vec![HirStmt::When(w)])
+}
+
 /// The `When` arm's own treatment, shared with the edge desugar so
 /// desugared gates receive exactly the treatment DSL-emitted `when`
 /// nodes receive: flatten, fuse, recurse, flatten. Packing and merging
 /// stay with the caller's full-list passes, so trigger-id consumption
 /// and cross-statement merging match the baseline pipeline.
 fn optimize_when_node(
-    mut w: HirWhen,
+    w: HirWhen,
     site: u32,
     cells: &CellMap,
     refs: &TriggerRefs,
     next_id: &mut usize,
     log: &mut FoldLog,
 ) -> Result<HirWhen, HirError> {
-    w = flatten_nested_when(w, site, log);
-    w.conds = fuse_conds(&w.conds, "when", site, log);
+    let mut w = fold_when_conds(w, site, log);
     w.body = optimize_stmts(w.body, BlockKind::Body, cells, refs, next_id, log)?;
     w.else_body = optimize_stmts(w.else_body, BlockKind::Body, cells, refs, next_id, log)?;
     w = flatten_nested_when(w, site, log);
@@ -987,21 +1248,25 @@ fn optimize_list(
         match stmt {
             HirStmt::When(w) => {
                 let site = log.next_site();
-                processed.push(SiteStmt::new(
-                    HirStmt::When(optimize_when_node(w, site, cells, refs, next_id, log)?),
-                    Some(site),
-                ));
+                let settled = settle_when(w, site, cells, refs, next_id, log)?;
+                for (index, stmt) in settled.into_iter().enumerate() {
+                    // The pre-order site belongs to the original gate. When a
+                    // dead gate is replaced by its body/else statements, only
+                    // the first replacement statement carries the reporting
+                    // ordinal; merge/pack reporting on the rest stays silent.
+                    processed.push(SiteStmt::new(stmt, (index == 0).then_some(site)));
+                }
             }
             HirStmt::Once(mut o) => {
                 let site = log.next_site();
-                o.conds = fuse_conds(&o.conds, "once", site, log);
+                o.conds = fuse_conds_preserving_never(&o.conds, "once", site, log);
                 o.body = optimize_stmts(o.body, BlockKind::Body, cells, refs, next_id, log)?;
                 folds::record_chunk(log, "once", site, &o.conds);
                 processed.push(SiteStmt::new(HirStmt::Once(o), Some(site)));
             }
             HirStmt::While(mut wh) => {
                 let site = log.next_site();
-                wh.conds = fuse_conds(&wh.conds, "while", site, log);
+                wh.conds = fuse_conds_preserving_never(&wh.conds, "while", site, log);
                 wh.body = optimize_stmts(wh.body, BlockKind::Body, cells, refs, next_id, log)?;
                 folds::record_chunk(log, "while", site, &wh.conds);
                 processed.push(SiteStmt::new(HirStmt::While(wh), Some(site)));
