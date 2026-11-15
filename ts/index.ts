@@ -25,3 +25,4 @@ export * from "./mathf.ts";
 export * from "./datadumper.ts";
 export * from "./camera.ts";
 export * from "./dat.ts";
+export * from "./capacity.ts";

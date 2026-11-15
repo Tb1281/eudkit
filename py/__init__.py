@@ -257,6 +257,12 @@ from .blockio import (
     memsetEPD,
     memset_epd,
 )
+from .capacity import (
+    CUNIT_FREE_HEAD,
+    CUNIT_FREE_TAIL,
+    freeListEmpty,
+    free_list_empty,
+)
 from .temporal import (
     Func,
     after,
@@ -702,5 +708,9 @@ __all__ = [
     "with_cp",
     "with_epd",
     "word",
+    "CUNIT_FREE_HEAD",
+    "CUNIT_FREE_TAIL",
+    "freeListEmpty",
+    "free_list_empty",
 ]
 __all__ += list(_STOCK_EXPORTS)
