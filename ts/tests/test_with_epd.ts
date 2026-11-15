@@ -330,7 +330,7 @@ test("non-callable bodies are EUDSL-TYPE through both spellings", () => {
 });
 
 // SHA-256 of the pre-refactor HIR for `blockioProgram` (captured before
-// `ts/blockio.ts` was refactored onto `emitEpdRelocInto` / `_setCpFromVar`).
+// `ts/blockio.ts` was refactored onto `emitBlobEpdInto` / `_setCpFromVar`).
 // The Python mirror pins the same digest.
 const BLOCKIO_HIR_SHA256 =
   "04160598ab5c3038e6743eafe1ee44f4405f9b1caf89af0a96b53edec209aa60";

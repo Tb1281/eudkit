@@ -324,7 +324,7 @@ class WithEpdDiagnosticsTests(unittest.TestCase):
 
 
 #: SHA-256 of the pre-refactor HIR for `_blockio_program` (captured before
-#: `py/blockio.py` was refactored onto `_emit_epd_reloc_into` /
+#: `py/blockio.py` was refactored onto `_emit_blob_epd_into` /
 #: `_set_cp_from_var`). The TypeScript mirror pins the same digest.
 BLOCKIO_HIR_SHA256 = "04160598ab5c3038e6743eafe1ee44f4405f9b1caf89af0a96b53edec209aa60"
 

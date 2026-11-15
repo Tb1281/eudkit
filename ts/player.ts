@@ -151,15 +151,16 @@ function validatePlayers(players: Iterable<number>): readonly number[] {
       "matchNames(): players must be an ordered iterable; a Set is not allowed",
     );
   }
-  let rawPlayers: number[];
-  try {
-    rawPlayers = Array.from(players);
-  } catch {
+  if (
+    players == null ||
+    typeof (players as Iterable<number>)[Symbol.iterator] !== "function"
+  ) {
     throw new EudslError(
       "EUDSL-TYPE",
       "matchNames(): players must be an iterable of player indices",
     );
   }
+  const rawPlayers = Array.from(players);
   if (rawPlayers.length === 0) {
     throw new EudslError(
       "EUDSL-BOUNDS",

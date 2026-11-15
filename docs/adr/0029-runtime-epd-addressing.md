@@ -197,7 +197,8 @@ public runtime-indexed container (ADR 0030).
 - Callers get a first-class EPD-bearing `Var` from a payload blob without
   duplicating the private `_seed_epd_cursor` trigger shape.
 - `blockio.py`/`blockio.ts` share the CP seed and mode-1 blob-reloc shapes
-  through `_set_cp_from_var` / `_emit_epd_reloc_into` (ticket `T-WP5`) without
+  through `_set_cp_from_var` / `_emit_blob_epd_into` (TS: `emitBlobEpdInto`,
+  ticket `T-WP5`) without
   changing a single HIR byte: `memcpyEPD`/`memsetEPD`/`connectDList` still
   leave CP clobbered, so wrapping them in `with_epd` would be a behavior
   change, not a refactor.

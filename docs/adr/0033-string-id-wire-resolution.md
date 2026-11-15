@@ -85,7 +85,8 @@ unit type as a side effect.
 
 An id above `0xFFFF` is a loud `EUDSL-BOUNDS` at assembly
 (`LowerError::StringIdOutOfRange`), never silent 16-bit truncation. A shift
-outside `0..=31` is rejected the same way. This contrasts with
+outside `0..=16` is rejected the same way (shift `24` would silently drop the
+top byte of a 16-bit id). This contrasts with
 `MemFieldHandle.act_set`, which masks a constant into its lane without a range
 check (the carve-out framed in ADR 0019 §5): here the value is not a
 user-written constant but a compiler-derived id, so exceeding the field's
