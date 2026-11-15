@@ -360,6 +360,50 @@ in-place behavior changes to existing `EUDLoopUnit2`:
    invocation), with a break/continue/nesting audit before it ships.
    Tests: null head, first/last slot, unlimiter on/off, closed maps.
 
+### 9. Capacity truth and tiers
+
+Capacity questions get different tools depending on the precision required.
+Three tiers are defined; this series ships tier 1 only.
+
+1. **tier 1 — one-condition truth (`free_list_empty`).** `CUNIT_FREE_HEAD =
+   0x628438` is the dword holding the head of the CUnit free list;
+   `free_list_empty()` is `Memory(CUNIT_FREE_HEAD, Exactly, 0)`, one condition
+   15 / one trigger when gated, with zero pointer reads. It is exact for the
+   single question it asks — "is the free list empty at this instant" — and
+   nothing else. It is **advisory, not authoritative**: the engine's allocator
+   can still refuse a creation for reasons this dword cannot see. The helper
+   returns a condition rather than wrapping a `Trigger`, so the caller's
+   16-condition budget is untouched and `when`/`once`/`until` can fuse it.
+   `CUNIT_FREE_TAIL = 0x62843C` documents the other end of the list, but no
+   helper is built on it; the head alone carries the one-condition answer.
+2. **tier 2 — tracker-derived upper bound (deferred).** An upper bound of the
+   form `1700 − Σ(the four list counters)` needs the five-list tracker (WP12),
+   which is excluded from this wave. It is an upper bound at best, contaminated
+   by subunits, and not a free-slot count; it does not ship here.
+3. **tier 3 — exact one-shot walk (`T-WP10-T2`).** Walk the free list node by
+   node at ~22–28T executed per free node, once at map start or on author
+   request, never per tick. It answers the exact count and is out of scope for
+   tier 1.
+
+Cost contract:
+
+| Form | Static | Executed |
+|---|---|---|
+| `when([free_list_empty()], body)` idle | 1T + body | 1T + body |
+| `when([free_list_empty()], body)` empty | 1T + body | 1T + body |
+| counter form (`1700 −` four list counters) | 1C + 1T + read | 6–7T and wrong |
+
+**Rejection: `0x6283F0`.** The counter at `0x6283F0` is
+`|U|+|T|+|S|+|D|+subunits`, not the number of free CUnit slots.
+`1700 − 0x6283F0` therefore over-reports headroom, and it goes stale the
+moment any of the lists is hijacked by a runtime list rewrite. It is rejected
+as an upper bound and must not be reintroduced; the one-condition head read
+above is the tier-1 truth. Tier 2 remains blocked on WP12, and tier 3 is
+`T-WP10-T2`.
+
+**Series note.** §8 item 1 (the 20T pointer reader) is rewritten by `T-WP6` in
+the same series; this section does not touch it.
+
 ## Implementation notes
 
 - `func()` is implemented (`py/temporal.py`, `ts/temporal.ts`) and the shared
