@@ -67,6 +67,10 @@ pub enum LowerError {
     InvalidVarStore,
     #[error("EUDSL-BOUNDS: module string index {0} has no STR offset")]
     MissingStringOffset(usize),
+    #[error(
+        "EUDSL-BOUNDS: module string {0} has no 16-bit wire id (template_count + index + 1 must fit 16 bits)"
+    )]
+    StringIdOutOfRange(usize),
     #[error("HIR statement kind {0} has no lowering yet")]
     UnsupportedStmt(&'static str),
 }
@@ -98,6 +102,40 @@ fn module_string_addr(
     Ok(0x2000_0000u32
         .wrapping_add((index as u32).wrapping_mul(0x10000))
         .wrapping_add(offset as u32))
+}
+
+/// Resolve one string relocation into the 4-byte value to patch.
+///
+/// Modes 1/4 resolve a module string to an address (EPD or byte address).
+/// `mode == 6` resolves the 16-bit wire string id instead: the same
+/// `module_string_base + index + 1` expression that seeds `ctrig.strid`,
+/// shifted into the field's lane. It must never touch `module_string_addr`,
+/// because the id is an index, not the synthetic `0x2000_0000` address.
+fn resolve_string_field_value(
+    r: &HirReloc,
+    string_index: usize,
+    module_string_base: usize,
+    template_count: usize,
+    str_addrs: Option<&[u32]>,
+) -> Result<u32, LowerError> {
+    if r.mode == 6 {
+        let shift = r.target_offset;
+        if shift > 31 {
+            return Err(LowerError::StringIdOutOfRange(string_index));
+        }
+        let id = module_string_base
+            .checked_add(string_index)
+            .and_then(|v| v.checked_add(1))
+            .filter(|v| *v <= 0xFFFF)
+            .ok_or(LowerError::StringIdOutOfRange(string_index))?;
+        return Ok(((id as u32) & 0xFFFF) << shift);
+    }
+    let addr = module_string_addr(string_index, r.target_offset, template_count, str_addrs)?;
+    Ok(if r.mode == 1 {
+        eudkit_lir::epd_u32(addr)
+    } else {
+        addr
+    })
 }
 
 #[derive(Debug, Clone)]
@@ -1579,17 +1617,13 @@ fn lower_optimized_module_inner(
             let mut data = c.to_ctrig_condition().to_cond_data();
             for r in &c.relocs {
                 if let Some(string_index) = r.target_string {
-                    let addr = module_string_addr(
+                    let value = resolve_string_field_value(
+                        r,
                         string_index,
-                        r.target_offset,
+                        module_string_base,
                         template_count,
                         str_addrs,
                     )?;
-                    let value = if r.mode == 1 {
-                        eudkit_lir::epd_u32(addr)
-                    } else {
-                        addr
-                    };
                     // Byte-accurate 4-byte window; a window that does not
                     // fit the 20-byte record is the loud LirError.
                     data.cond = data.cond.write_field_u32(r.field_offset, value)?;
@@ -1624,13 +1658,13 @@ fn lower_optimized_module_inner(
             data.uprp = a.uprp;
             for r in &a.string_relocs {
                 let string_index = r.target_string.expect("string reloc");
-                let addr =
-                    module_string_addr(string_index, r.target_offset, template_count, str_addrs)?;
-                let value = if r.mode == 1 {
-                    eudkit_lir::epd_u32(addr)
-                } else {
-                    addr
-                };
+                let value = resolve_string_field_value(
+                    r,
+                    string_index,
+                    module_string_base,
+                    template_count,
+                    str_addrs,
+                )?;
                 // Byte-accurate 4-byte window; a window that does not fit
                 // the 32-byte record is the loud LirError.
                 data.act = data.act.write_field_u32(r.field_offset, value)?;
@@ -3635,5 +3669,41 @@ mod tests {
         // The head patch points at node 1.
         let act_field = payload.addrs[0] as usize + act_field_byte_offset(0, VALUE_FIELD_OFFSET);
         assert_eq!(eudkit_lir::read_u32_le(&payload.data, act_field), n1 as u32);
+    }
+
+    /// `mode 6` is the 16-bit wire id, computed once from the same
+    /// `module_string_base + index + 1` expression that seeds `ctrig.strid`.
+    #[test]
+    fn resolve_string_field_value_resolves_ids_and_rejects_overflow() {
+        let reloc = HirReloc::string(VALUE_FIELD_OFFSET, 0, 0, 6);
+        assert_eq!(
+            resolve_string_field_value(&reloc, 0, 2, 0, None).unwrap(),
+            3
+        );
+        assert_eq!(
+            resolve_string_field_value(
+                &HirReloc::string(VALUE_FIELD_OFFSET, 0, 16, 6),
+                0,
+                2,
+                0,
+                None
+            )
+            .unwrap(),
+            3 << 16
+        );
+
+        let err = resolve_string_field_value(&reloc, 0, 0xFFFF, 0, None).unwrap_err();
+        assert!(matches!(err, LowerError::StringIdOutOfRange(0)));
+        assert!(err.to_string().starts_with("EUDSL-BOUNDS:"));
+
+        let err = resolve_string_field_value(
+            &HirReloc::string(VALUE_FIELD_OFFSET, 0, 32, 6),
+            0,
+            0,
+            0,
+            None,
+        )
+        .unwrap_err();
+        assert!(matches!(err, LowerError::StringIdOutOfRange(0)));
     }
 }

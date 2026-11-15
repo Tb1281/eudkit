@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any, Iterator, Mapping
 
+from .stock_rows_built import ACT_FIELD_OFFSETS
 from .view import (
     EPD,
     EPD_BASE,
@@ -28,6 +29,8 @@ from .view import (
     FieldSpec,
     MemFieldHandle,
     MemView,
+    _describe_value,
+    _is_plain_int,
     _locate_schema_file,
     defineMemView,
 )
@@ -177,6 +180,46 @@ class DatFieldHandle(MemFieldHandle):
         self.index = index
         self.field = field
         self.address = address
+
+    def set_string(self, fs: Any) -> None:
+        """Write ``fs``'s 16-bit wire string id into this 16-bit field.
+
+        ``fs`` is a ``FixedString`` or ``LazyFixedString`` (anything exposing
+        an integer ``message_index``). The id is resolved at assembly as
+        ``template_count + message_index + 1``, which the frontend cannot
+        know. The field's lane mask and bit shift keep the neighbouring
+        entry's id intact.
+        """
+        if self.size != 2:
+            raise EudslError(
+                "EUDSL-BOUNDS",
+                f"set_string() requires a 16-bit field; '{self.field}' is "
+                f"{self.size} bytes",
+            )
+        index = getattr(fs, "message_index", None)
+        if not _is_plain_int(index):
+            raise EudslError(
+                "EUDSL-TYPE",
+                "set_string() requires a FixedString with an integer "
+                f"message_index, got {_describe_value(fs)}",
+            )
+
+        from .hir import SetDeathsX, SetTo
+        from .trigger import Trigger
+
+        act = SetDeathsX(self._prepare_target(), SetTo, 0, 0, self.bitMask)
+        act.setdefault("relocs", []).append(
+            {
+                "field_offset": ACT_FIELD_OFFSETS["value"],  # 20
+                "target_string": int(index),
+                "target_offset": self.shift,  # 0 or 16 — a BIT shift here
+                "mode": 6,
+            }
+        )
+        Trigger(conds=[], acts=[act], preserved=True)
+
+    # Python callers get both spellings, mirroring memcpyEPD/memcpy_epd.
+    setString = set_string
 
 
 class DatEntry:
