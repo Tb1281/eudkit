@@ -32,7 +32,8 @@ import {
   type CondLike,
   type MaterializableCond,
 } from "./trigger.ts";
-import { Var, saturatingSubInto, type VarImpl } from "./var.ts";
+import { Var, VarImpl, saturatingSubInto } from "./var.ts";
+import { Expr, ReadonlyVar, toVar, type VarOperand } from "./var.ts";
 import { registerDetachedPlan, type GatePlan } from "./conditions.ts";
 
 export const EPD_BASE = 0x58a364;
@@ -48,6 +49,44 @@ export function EPD(addr: number): number {
 }
 
 export const epd = EPD;
+
+// ---------------------------------------------------------------------------
+// CUnit slot pool
+// ---------------------------------------------------------------------------
+//
+// The engine's CUnit array is 1699 slots of 336 bytes each. Slots are packed
+// back-to-back, so consecutive CUnits start 84 dwords apart. In the shifted
+// pointer space `S = A >>> 2` the slot starts therefore span
+// `[0x16732a, 0x18a052]` and the last slot starts at byte `0x628148`.
+
+/** Byte address of the first CUnit slot. */
+export const CUNIT_POOL_BASE = 0x59cca8;
+/** Bytes per CUnit slot (`schema/layouts/cunit.json`). */
+export const CUNIT_SLOT_SIZE = 336;
+/** Dwords per CUnit slot: **the stride that matters** for the EPD bound. */
+export const CUNIT_SLOT_EPDS = 84;
+/** Number of CUnit slots in the engine pool. */
+export const CUNIT_SLOT_COUNT = 1699;
+/** EPD of the first CUnit slot (`EPD(0x59cca8)`). */
+export const CUNIT_BASE_EPD = EPD(CUNIT_POOL_BASE);
+/**
+ * EPD of the last CUnit slot's first dword (`EPD(0x628148)`).
+ *
+ * Derived, not `CUNIT_BASE_EPD + CUNIT_SLOT_COUNT - 1`: each slot is 84
+ * dwords, so a naive `+1698` lands at EPD 20723 and rejects every real unit
+ * after the 21st slot.
+ */
+export const CUNIT_LAST_EPD =
+  CUNIT_BASE_EPD + CUNIT_SLOT_EPDS * (CUNIT_SLOT_COUNT - 1);
+/** Last byte of the CUnit pool, inclusive. */
+export const CUNIT_POOL_END = 0x628297;
+
+/** Seed restoring the invariant low bits of the shifted pointer space. */
+const CUNIT_POINTER_SEED = 0x100002;
+/** One-shot bias from the shifted pointer space to the EPD space. */
+const CUNIT_POINTER_BIAS = 0xffe9d727;
+/** CUnit-slot address bits 4-21, read as shifted-pointer bits 2-19. */
+const CUNIT_POINTER_MASK = 0x3ffff0;
 
 /**
  * Loud structured DSL error carrying a canonical error code (e.g. `EUDSL-BOUNDS`).
@@ -725,6 +764,102 @@ export function readEpdPointer(epd: number): VarImpl {
   return res;
 }
 
+/**
+ * Read the CUnit byte pointer at `ptrEpd` and return its EPD (20T inline).
+ *
+ * `ptrEpd` is the EPD of the dword that holds the CUnit byte pointer: one of
+ * the list-head globals or a node's own `next`/`prev` link. The result is a
+ * `VarImpl` holding the target CUnit's EPD in the absolute eudkit space
+ * (`EPD(0x59cca8) = 19025`), ready for `withEpd`, `DeathsX` or `CUnit(epd)`.
+ *
+ * A numeric target inlines the 18 bit tests — **20T executed**, no call
+ * sequence. A runtime target binds CP via {@link withEpd} and calls the shared
+ * CP-relative body; prefer {@link readCunitPointerSaved} inside a loop, because
+ * a runtime target pays the 33T ambient CP read per call (about 60T) instead of
+ * hoisting it outside the loop.
+ *
+ * The reader does **not** validate its result. A null pointer reads as
+ * `0xfff9d729` (seed plus bias); gate the walk with {@link inCunitPool}, whose
+ * upper bound rejects that sentinel, instead of raising here.
+ */
+export function readCunitPointer(
+  ptrEpd: number | VarImpl | ReadonlyVar | Expr,
+): VarImpl {
+  if (
+    typeof ptrEpd === "boolean" ||
+    !(
+      typeof ptrEpd === "number" ||
+      ptrEpd instanceof VarImpl ||
+      ptrEpd instanceof ReadonlyVar ||
+      ptrEpd instanceof Expr
+    )
+  ) {
+    throw new EudslError(
+      "EUDSL-TYPE",
+      `CUnit pointer EPD must be a plain integer or EPD value; got ${describeValue(ptrEpd)}`,
+    );
+  }
+
+  if (typeof ptrEpd === "number") {
+    const target = requirePlainInt(ptrEpd, "CUnit pointer EPD") >>> 0;
+    const res = Var(0);
+    // Seeded reset, not `res.set(0)`: the invariant bits of the shifted
+    // pointer space (0, 1 and 20) are folded into the seed so the body is
+    // exactly 1 reset + 18 tests + 1 bias = 20T.
+    new Trigger({
+      conds: [],
+      acts: [res.act_set(CUNIT_POINTER_SEED)],
+      preserved: true,
+    });
+    emitBitTestRead(target, 18, 2, res, CUNIT_POINTER_MASK);
+    res.iadd(CUNIT_POINTER_BIAS);
+    return res;
+  }
+
+  return requireWithEpdFactory()(ptrEpd, () => _declareCunitReader()()) as VarImpl;
+}
+
+/**
+ * Loop form: the caller already holds the ambient CP value in `savedCp`.
+ *
+ * Hoist the 33T ambient CP read outside the loop, then call this once per
+ * node. It never reads the ambient CP: one store, the shared call, one
+ * restore, plus the caller's own advance — about 28T per node — instead of the
+ * ~60T {@link readCunitPointer} pays for a runtime target.
+ */
+export function readCunitPointerSaved(
+  savedCp: VarImpl,
+  ptrEpd: number | VarImpl | ReadonlyVar | Expr,
+): VarImpl {
+  return requireWithEpdSavedFactory()(
+    savedCp,
+    ptrEpd,
+    () => _declareCunitReader()(),
+  ) as VarImpl;
+}
+
+/**
+ * `CUNIT_BASE_EPD <= epd <= CUNIT_LAST_EPD` as two splicable conditions.
+ *
+ * Returns `[epd.ge(CUNIT_BASE_EPD), epd.le(CUNIT_LAST_EPD)]` so a loop gate can
+ * do `[...inCunitPool(ptr), done.eq(0)]` without wrapping a trigger.
+ *
+ * A null pointer reads as `0xfff9d729`, which is **above** `CUNIT_LAST_EPD`
+ * (161,657): the upper bound, not the lower bound, is what rejects end-of-list.
+ * This is a predicate, never a raise, so a hijacked list stays observable and
+ * diagnosable.
+ */
+export function inCunitPool(
+  epd: number | VarImpl | ReadonlyVar | Expr,
+): HirCond[] {
+  const value = toVar(epd as VarOperand);
+  return [value.ge(CUNIT_BASE_EPD), value.le(CUNIT_LAST_EPD)];
+}
+
+export const read_cunit_pointer = readCunitPointer;
+export const read_cunit_pointer_saved = readCunitPointerSaved;
+export const in_cunit_pool = inCunitPool;
+
 // ---------------------------------------------------------------------------
 // Shared full-dword reader (one subroutine per build)
 // ---------------------------------------------------------------------------
@@ -757,6 +892,55 @@ var funcFactory: FuncFactory | null | undefined;
 
 export function _registerFuncFactory(factory: FuncFactory): void {
   funcFactory = factory;
+}
+
+/**
+ * Late-bound CP-binding factories.
+ *
+ * `view` cannot import `cp` (cp imports view), so cp registers `withEpd` and
+ * `_withEpdSaved` here at module load. The CUnit reader resolves them at call
+ * time, exactly like the `func` factory above.
+ */
+type WithEpdFactory = (epd: any, fn: () => any) => any;
+type WithEpdSavedFactory = (
+  savedCp: VarImpl,
+  epd: any,
+  fn: () => any,
+) => any;
+
+// `var` for the same cycle reason as `funcFactory`: cp's registration can run
+// while view is still evaluating in an entry point that loads cp first.
+// eslint-disable-next-line no-var
+var withEpdFactory: WithEpdFactory | null | undefined;
+// eslint-disable-next-line no-var
+var withEpdSavedFactory: WithEpdSavedFactory | null | undefined;
+
+export function _registerCpFactories(
+  withEpd: WithEpdFactory,
+  withEpdSaved: WithEpdSavedFactory,
+): void {
+  withEpdFactory = withEpd;
+  withEpdSavedFactory = withEpdSaved;
+}
+
+function requireWithEpdFactory(): WithEpdFactory {
+  if (withEpdFactory === null || withEpdFactory === undefined) {
+    throw new EudslError(
+      "EUDSL-SCOPE",
+      "readCunitPointer() requires the cp frontend to be loaded",
+    );
+  }
+  return withEpdFactory;
+}
+
+function requireWithEpdSavedFactory(): WithEpdSavedFactory {
+  if (withEpdSavedFactory === null || withEpdSavedFactory === undefined) {
+    throw new EudslError(
+      "EUDSL-SCOPE",
+      "readCunitPointerSaved() requires the cp frontend to be loaded",
+    );
+  }
+  return withEpdSavedFactory;
 }
 
 /** Callable handle for the shared full-dword reader. */
@@ -822,6 +1006,45 @@ function sharedDwordReader(): SharedDwordReader {
     }
     return handle();
   }) as SharedDwordReader;
+}
+
+/**
+ * One CUnit reader body per builder.
+ *
+ * Unlike the shared dword reader there is no per-address cache: the body's
+ * condition target is always the literal `CURRENT_PLAYER` EPD, and
+ * `withEpd`/`_withEpdSaved` bind CP around the call.
+ */
+const cunitReaders = new WeakMap<object, () => VarImpl>();
+
+/** Declare (once per builder) the shared CP-relative CUnit pointer body. */
+export function _declareCunitReader(): () => VarImpl {
+  const builder = _getActiveModuleBuilder();
+  if (builder === null) {
+    throw new EudslError(
+      "EUDSL-SCOPE",
+      "readCunitPointer() must be called inside buildModule()",
+    );
+  }
+  let handle = cunitReaders.get(builder);
+  if (handle === undefined) {
+    const kernelBody = (): VarImpl => {
+      const res = Var(0);
+      res.set(CUNIT_POINTER_SEED);
+      emitBitTestRead(CurrentPlayer, 18, 2, res, CUNIT_POINTER_MASK);
+      res.iadd(CUNIT_POINTER_BIAS);
+      return res;
+    };
+    if (funcFactory === null || funcFactory === undefined) {
+      throw new EudslError(
+        "EUDSL-SCOPE",
+        "readCunitPointer() requires the temporal frontend to be loaded",
+      );
+    }
+    handle = funcFactory(kernelBody) as () => VarImpl;
+    cunitReaders.set(builder, handle);
+  }
+  return handle;
 }
 
 // ---------------------------------------------------------------------------

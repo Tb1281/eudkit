@@ -413,3 +413,44 @@ def with_epd(
 
 
 withEpd = with_epd
+
+
+def _with_epd_saved(saved_cp: Var, epd: Any, body: Callable[[], Any]) -> Any:
+    """Bind CP to ``epd`` for ``body()`` without reading the ambient CP.
+
+    The loop contract behind :func:`py.view.read_cunit_pointer_saved`: the
+    caller hoists the 33T ambient read once, passes its `Var` as ``saved_cp``,
+    then calls this per node. It emits exactly one CP store, ``body()`` and one
+    restore, and never reads ``CP_ADDR``.
+
+    ``epd`` is materialised with :func:`to_var` and only read, so a caller's
+    `Var` is never mutated and an `Expr` (e.g. ``ptr.add(1)``) is accepted.
+    ``saved_cp`` must be a `Var`; anything else is ``EUDSL-TYPE``.
+    """
+    if not isinstance(saved_cp, Var):
+        raise EudslError(
+            "EUDSL-TYPE",
+            f"_with_epd_saved saved_cp must be a Var; got {saved_cp!r}",
+        )
+    if isinstance(epd, bool) or not isinstance(
+        epd, (int, Var, ReadonlyVar, Expr)
+    ):
+        raise EudslError(
+            "EUDSL-TYPE",
+            "_with_epd_saved epd must be an EPD-bearing value "
+            f"(int, Var, ReadonlyVar, or Expr); got {epd!r}",
+        )
+    if not callable(body):
+        raise EudslError(
+            "EUDSL-TYPE",
+            f"_with_epd_saved body must be callable; got {body!r}",
+        )
+
+    # `to_var` allocates a private scratch Var for an int or Expr; a Var or
+    # ReadonlyVar is only read, never mutated.
+    scratch = to_var(epd)
+    emitVarStore(scratch.id, AddrReloc(CP_ADDR), SetTo)
+    try:
+        return body()
+    finally:
+        emitVarStore(saved_cp.id, AddrReloc(CP_ADDR), SetTo)

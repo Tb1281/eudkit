@@ -29,6 +29,42 @@ def EPD(addr: int) -> int:
 epd = EPD
 
 
+# ---------------------------------------------------------------------------
+# CUnit slot pool
+# ---------------------------------------------------------------------------
+#
+# The engine's CUnit array is 1699 slots of 336 bytes each. Slots are packed
+# back-to-back, so consecutive CUnits start 84 dwords apart. In the shifted
+# pointer space ``S = A >> 2`` the slot starts therefore span
+# ``[0x16732A, 0x18A052]`` and the last slot starts at byte ``0x628148``.
+#
+#: Byte address of the first CUnit slot.
+CUNIT_POOL_BASE = 0x59CCA8
+#: Bytes per CUnit slot (``schema/layouts/cunit.json``).
+CUNIT_SLOT_SIZE = 336
+#: Dwords per CUnit slot: **the stride that matters** for the EPD bound.
+CUNIT_SLOT_EPDS = 84
+#: Number of CUnit slots in the engine pool.
+CUNIT_SLOT_COUNT = 1699
+#: EPD of the first CUnit slot (``EPD(0x59CCA8)``).
+CUNIT_BASE_EPD = EPD(CUNIT_POOL_BASE)
+#: EPD of the last CUnit slot's first dword (``EPD(0x628148)``).
+#:
+#: Derived, not ``CUNIT_BASE_EPD + CUNIT_SLOT_COUNT - 1``: each slot is 84
+#: dwords, so a naive ``+1698`` lands at EPD 20723 and rejects every real unit
+#: after the 21st slot.
+CUNIT_LAST_EPD = CUNIT_BASE_EPD + CUNIT_SLOT_EPDS * (CUNIT_SLOT_COUNT - 1)
+#: Last byte of the CUnit pool, inclusive.
+CUNIT_POOL_END = 0x628297
+
+#: Seed restoring the invariant low bits of the shifted pointer space.
+_CUNIT_POINTER_SEED = 0x100002
+#: One-shot bias from the shifted pointer space to the EPD space.
+_CUNIT_POINTER_BIAS = 0xFFE9D727
+#: CUnit-slot address bits 4-21, read as shifted-pointer bits 2-19.
+_CUNIT_POINTER_MASK = 0x3FFFF0
+
+
 def _validate_mask_shift(mask: int, shift: int, field_name: str | None) -> None:
     """Reject a custom mask whose set bits fall below the field's byte shift."""
     below = (mask & ((1 << shift) - 1)) if shift > 0 else 0
@@ -318,6 +354,94 @@ def read_epd_pointer(epd: int) -> Any:
     return res
 
 
+def read_cunit_pointer(ptr_epd: Any) -> Any:
+    """Read the CUnit byte pointer at ``ptr_epd`` and return its EPD (20T inline).
+
+    ``ptr_epd`` is the EPD of the dword that holds the CUnit byte pointer: one
+    of the list-head globals or a node's own ``next``/``prev`` link. The result
+    is a `Var` holding the target CUnit's EPD in the absolute eudkit space
+    (``EPD(0x59CCA8) = 19025``), ready for `with_epd`, ``DeathsX`` or
+    ``CUnit(epd)``.
+
+    An ``int`` target inlines the 18 bit tests — **20T executed**, no call
+    sequence. A runtime target binds CP via :func:`py.cp.with_epd` and calls
+    the shared CP-relative body; prefer :func:`read_cunit_pointer_saved` inside
+    a loop, because a runtime target pays the 33T ambient CP read per call
+    (about 60T) instead of hoisting it outside the loop.
+
+    The reader does **not** validate its result. A null pointer reads as
+    ``0xFFF9D729`` (seed plus bias); gate the walk with :func:`in_cunit_pool`,
+    whose upper bound rejects that sentinel, instead of raising here.
+    """
+    from .trigger import Trigger
+    from .var import Expr, ReadonlyVar, Var
+
+    if isinstance(ptr_epd, bool) or not isinstance(
+        ptr_epd, (int, Var, ReadonlyVar, Expr)
+    ):
+        raise EudslError(
+            "EUDSL-TYPE",
+            "CUnit pointer EPD must be a plain integer or EPD value; "
+            f"got {_describe_value(ptr_epd)}",
+        )
+
+    if _is_plain_int(ptr_epd):
+        res = Var(0)
+        # Seeded reset, not `res.set(0)`: the invariant bits of the shifted
+        # pointer space (0, 1 and 20) are folded into the seed so the body is
+        # exactly 1 reset + 18 tests + 1 bias = 20T.
+        Trigger(
+            conds=[],
+            acts=[res.act_set(_CUNIT_POINTER_SEED)],
+            preserved=True,
+        )
+        emit_bit_test_read(
+            int(ptr_epd) & 0xFFFFFFFF,
+            18,
+            2,
+            res,
+            mask=_CUNIT_POINTER_MASK,
+        )
+        res.iadd(_CUNIT_POINTER_BIAS)
+        return res
+
+    from .cp import with_epd
+
+    return with_epd(ptr_epd, lambda _cp: _declare_cunit_reader()())
+
+
+def read_cunit_pointer_saved(saved_cp: Any, ptr_epd: Any) -> Any:
+    """Loop form: caller already holds the ambient CP value in ``saved_cp``.
+
+    Hoist the 33T ambient CP read outside the loop, then call this once per
+    node. It never reads the ambient CP: one store, the shared call, one
+    restore, plus the caller's own advance — about 28T per node — instead of
+    the ~60T :func:`read_cunit_pointer` pays for a runtime target.
+    """
+    from .cp import _with_epd_saved
+
+    return _with_epd_saved(
+        saved_cp, ptr_epd, lambda: _declare_cunit_reader()()
+    )
+
+
+def in_cunit_pool(epd: Any) -> list[Any]:
+    """``CUNIT_BASE_EPD <= epd <= CUNIT_LAST_EPD`` as two splicable conditions.
+
+    Returns ``[epd.ge(CUNIT_BASE_EPD), epd.le(CUNIT_LAST_EPD)]`` so a loop gate
+    can do ``[*in_cunit_pool(ptr), done.eq(0)]`` without wrapping a trigger.
+
+    A null pointer reads as ``0xFFF9D729``, which is **above**
+    ``CUNIT_LAST_EPD`` (161,657): the upper bound, not the lower bound, is what
+    rejects end-of-list. This is a predicate, never a raise, so a hijacked list
+    stays observable and diagnosable.
+    """
+    from .var import to_var
+
+    value = to_var(epd)
+    return [value.ge(CUNIT_BASE_EPD), value.le(CUNIT_LAST_EPD)]
+
+
 # Shared full-dword reader subroutines, one body per target address.
 #
 # The inline reader is 32 bit-test triggers per call site. Declaring it once
@@ -392,6 +516,45 @@ def _declare_dword_reader(epd: int) -> Any:
         return res
 
     return func(kernel_body)
+
+
+# One CUnit reader body per builder. Unlike the shared dword reader there is no
+# per-address cache: the body's condition target is always the literal
+# `CURRENT_PLAYER` EPD, and `with_epd`/`_with_epd_saved` bind CP around the call.
+_CUNIT_READERS: "weakref.WeakKeyDictionary[Any, Any]" = weakref.WeakKeyDictionary()
+
+
+def _declare_cunit_reader() -> Any:
+    """Declare (once per builder) the shared CP-relative CUnit pointer body."""
+    from .temporal import func
+    from .trigger import _get_active_module_builder
+    from .var import Var
+
+    builder = _get_active_module_builder()
+    if builder is None:
+        raise EudslError(
+            "EUDSL-SCOPE",
+            "read_cunit_pointer() must be called inside buildModule()",
+        )
+    handle = _CUNIT_READERS.get(builder)
+    if handle is None:
+
+        def kernel_body() -> Any:
+            res = Var(0)
+            res.set(_CUNIT_POINTER_SEED)
+            emit_bit_test_read(
+                CURRENT_PLAYER,
+                18,
+                2,
+                res,
+                mask=_CUNIT_POINTER_MASK,
+            )
+            res.iadd(_CUNIT_POINTER_BIAS)
+            return res
+
+        handle = func(kernel_body)
+        _CUNIT_READERS[builder] = handle
+    return handle
 
 
 class EudslError(ValueError):

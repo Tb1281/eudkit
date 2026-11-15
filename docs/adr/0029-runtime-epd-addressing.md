@@ -118,6 +118,21 @@ turn a blob into an array. Runtime bases remain rejected: `with_epd` (ticket
 `T-WP5`) is the sanctioned CP-relative body form, and the runtime-indexed
 shadow backing is recorded as deferred in ADR 0030.
 
+**CP-relative reader bodies.** A shared `func` body may read a runtime
+address only by binding CP before the call: a condition's `player` field must
+be a literal EPD, so the address cannot be passed as a runtime value. The body
+therefore reads `CURRENT_PLAYER` (`13`) and every call pays one CP store and
+one restore. This is the shape of the 20T CUnit pointer reader (`T-WP6`): 18
+bit tests against the dword CP currently holds, seeded `0x100002` with bias
+`0xFFE9D727`, and no per-address body cache because the target is always
+`CURRENT_PLAYER`.
+
+`_with_epd_saved(saved_cp, epd, body)` is the loop contract. The caller hoists
+the 33T ambient read once, then each node pays only the store, the call, the
+restore and its own advance. Never hoist a store: CP is clobbered by the body
+and by other readers, so each call must bind its own base. Always hoist the
+read: the ambient value is loop-invariant, while the binding is not.
+
 ### 6. Parity
 
 For the same program both frontends emit byte-identical HIR:
@@ -170,7 +185,8 @@ Cost: one full-dword ambient read (the shared reader is a 33T body or a call),
 one bind store, one restore, plus the optional one-act pre-hop — at most 36T
 per non-shared site, the budget in ticket `T-WP5`. A private
 `_with_epd_saved(saved, ...)` form for callers that already hold the ambient CP
-is deferred rather than widening the public signature.
+is the loop contract (`T-WP6`) and stays private rather than widening the
+public signature.
 
 What remains rejected: a runtime **base** for `with_cp` (the int-only guard
 is a correctness requirement), a general `store(computed_addr, value)`, and a
