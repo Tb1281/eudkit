@@ -16,6 +16,7 @@ export * from "./soundlooper.ts";
 export * from "./noaircollision.ts";
 export * from "./unlimiter.ts";
 export * from "./temporal.ts";
+export * from "./units.ts";
 export * from "./array.ts";
 export * from "./queue.ts";
 export * from "./string.ts";

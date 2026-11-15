@@ -61,12 +61,14 @@ a per-site 48 KB cost.
 
 ## Decision
 
-> **Scope note (2026-11-07).** Decision 7 is implemented, by issue #101.
-> Decisions 1–6 are confirmed as the accepted design direction, but remain
-> unimplemented: none of `for_each_unit_list`, `for_each_unit_slots`,
-> `for_each_player_unit`, `for_each_new_unit`, `for_each_tracked`, or
-> `Break` exists in `py/` or `ts/` today. This ADR is not a current API
-> contract for those names until their implementation tickets land.
+> **Scope note (2026-11-07; amended 2026-11-16).** Decision 7 is implemented
+> (issue #101). Decision 2's `for_each_unit_list` / `forEachUnitList`, its
+> `UnitLoop` handle, and the named `Break` sentinel are implemented by
+> `T-WP7` (`py/units.py`, `ts/units.ts`). The other four primitives in
+> decision 2 — `for_each_unit_slots`, `for_each_player_unit`,
+> `for_each_new_unit`, and `for_each_tracked` — remain confirmed design
+> direction but unimplemented; this ADR is not a current API contract for
+> those names until their implementation tickets land.
 >
 > The confirmation covers Q1, Q3, and Q6 as written, including the Q3
 > requirement to restore the actual previous `curpl` on the break path and
@@ -86,23 +88,24 @@ The five underlying algorithms are: global linked list, fixed-slot scan,
 per-player list, new-unit scan, and generic list. Eudkit ports the
 **semantics**, not the eudplib implementation.
 
-### 2. API surface (Q1, Q6, Q9) — confirmed (not implemented)
+### 2. API surface (Q1, Q6, Q9) — `for_each_unit_list` implemented; the rest confirmed (not implemented)
 
 Ship a small first-class core with Py/TS parity and one docs page. The
 explicit primitives are:
 
-- `for_each_unit_list` — walk the global CUnit list.
+- `for_each_unit_list` / `forEachUnitList` — **implemented** (`T-WP7`): walk
+  one global CUnit list. See the implementation contract below.
 - `for_each_unit_slots` — scan the fixed 1699 slots. This is the documented
-  default for all-units iteration.
-- `for_each_player_unit` — walk one player's unit list.
+  default for all-units iteration. Not implemented.
+- `for_each_player_unit` — walk one player's unit list. Not implemented.
 - `for_each_new_unit` — detect units created since the previous invocation.
   Ships only if the two-call-site test in decision 5 passes; otherwise the
-  API is deferred per decision 5.
+  API is deferred per decision 5. Not implemented.
 - `for_each_tracked` — iterate a `UnitGroup`; delegates to
   `UnitGroup.for_each` and inherits its capacity. Static size follows the
   formula in decision 7; warn above ~512 static triggers (≈1.2 MB). The
   warning is advisory, not a hard cap; no hard cap is imposed, and large
-  tracked sets can opt into compact mode.
+  tracked sets can opt into compact mode. Not implemented.
 
 `for_each_unit` is **reserved** for a future auto-selecting version and is
 not shipped fixed to the slot scan. Auto-selection requires runtime density
@@ -116,8 +119,79 @@ It is not separately exposed in the first surface.
 The callback API returns a named `Break` sentinel to stop iteration. `Break`
 is a named value, **not a boolean**: an accidental truthy return must not
 terminate the loop. Any other return, including `None`, continues to the next
-element; `continue` is a normal return. The loop lowers to the HIR `while`
-form; no generator plumbing is introduced.
+element. The loop lowers to the HIR `while` form; no generator plumbing is
+introduced.
+
+**Implemented contract (`for_each_unit_list`).** The Python signature is
+`for_each_unit_list(list_name, body, reentrant=False)`; the TypeScript
+signature is `forEachUnitList(listName, body, { reentrant = false } = {})`.
+The build-time option-object divergence mirrors `compact=True` versus
+`{ compact: true }`. The body receives `(unit_epd, loop)`: `unit_epd` is the
+runtime `Var` in eudkit's absolute EPD space (so `with_epd(unit_epd, ...)`
+reads `CUnit` fields), and `loop` is a `UnitLoop` exposing `list_name`,
+`epd`, and `break_()` (alias `breakLoop()` in TypeScript).
+
+- **Break sentinel.** Return `BREAK` (the singleton `Break()`) from the body,
+  or call `loop.break_()`, to stop the walk after the current node.
+  `break_()` emits one `done.set(1)` at the current build point, so the
+  author gates it at runtime (`when([...], loop.break_)`); it may be called
+  more than once (one act each, still one stop). The check is identity
+  (`ret is BREAK` / `ret === BREAK`), never truthiness: `True` and every
+  other value continue. `BREAK` is not `True`, `1`, or a sentinel-by-value.
+- **No `continue` in v1.** The body is emitted once inside a runtime `while`,
+  so there is no body-level "skip the rest of this node" form. Gate the
+  remaining acts with `when` instead; there is no `Continue` sentinel.
+- **`reentrant`.** Default `False` reads the successor link *after* the body;
+  `reentrant=True` reads it *before*, so a body that frees the current node
+  still reaches the successor. The flag is a plain `bool`; anything else is
+  `EUDSL-TYPE`.
+- **Diagnostics.** A non-`str`/unknown/lowercase list name, a non-plain-`bool`
+  `reentrant`, a non-callable body, and `break_()` outside a walk are
+  `EUDSL-TYPE`. `"F"` (the free list) is `EUDSL-BOUNDS`, with the message
+  `the free list is not a unit list: walking it enumerates unallocated slots;
+  use free_list_empty() / free_list_walk()`. An empty list is not an error:
+  it is a zero-iteration walk, and the CP restore still runs.
+
+**Head/tail table.** `CUnit.prev` is at `+0` and `CUnit.next` at `+4`
+(`schema/layouts/cunit.json`), so a forward link is `unit_epd + 1` and a
+backward link is `unit_epd + 0`:
+
+| List | Walk | Head/tail dword (EPD) | Link offset |
+|---|---|---|---|
+| `U` (in use) | forward via `next` | `0x628430` (161843) | `+1` |
+| `T` (hidden) | forward via `next` | `0x628428` (161841) | `+1` |
+| `S` (revealer) | forward via `next` | `0x628434` (161844) | `+1` |
+| `D` (dying) | **backward via `prev`** | **tail** `0x62842C` (161842) | `+0` |
+| `F` (free) | — | `0x628438` (161845) / `0x62843C` (161846) | rejected |
+
+`D` is walked backward from the tail because `0x59CC98` is not a usable head
+on Remastered: a forward `D` walk yields an empty set and silently misses
+every death. This is a correctness requirement, not an optimization. `F` is
+not an iteration target — it enumerates unallocated slots — and is rejected
+with `EUDSL-BOUNDS`; use `free_list_empty` (tier 1, §9) or the tier-3
+one-shot walk (`T-WP10-T2`) instead.
+
+**Cost table (per site / per node).** Measured by the simulator fixture
+(`crates/eudkit-cli/tests/unit_list_walk.rs`) with the 20T
+`read_cunit_pointer_saved` reader from §8:
+
+| Item | Executed |
+|---|---|
+| ambient CP save (`read_current_player_register`) | 33T, once per site |
+| head bind (`ptr.set(read_cunit_pointer_saved(saved, head))`) | once per site |
+| per-node loop scaffolding (3-condition gate + advance gate/act) | ~5T |
+| link add (U/T/S only; `ptr + 1`) | ~2T |
+| `read_cunit_pointer_saved` per node (store + call + 20T body + restore) | ~29T |
+| **U/T/S per node (measured)** | **36T** |
+| **D per node (measured)** | **34T** |
+| final CP restore | once per site, unconditional |
+
+The measured U/T/S figure is above the ticket's ~30–33T estimate because
+`ptr + 1` materialises as a two-act transfer rather than one; both figures
+stay inside the corrected `~35–40T` per-node row. The restore runs after the
+loop unconditionally, including the break and empty-list paths. Do not hoist
+the ambient read into the loop: that is the per-node regression the saved
+reader exists to prevent.
 
 ### 3. Cost policy and gating (Q5r) — confirmed (not implemented)
 

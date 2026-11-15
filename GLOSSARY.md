@@ -744,11 +744,13 @@ _Avoid_: camera lock, view lerp, "paused-game no-op" (the gate is multiplayer mo
 
 ## Unit Iteration
 
-**Status:** `slot scan`, `list walk`, `density crossover`, and `new-unit snapshot` are planned —
-[ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) decisions 1–6, not implemented. **tracked
-group** (`UnitGroup.for_each`, unrolled default), **compact mode**, and the **runtime-loop API** are
-current ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) decision 7). Each planned entry
-also says so inline.
+**Status:** `list walk` (`for_each_unit_list` / `forEachUnitList` over `U`/`T`/`S`/`D`,
+with the `Break` sentinel and the `reentrant` option) is current (`T-WP7`). `slot scan`,
+`density crossover`, and `new-unit snapshot` are planned —
+[ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) decisions 1–6, not implemented.
+**tracked group** (`UnitGroup.for_each`, unrolled default), **compact mode**, and the
+**runtime-loop API** are current ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md)
+decision 7). Each planned entry also says so inline.
 
 **slot scan**:
 A unit-iteration strategy that walks all 1699 fixed CUnit slots and checks liveness per slot; static
@@ -760,10 +762,10 @@ _Avoid_: unit array scan, `EUDLoopUnit2` (when naming the strategy), "1700 stati
 **list walk**:
 A unit-iteration strategy that follows `nextUnit` pointers from a list head. The reference loop
 costs ~35–40T executed per live node — per-node loop overhead, not the pointer read alone — and
-scales with the walked node count. A pointer read costs 32T today and 20T with the planned bits-0–19
+scales with the walked node count. A pointer read costs 32T today and 20T with the bits-0–19
 reader ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) §8); do not read the 20T figure as
-the whole per-node cost. Planned — [ADR 0015](./docs/adr/0015-unit-iteration-strategies.md)
-decisions 1–6; not implemented.
+the whole per-node cost. Implemented for `U`/`T`/`S`/`D` by `for_each_unit_list` (`T-WP7`); the
+slot-scan and new-unit siblings remain planned — decisions 1–6.
 _Avoid_: pointer chase, linked-list loop.
 
 **density crossover**:
@@ -871,6 +873,34 @@ _Avoid_: null EPD, end-of-list marker (for the value).
 (`[*in_cunit_pool(ptr), done.eq(0)]`). It never raises: a map with a hijacked list stays
 diagnosable, and the upper bound rejects the null sentinel.
 _Avoid_: assert-in-pool, `EUDSL-BOUNDS` for a dead list, wrapping the check in a trigger.
+
+**unit list (U/T/S/D)**:
+One of the four global CUnit lists walked by `for_each_unit_list` / `forEachUnitList`:
+`UNIT_LIST_U` (in use), `UNIT_LIST_T` (hidden), `UNIT_LIST_S` (revealers), and
+`UNIT_LIST_D` (dying). `U`/`T`/`S` walk forward from `next` (`unit_epd + 1`) starting at
+their head dwords `161843`/`161841`/`161844`; `D` walks **backward** from the tail
+`161842` through `prev` (`unit_epd + 0`), because the old forward `D` head is not usable on
+Remastered and a forward walk silently misses every death. The free list `F`
+(`161845`/`161846`) is not a unit list and is rejected with `EUDSL-BOUNDS`.
+_Avoid_: unit array, `EUDLoopUnit` (when naming the eudkit surface), forward `D` walk.
+
+**reentrant walk**:
+A `for_each_unit_list(..., reentrant=True)` / `forEachUnitList(..., { reentrant: true })`
+walk that reads the successor link **before** running the body, so a body that frees the
+current CUnit still reaches the next node. The default (`reentrant=False`) reads the link
+**after** the body; if the body frees the node, the walk stops after one iteration because
+its own link is gone. The flag changes read/body order only; it is a plain `bool`, and the
+ambient CurrentPlayer save is still once per site.
+_Avoid_: safe loop, pre-fetch flag, "retry the walk".
+
+**`Break` sentinel**:
+The named `BREAK` singleton (`Break()` in Python, `BREAK`/`Break` in TypeScript) returned
+from a unit-list body to stop the walk after the current node. It is checked by identity
+(`ret is BREAK` / `ret === BREAK`), never by truthiness: `True`, `1`, and every other value
+continue. `loop.break_()` / `loop.breakLoop()` is the imperative form and emits one
+`done.set(1)` at the build point, so callers gate it at runtime
+(`when([...], loop.break_)`). There is no `continue` sentinel in v1.
+_Avoid_: boolean break, truthy return, `Continue` sentinel.
 
 ## Player Names
 

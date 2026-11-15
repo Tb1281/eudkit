@@ -304,6 +304,16 @@ from .temporal import (
     whileLoop,
     while_loop,
 )
+from .units import (
+    BREAK,
+    UNIT_LIST_D,
+    UNIT_LIST_S,
+    UNIT_LIST_T,
+    UNIT_LIST_U,
+    Break,
+    UnitLoop,
+    for_each_unit_list,
+)
 from .conditions import (
     condAll,
     condAny,
@@ -750,6 +760,14 @@ __all__ = [
     "readCunitPointerSaved",
     "read_cunit_pointer",
     "read_cunit_pointer_saved",
+    "BREAK",
+    "Break",
+    "UNIT_LIST_D",
+    "UNIT_LIST_S",
+    "UNIT_LIST_T",
+    "UNIT_LIST_U",
+    "UnitLoop",
+    "for_each_unit_list",
     "PLAYER_NAME_BYTES",
     "PLAYER_NAME_EPDS",
     "PLAYER_NAME_MAX_BYTES",
