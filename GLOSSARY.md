@@ -1065,3 +1065,36 @@ it) on every trigger loop. A first-loop `once` block reads the table's base
 EPD and rewrites every action destination to `P, P + 1, ... P + 7,310` by
 walking the trigger records at the fixed 602-EPD stride ([ADR 0024](./docs/adr/0024-noaircollision-scrubber-helper.md)).
 _Avoid_: air-collision plugin, dummy action, collision mask, hitbox helper.
+
+**signed divmod family**:
+The three signed division/modulo helpers (`div_towards_zero`/`mod_towards_zero`,
+`div_floor`/`mod_floor`, `div_euclid`/`mod_euclid`) lowering sign-magnitude
+fixups over `var`'s shared unsigned restoring ladder ([ADR 0034](./docs/adr/0034-signed-math-trig-and-binary-search.md)).
+_Avoid_: signed `f_div` with tuple out-params inside `VProc`.
+
+**Q16 trig payload table**:
+Module-level cached Q16 (`65536` scale) lookup tables for `atan2_256`/`atan2`,
+`lengthdir`, and `lengthdir_256`, materialized once per builder as `Db` blobs
+from `ConstFixedArray` specs and indexed at runtime via `with_epd`.
+_Avoid_: rebuilding trigonometric `Db` blobs per call site.
+
+**exponentiation-by-squaring**:
+Compile-time-exponent `pow(base, exp, bits)` lowering via MSB-first
+`Var.imul` squaring and multiply sites without runtime exponent loops.
+
+**binary classification search**:
+`binary_min` / `binary_max` executing `(hi - lo + 1).bit_length()` halving steps
+over monotone condition-only predicates and returning `hi + 1` / `lo - 1` when
+no element matches.
+
+**LCG state / `dwrand` word assembly**:
+Per-builder private `Var` updated by `state = state * 1103515245 + 12345`
+(`HIWORD` draw for `rand`, two draws shifted/packed into one dword for `dwrand`),
+seeded deterministically via `GAME_TICK_ADDR` in `randomize()` ([ADR 0035](./docs/adr/0035-per-builder-lcg-prng.md)).
+_Avoid_: process-global seed variables or `Switch` rewiring in `randomize`.
+
+**player state accessor / `PVariable` / player broadcast loop**:
+`Player(0..11)` (`PlayerField` views over SC:R player arrays), 8-slot
+`PVariable` (`FixedArray(arrayDword, 8)`), `turbo()` (`0x6509A0 = 0`),
+arithmetic `player_exists(0..7)`, and CP-preserving `for_each_player` plus six
+`*_all` broadcasts taking raw integer location ids ([ADR 0036](./docs/adr/0036-player-state-pvariable-and-broadcasts.md)).

@@ -28,3 +28,4 @@ export * from "./camera.ts";
 export * from "./dat.ts";
 export * from "./capacity.ts";
 export * from "./player.ts";
+export * from "./random.ts";
