@@ -1098,3 +1098,19 @@ _Avoid_: process-global seed variables or `Switch` rewiring in `randomize`.
 `PVariable` (`FixedArray(arrayDword, 8)`), `turbo()` (`0x6509A0 = 0`),
 arithmetic `player_exists(0..7)`, and CP-preserving `for_each_player` plus six
 `*_all` broadcasts taking raw integer location ids ([ADR 0036](./docs/adr/0036-player-state-pvariable-and-broadcasts.md)).
+
+**location handle / 5-dword location record / build-time geometry**:
+`Location` wrapping a 5-dword record at `0x58DC4C` (`left, top, right, bottom`,
+dword 4 untouched), build-time-clamping geometry (`draw_circle`, `draw_line`,
+`draw_polygon`, `draw_star`), and raw `0..255` integer id boundary across modules
+([ADR 0037](./docs/adr/0037-location-handles-and-geometry.md)).
+
+**tech state slot / upgrade state slot / SC/BW stride split**:
+Split SC/BW byte tables (`0x58CF44`/24 vs `0x58F140`/20 at tech `24`;
+`0x58D2B0`/46 vs `0x58F32C`/15 at upgrade `46`) lowered to masked
+`DeathsX`/`SetDeathsX` and 4-lane `with_epd` dispatch ([ADR 0038](./docs/adr/0038-tech-and-upgrade-state-tables.md)).
+
+**`CUnitView` / condition-EPD rule / `ObjectPool` / `POOL_NULL` sentinel**:
+Typed facade over `CUnit` + `CSprite.player` taking raw location ids, Rule V1
+forbidding runtime EPDs in trigger conditions, and deterministic LIFO
+`ObjectPool` (`Stack` + `FixedArray`, `POOL_NULL = 0xFFFFFFFF`) ([ADR 0039](./docs/adr/0039-cunit-view-bit-helpers-and-object-pool.md)).

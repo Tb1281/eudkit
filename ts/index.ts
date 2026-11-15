@@ -29,3 +29,5 @@ export * from "./dat.ts";
 export * from "./capacity.ts";
 export * from "./player.ts";
 export * from "./random.ts";
+export * from "./location.ts";
+export * from "./scstate.ts";
