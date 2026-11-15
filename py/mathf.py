@@ -19,8 +19,11 @@ from typing import Any
 from .hir import Add, AtLeast, DeathsX, SetDeathsX
 from .temporal import when
 from .trigger import Trigger
-from .var import Var, _saturating_sub_into
+from .var import Expr, ReadonlyVar, Var, _saturating_sub_into, to_var
 from .view import EudslError, _require_plain_int
+
+#: Full operand domain for `isqrt`'s `value`: the same set `to_var` accepts.
+IsqrtOperand = int | Var | ReadonlyVar | Expr
 
 
 def _plain_int(name: str, value: Any, minimum: int, maximum: int) -> int:
@@ -35,22 +38,28 @@ def _plain_int(name: str, value: Any, minimum: int, maximum: int) -> int:
 
 
 def _as_var(value: Any) -> Var:
-    if isinstance(value, Var):
-        return value
-    if isinstance(value, int) and not isinstance(value, bool):
-        return Var(value)
-    if hasattr(value, "id") or hasattr(value, "materialize"):
-        # ReadonlyVar (and other lazy handles) go through the eager
-        # constructor, which materializes it exactly like a user-written
-        # `Var(...)`. Bare `Expr` objects are rejected: they have neither
-        # marker, so the caller must materialize them explicitly.
-        return Var(value)
-    raise EudslError(
-        "EUDSL-TYPE", f"isqrt() value must be a Var or constant, got {value!r}"
-    )
+    """Materialize the full operand domain through the canonical `to_var`.
+
+    `bool` is checked explicitly because `to_var` would reject it with the
+    generic "Unsupported Var operand" text, and `isqrt` owns its diagnostic.
+    """
+    if isinstance(value, bool):
+        raise EudslError(
+            "EUDSL-TYPE",
+            "isqrt() value must be a Var, ReadonlyVar, Expr, or integer "
+            f"constant, got {value!r}",
+        )
+    try:
+        return to_var(value)
+    except EudslError as exc:
+        raise EudslError(
+            "EUDSL-TYPE",
+            "isqrt() value must be a Var, ReadonlyVar, Expr, or integer "
+            f"constant, got {value!r}",
+        ) from exc
 
 
-def isqrt(value: Any, value_bits: int = 32, fixed_bits: int = 0) -> Var:
+def isqrt(value: IsqrtOperand, value_bits: int = 32, fixed_bits: int = 0) -> Var:
     """Emit ``floor(sqrt(value) * 2**fixed_bits)`` for a runtime value.
 
     ``value`` must satisfy ``0 <= value < 2**value_bits`` at game time; the
@@ -61,9 +70,12 @@ def isqrt(value: Any, value_bits: int = 32, fixed_bits: int = 0) -> Var:
 
     A constant ``value`` folds to a single constant ``Var`` at build time but
     still returns a `Var`, so the result composes with runtime arithmetic.
-    Static cost is one trigger per compared input bit plus five per step
-    (``2 * value_bits + 5 * steps``); executed cost is proportional to
-    ``steps`` because untaken subtract branches are skipped.
+    ``value`` is the full operand domain — ``int | Var | ReadonlyVar | Expr``
+    (ADR 0019): a `ReadonlyVar` forwards its underlying var without a copy and
+    an `Expr` is materialized through the canonical `to_var`, exactly as a
+    hand-written temp would be. Static cost is one trigger per compared input
+    bit plus five per step (``2 * value_bits + 5 * steps``); executed cost is
+    proportional to ``steps`` because untaken subtract branches are skipped.
 
     The remainder and root accumulators are cleared on every call: the kernel
     is emitted inline, so it can sit in a per-loop body where a build-time

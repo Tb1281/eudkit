@@ -20,7 +20,16 @@ import math
 import unittest
 from typing import Any
 
-from py import FieldSpec, SetDeaths, SetTo, Var, build_module, defineMemView, when
+from py import (
+    FieldSpec,
+    ReadonlyVar,
+    SetDeaths,
+    SetTo,
+    Var,
+    build_module,
+    defineMemView,
+    when,
+)
 from py.mathf import isqrt
 from py.tests.helpers import run_sim
 from py.view import EudslError, make_memview
@@ -188,6 +197,66 @@ class IsqrtCostPin(unittest.TestCase):
                 )
 
 
+class IsqrtOperandDomainTest(unittest.TestCase):
+    """The full operand domain: `int | Var | ReadonlyVar | Expr` (ADR 0019)."""
+
+    def test_readonly_var_is_used_without_a_copy(self) -> None:
+        def plain() -> None:
+            src = Var(1600)
+            out = Var(0)
+            out.set(isqrt(src, 16, 0))
+
+        def wrapped() -> None:
+            src = Var(1600)
+            out = Var(0)
+            out.set(isqrt(ReadonlyVar(src), 16, 0))
+
+        # A copy would add a var (and its id) to the module, so identical HIR
+        # proves the read-only handle forwards the same underlying var.
+        self.assertEqual(build_module(wrapped).to_json(), build_module(plain).to_json())
+
+    def test_readonly_var_simulates_like_the_wrapped_var(self) -> None:
+        ids: dict[str, int] = {}
+
+        def prog() -> None:
+            src = Var(1600)
+            out = Var(0)
+            ids["out"] = out.id
+            out.set(isqrt(ReadonlyVar(src), 16, 0))
+
+        report = run_sim(build_module(prog).to_json(), 1)
+        self.assertEqual(report["var_values"][ids["out"]], 40)
+
+    def test_expr_materializes_one_temp_like_an_explicit_set(self) -> None:
+        def explicit() -> None:
+            src = Var(9)
+            out = Var(0)
+            tmp = Var(0)
+            tmp.set(src.add(5))
+            out.set(isqrt(tmp, 16, 0))
+
+        def inline() -> None:
+            src = Var(9)
+            out = Var(0)
+            out.set(isqrt(src.add(5), 16, 0))
+
+        # The canonical materializer allocates exactly the one temp an author
+        # would write by hand, in the same order.
+        self.assertEqual(build_module(inline).to_json(), build_module(explicit).to_json())
+
+    def test_expr_simulates_through_the_materialized_temp(self) -> None:
+        ids: dict[str, int] = {}
+
+        def prog() -> None:
+            src = Var(9)
+            out = Var(0)
+            ids["out"] = out.id
+            out.set(isqrt(src.add(5), 16, 0))
+
+        report = run_sim(build_module(prog).to_json(), 1)
+        self.assertEqual(report["var_values"][ids["out"]], 3)
+
+
 class IsqrtValidationTest(unittest.TestCase):
     def _error(self, factory, **kwargs: Any) -> EudslError:
         """Build `isqrt(*factory())` and return the error it raises.
@@ -217,19 +286,11 @@ class IsqrtValidationTest(unittest.TestCase):
         self.assertEqual(self._error(lambda: (Var(1), True)).code, "EUDSL-TYPE")
         self.assertEqual(self._error(lambda: (Var(1), 16, "0")).code, "EUDSL-TYPE")
 
-    def test_value_must_be_a_var_or_a_plain_integer(self) -> None:
+    def test_value_must_be_in_the_operand_domain(self) -> None:
         self.assertEqual(self._error(lambda: (1.5,)).code, "EUDSL-TYPE")
         self.assertEqual(self._error(lambda: (True,)).code, "EUDSL-TYPE")
         self.assertEqual(self._error(lambda: ("1600",)).code, "EUDSL-TYPE")
-
-    def test_expr_operand_is_rejected(self) -> None:
-        """FE4: `isqrt` takes a `Var` or a constant, never a bare `Expr`.
-
-        The TS signature now advertises `VarImpl | number`; this pins the py
-        side of the same narrowed runtime domain, so a later "convenience"
-        widening cannot land on one frontend only.
-        """
-        self.assertEqual(self._error(lambda: (Var(1).add(1),)).code, "EUDSL-TYPE")
+        self.assertEqual(self._error(lambda: (None,)).code, "EUDSL-TYPE")
 
 
 if __name__ == "__main__":

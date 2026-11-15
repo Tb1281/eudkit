@@ -1,6 +1,6 @@
 # Operand domains are validated, not coerced
 
-Status: accepted (2026-11-09; amended 2026-11-10, 2026-11-11)
+Status: accepted (2026-11-09; amended 2026-11-10, 2026-11-11, 2026-11-15)
 
 ## Context
 
@@ -69,12 +69,26 @@ in turn false at the three sites above until cycle 17 fixed them.
 | the 9 condition + 12 action HIR record fields (the same constructors, every field) | `py/hir.py` (`_build_cond`/`_build_act`) | `ts/hir.ts` (`buildCond`/`buildAct`) | cycle 16 |
 | `MemCond`'s `comparison` / `size_or_mask` parameters | `py/view.py` | `ts/view.ts` | cycle 16 |
 | `Var.iand` / `Var.ior` | already loud | `ts/var.ts` fast path | cycle 14 (ts only) |
+| math-helper operand (`isqrt` `value`) | `py/mathf.py` | `ts/mathf.ts` | T-WP9 |
 
 A plain integer is a Python `int` that is not `bool`, or a TypeScript `number`
 with `Number.isInteger(number) === true`. `bool` / `float` / `NaN` /
 `Infinity` / `string` / `None` / `undefined` / `null` are rejected with
 **`EUDSL-TYPE`**, raised **eagerly at the call** — before any act is queued —
 with the operand name in the message.
+
+The math helper `isqrt` (`py/mathf.py` / `ts/mathf.ts`) is the one surface in
+that table that writes no lane: its `value` accepts the **full operand domain**
+`int | Var | ReadonlyVar | Expr` on both frontends and materializes it through
+the canonical `to_var` / `toVar`. A `ReadonlyVar` forwards the underlying var
+without a copy, and an `Expr` becomes exactly one temp — the same var an author
+would allocate with `tmp = Var(0); tmp.set(expr)`. `bool` / `boolean` are
+rejected explicitly so the diagnostic names the full accepted domain. This is a
+**widening, not a new validation policy**: before T-WP9 py accepted
+`Var`/`ReadonlyVar`/`int` but rejected a bare `Expr`, and ts accepted only
+`VarImpl | number`, so unifying on `to_var` / `toVar` removes the only
+documented math-helper frontend divergence. Constant folding, range checks, and
+the emitted HIR for an `int` / `Var` operand are unchanged.
 
 **Messages are not byte-pinned across frontends.** A test asserts the error
 `code` plus one stable substring, never the whole sentence. The shapes in use
@@ -301,6 +315,13 @@ defect.
   (mode 1), `SetDeaths(t.act(0).value, SetTo, 1)`, and `SetNextPtr(t0, t0)`.
 - Runtime operands (`Var` / `ReadonlyVar` / `Expr`) are unchanged, so `Expr`
   leaves are still validated only at materialisation.
+- **`isqrt`'s operand domain is now unified** (T-WP9) on `int | Var |
+  ReadonlyVar | Expr` in both frontends, materialized through `to_var` /
+  `toVar`. This removes the last documented math-helper divergence and is a
+  widening, not a new guard: no constant fold, error code, or existing
+  `int` / `Var` HIR byte changes. A `ReadonlyVar` now forwards the underlying
+  var (no copy, same id) and a bare `Expr` is accepted in py and ts alike,
+  costing the one temp an explicit `tmp.set(expr)` round-trip would.
 - §6 is the complete carve-out list, and it now has no lane-writing entry.
   Cycles 16 and 17 closed both halves of the operand-domain headline. **Ticket A**
   closed the queue/deque element write (`Queue.push`/`append`,

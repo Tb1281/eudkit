@@ -27,10 +27,12 @@ import {
   SetDeaths,
   SetTo,
   Var,
+  asReadonly,
   buildModule,
   defineMemView,
   isqrt,
   when,
+  type Expr,
 } from "../index.ts";
 
 const WORD_ADDR = 3000;
@@ -215,6 +217,65 @@ test("executed cost pins", () => {
   }
 });
 
+test("ReadonlyVar is used without a copy", () => {
+  const plain = buildModule(() => {
+    const src = Var(1600);
+    const out = Var(0);
+    out.set(isqrt(src, 16, 0));
+  });
+  const wrapped = buildModule(() => {
+    const src = Var(1600);
+    const out = Var(0);
+    out.set(isqrt(asReadonly(src), 16, 0));
+  });
+  // A copy would add a var (and its id) to the module, so identical HIR
+  // proves the read-only handle forwards the same underlying var.
+  assert.deepEqual(wrapped.toJson(), plain.toJson());
+});
+
+test("ReadonlyVar simulates like the wrapped var", () => {
+  const ids = { out: -1 };
+  const mod = buildModule(() => {
+    const src = Var(1600);
+    const out = Var(0);
+    ids.out = out.id;
+    out.set(isqrt(asReadonly(src), 16, 0));
+  });
+  assert.equal(runSim(mod.toJson()).var_values[ids.out], 40);
+});
+
+test("Expr materializes one temp like an explicit set", () => {
+  const explicit = buildModule(() => {
+    const src = Var(9);
+    const out = Var(0);
+    const tmp = Var(0);
+    tmp.set(src.add(5));
+    out.set(isqrt(tmp, 16, 0));
+  });
+  const inline = buildModule(() => {
+    const src = Var(9);
+    const out = Var(0);
+    out.set(isqrt(src.add(5), 16, 0));
+  });
+  // The canonical materializer allocates exactly the one temp an author would
+  // write by hand, in the same order.
+  assert.deepEqual(inline.toJson(), explicit.toJson());
+});
+
+test("Expr is accepted by the public signature and simulates", () => {
+  const ids = { out: -1 };
+  const mod = buildModule(() => {
+    const src = Var(9);
+    // The `Expr` annotation is the type-level check: `isqrt` must accept a
+    // bare expression without a cast (ADR 0019 operand domain).
+    const expr: Expr = src.add(5);
+    const out = Var(0);
+    ids.out = out.id;
+    out.set(isqrt(expr, 16, 0));
+  });
+  assert.equal(runSim(mod.toJson()).var_values[ids.out], 3);
+});
+
 function errorCode(fn: () => void): string {
   try {
     buildModule(fn);
@@ -253,20 +314,13 @@ test("widths must be plain integers", () => {
   );
 });
 
-test("value must be a Var or a plain integer", () => {
+test("value must be in the operand domain", () => {
   assert.equal(errorCode(() => isqrt(1.5)), "EUDSL-TYPE");
   assert.equal(errorCode(() => isqrt(true as unknown as number)), "EUDSL-TYPE");
   assert.equal(errorCode(() => isqrt("1600" as unknown as number)), "EUDSL-TYPE");
-});
-
-test("expr operand is rejected at compile time and at runtime", () => {
-  // FE4: the old signature advertised `VarOperand` (which includes `Expr`)
-  // while `asVar` rejected it at runtime. The signature is now
-  // `VarImpl | number`, so callers materialize an `Expr` explicitly.
-  buildModule(() => {
-    const v = Var(0);
-    const expr = v.add(1);
-    // @ts-expect-error — `isqrt` accepts `VarImpl | number`, not `Expr`.
-    assert.throws(() => isqrt(expr), /EUDSL-TYPE/);
-  });
+  assert.equal(
+    errorCode(() => isqrt(undefined as unknown as number)),
+    "EUDSL-TYPE",
+  );
+  assert.equal(errorCode(() => isqrt(null as unknown as number)), "EUDSL-TYPE");
 });
