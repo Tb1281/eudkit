@@ -593,6 +593,31 @@ reject 3.1 documents). The LIR wire schema is separate and untouched by this wor
 **EPD**:
 The Deaths-table dword index of a 4-byte-aligned memory address, `EPD(addr) = (addr - 0x58A364) / 4`.
 
+**runtime EPD**:
+An EPD whose numeric value is only known when the map payload is assembled: a module blob's
+payload address is placed by `lir2payload`, so an EPD into it cannot be a build-time constant.
+`epd_of_db` materializes one into a fresh `Var` with a preserved zero-condition trigger and a
+mode-1 blob relocation into the `Var`'s value field
+([ADR 0029](./docs/adr/0029-runtime-epd-addressing.md)). A runtime EPD is a scalar value; it is
+not a runtime base or an indexed container
+([ADR 0030](./docs/adr/0030-runtime-indexed-payload-backing.md)).
+_Avoid_: dynamic pointer, runtime address (when the value is an EPD).
+
+**EPD-bearing value**:
+A `Var` whose 32-bit value is an EPD rather than a byte address, a count, or a boolean;
+`epd_of_db` returns one and `read_epd_pointer` also produces one. It can seed CP
+(`CurrentPlayer`), index a payload dword, or be compared like any other EPD. The value keeps the
+EPD unit end to end; do not subtract `EPD_BASE / 4` twice.
+_Avoid_: pointer variable (when it holds an EPD), address-valued `Var`.
+
+**payload blob EPD**:
+The runtime EPD of one dword of a `Db`/`DbRef` payload, `EPD(payload_addr + byteOffset)`, where
+`byteOffset % 4 == 0`. It is assembly-time-only (the blob payload address is chosen by
+`lir2payload`), and `epd_of_db` is the only public constructor: a preserved trigger whose action
+value field carries a mode-1 relocation to the blob. Cross-reference **payload** and
+**CP (CurrentPlayer)**; see [ADR 0029](./docs/adr/0029-runtime-epd-addressing.md).
+_Avoid_: blob address (for the EPD), blob pointer, mode-4 value.
+
 **CP (CurrentPlayer)**:
 The CurrentPlayer address (`0x6509B0`) used as a pointer register via `withCP`, enabling
 `Deaths(13, ...)` to read or write relative to the bound `EPD`. `DisplayText`/`DisplayTextIndex` use

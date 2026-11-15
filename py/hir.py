@@ -255,6 +255,38 @@ class Db(DbRef):
 db = Db
 
 
+def epd_of_db(ref: Db | DbRef) -> Var:
+    """Return a Var holding the EPD of ``ref``'s payload dword.
+
+    One preserved zero-condition trigger: a mode-1 blob relocation writes
+    the EPD into the fresh Var's value field. ``ref`` must already be a
+    Db/DbRef (4-byte aligned); ``Db`` means offset 0.
+    """
+    from .stock_rows_built import ACT_FIELD_OFFSETS
+    from .var import Var
+
+    if not isinstance(ref, DbRef):
+        raise EudslError(
+            "EUDSL-TYPE",
+            f"epd_of_db(): expected Db or DbRef, got {_describe_value(ref)}",
+        )
+    out = Var(0)
+    act = out.act_set(0)
+    act.setdefault("relocs", []).append(
+        {
+            "field_offset": ACT_FIELD_OFFSETS["value"],
+            "target_blob": ref.blobId,
+            "target_offset": ref.byteOffset,
+            "mode": 1,
+        }
+    )
+    Trigger(conds=[], acts=[act], preserved=True)
+    return out
+
+
+epdOfDb = epd_of_db
+
+
 def _normalize_blob_relocs(
     relocs: Sequence[Mapping[str, Any]],
 ) -> list[dict[str, int]]:
