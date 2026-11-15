@@ -1273,3 +1273,7 @@ def MemCond(
     if size_or_mask == 2:
         return DeathsX(epd_addr, cmp_val, amount, 0, 0xFFFF)
     return DeathsX(epd_addr, cmp_val, amount, 0, size_or_mask & 0xFFFFFFFF)
+
+
+readEpd = read_epd
+readEpdPointer = read_epd_pointer

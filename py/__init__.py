@@ -40,6 +40,10 @@ from .view import (
     defineMemView,
     epd,
     loadLayout,
+    readEpd,
+    readEpdPointer,
+    read_epd,
+    read_epd_pointer,
 )
 from .dat import (
     DatEntry,
@@ -660,6 +664,10 @@ __all__ = [
     "dword",
     "epd",
     "loadLayout",
+    "readEpd",
+    "readEpdPointer",
+    "read_epd",
+    "read_epd_pointer",
     "masked",
     "pageSlotEpdWeight",
     "Func",
