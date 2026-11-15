@@ -212,6 +212,22 @@ pub fn record_gate_open(log: &mut FoldLog, prefix: &str, site: u32, conds: &[Hir
 
 /// Record a dead-gate removal.
 pub fn record_gate_drop(log: &mut FoldLog, prefix: &str, site: u32, conds: &[HirCond]) {
+    record_gate_drop_with(log, prefix, site, conds, "dropped");
+}
+
+/// Record a dead-gate outcome with a caller-chosen `after` reason.
+///
+/// Gate satisfiability (ADR 0031) distinguishes a plain drop from an
+/// `else` promotion and from a `Never` body kept because it declares a
+/// referenced trigger. The reason is text only: the event kind stays
+/// [`FoldKind::GateDrop`].
+pub fn record_gate_drop_with(
+    log: &mut FoldLog,
+    prefix: &str,
+    site: u32,
+    conds: &[HirCond],
+    after: &str,
+) {
     if !log.is_enabled() {
         return;
     }
@@ -219,7 +235,7 @@ pub fn record_gate_drop(log: &mut FoldLog, prefix: &str, site: u32, conds: &[Hir
         kind: FoldKind::GateDrop,
         site: site_label(prefix, site),
         before: render_conds(conds),
-        after: "dropped".to_string(),
+        after: after.to_string(),
     });
 }
 
