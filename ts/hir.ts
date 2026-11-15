@@ -34,6 +34,10 @@ import {
   type StockRowSpec,
   type StockValidator,
 } from "./stock-spec.ts";
+// `var.ts` imports this module for the stock action builders, so this is a
+// deliberate cycle: `epdOfDb` reads `VarImpl` only at call time, after both
+// modules finish evaluating.
+import { VarImpl } from "./var.ts";
 
 export type { HirAct, HirCond, HirReloc, HirTriggerPtr };
 export type { StockParamSpec, StockRowSpec, StockValidator } from "./stock-spec.ts";
@@ -270,6 +274,45 @@ export function db(
 ): Db {
   return new Db(payload, relocs);
 }
+
+/**
+ * Return a `Var` holding the EPD of `ref`'s payload dword.
+ *
+ * One preserved zero-condition trigger: a mode-1 blob relocation writes the
+ * EPD into the fresh `Var`'s value field. `ref` must already be a `Db`/`DbRef`
+ * (4-byte aligned); a `Db` means offset 0 (ADR 0029).
+ */
+export function epdOfDb(ref: Db | DbRef): VarImpl {
+  if (!(ref instanceof DbRef)) {
+    throw new EudslError(
+      "EUDSL-TYPE",
+      `epd_of_db(): expected Db or DbRef, got ${describeValue(ref)}`,
+    );
+  }
+  const out = new VarImpl(0);
+  const base = out.act_set(0);
+  const act: HirAct = {
+    ...base,
+    relocs: [
+      ...(base.relocs ?? []),
+      {
+        field_offset: ACT_FIELD_OFFSETS.value!,
+        target_blob: ref.blobId,
+        target_offset: ref.byteOffset,
+        mode: 1,
+      },
+    ],
+  };
+  // `act_set` queued `base` as a standalone top-level act. The relocated copy
+  // is a different object, so consume the original before `Trigger` owns the
+  // copy (the same seam `ts/blockio.ts:seedEpdCursor` uses).
+  _getActiveModuleBuilder()?.consumeQueuedActs([base]);
+  new Trigger({ conds: [], acts: [act], preserved: true });
+  return out;
+}
+
+/** Py-spelling alias of {@link epdOfDb} (parity with `epd_of_db`). */
+export const epd_of_db = epdOfDb;
 
 /** Standard base64 (matches `eudkit_lir::b64_encode`, with `=` padding). */
 function bytesToBase64(bytes: Uint8Array): string {
