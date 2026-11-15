@@ -138,17 +138,61 @@ def _is_ascii_digit(c: str) -> bool:
     return "0" <= c <= "9"
 
 
-def _encode_ascii(text: str, what: str) -> list[int]:
+def encode_utf8(text: str, what: str) -> list[int]:
+    """Encode literal content as canonical UTF-8 bytes (RFC 3629).
+
+    ``FixedString(size)`` capacity is a byte capacity (ADR 0003), so string
+    content is lowered to its UTF-8 bytes here. Python iterates code points,
+    so a valid astral character is one scalar value and emits four bytes.
+
+    An embedded NUL would terminate the ``STRx`` entry, and a lone UTF-16
+    surrogate (``U+D800..U+DFFF``) is never valid UTF-8; both are rejected
+    with ``EUDSL-TYPE`` before any bytes are emitted.
+    """
     out: list[int] = []
     for ch in text:
         cp = ord(ch)
-        if cp == 0 or cp > 0x7F:
+        if cp == 0:
             raise EudslError(
                 "EUDSL-TYPE",
-                f"{what}: v1 supports ASCII bytes only; got U+{cp:04X} in {text!r}",
+                f"{what}: embedded NUL (U+0000) cannot be stored in a FixedString",
             )
-        out.append(cp)
+        if 0xD800 <= cp <= 0xDFFF:
+            raise EudslError(
+                "EUDSL-TYPE",
+                f"{what}: lone UTF-16 surrogate U+{cp:04X} is not valid UTF-8",
+            )
+        if cp <= 0x7F:
+            out.append(cp)
+        elif cp <= 0x7FF:
+            out.append(0xC0 | (cp >> 6))
+            out.append(0x80 | (cp & 0x3F))
+        elif cp <= 0xFFFF:
+            out.append(0xE0 | (cp >> 12))
+            out.append(0x80 | ((cp >> 6) & 0x3F))
+            out.append(0x80 | (cp & 0x3F))
+        else:
+            # Python caps ``ord`` at U+10FFFF, so no range check is needed.
+            out.append(0xF0 | (cp >> 18))
+            out.append(0x80 | ((cp >> 12) & 0x3F))
+            out.append(0x80 | ((cp >> 6) & 0x3F))
+            out.append(0x80 | (cp & 0x3F))
     return out
+
+
+def _encode_ascii_byte(ch: str, what: str) -> int:
+    """Encode one ASCII byte for the format-spec ``fill`` (ADR 0014).
+
+    Fill is repeated as a single byte, so a multi-byte character cannot be a
+    fill; literal content uses :func:`encode_utf8` instead.
+    """
+    cp = ord(ch)
+    if cp > 0x7F:
+        raise EudslError(
+            "EUDSL-ASCII",
+            f"{what}: format fill must be a single ASCII byte; got U+{cp:04X} in {ch!r}",
+        )
+    return cp
 
 
 def _hex_bytes(value: int) -> list[int]:
@@ -297,7 +341,7 @@ def _dec_bytes(
     if width is not None and len(s) < width:
         pad = fill if fill is not None else " "
         s = pad * (width - len(s)) + s
-    return _encode_ascii(s, "FixedString {:d}")
+    return encode_utf8(s, "FixedString {:d}")
 
 
 def _has_placeholder(text: str) -> bool:
@@ -342,12 +386,7 @@ def _parse_spec(spec: str, what: str) -> FormatSpec:
                 "EUDSL-FORMAT",
                 f"{what}: malformed format string: alignment {a!r} is not supported in {spec!r}",
             )
-        cp = ord(spec[0])
-        if cp > 0x7F:
-            raise EudslError(
-                "EUDSL-ASCII",
-                f"{what}: v1 supports ASCII bytes only; got U+{cp:04X} in {spec!r}",
-            )
+        _encode_ascii_byte(spec[0], what)
         fill = spec[0]
         align = ">"
         rem = spec[2:]
@@ -1118,7 +1157,7 @@ class FixedString:
                     expanded.append(
                         ExpandedArg(
                             kind="lit",
-                            bytes=_encode_ascii(payload, f"FixedString.{what}"),  # type: ignore[arg-type]
+                            bytes=encode_utf8(payload, f"FixedString.{what}"),  # type: ignore[arg-type]
                             spec=FormatSpec(radix="hex"),
                             value=None,
                         )
@@ -1208,7 +1247,7 @@ class FixedString:
         if isinstance(arg, str):
             return ExpandedArg(
                 kind="lit",
-                bytes=_encode_ascii(arg, f"FixedString.{what}"),
+                bytes=encode_utf8(arg, f"FixedString.{what}"),
                 spec=norm_spec,
                 value=None,
             )

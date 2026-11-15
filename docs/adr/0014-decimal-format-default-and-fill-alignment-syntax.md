@@ -1,6 +1,6 @@
 # Decimal Format Default, Format Mini-Language, and Direct Digit Extraction (ADR 0014)
 
-Status: accepted (2026-11-06; renumbered from ADR 0012; amended 2026-11-07, 2026-11-11)
+Status: accepted (2026-11-06; renumbered from ADR 0012; amended 2026-11-07, 2026-11-11, 2026-11-15)
 
 ## Context
 
@@ -71,3 +71,11 @@ However, switching bare `{}` to decimal while retaining the division ladder woul
   - The `cost_gate.ts` / `cost_gate.py` fixtures write only the static text `"cost-gate"` and contain no dynamic decimal placeholder, so this re-baseline does not change their golden reports.
 - **Breaking Change & Migration**:
   - Code relying on bare `{}` emitting 8-digit hex must be migrated to explicit `{:x}` or `{:08x}`.
+
+## Amendment (2026-11-15)
+
+Fill and alignment stay **ASCII-only** because a fill byte is repeated as a
+single byte. A multi-byte character has no single-byte repeat semantics, so
+`{:한>4d}` is rejected with `EUDSL-ASCII` rather than padded with its UTF-8
+bytes or truncated to one byte. This restriction governs only the format spec:
+literal string content is UTF-8 (ADR 0003), so `s.write("한")` is legal.

@@ -365,13 +365,22 @@ The read-only backing that stores constant tables (`FixedArray.const`) as packed
 [ADR 0019](./docs/adr/0019-operand-domain-validation.md) §1).
 _Avoid_: legacy writable `EUDArray`, `Db`.
 
+**UTF-8 string bytes**:
+The canonical RFC 3629 byte sequence a `FixedString` stores in its STR entry.
+Literal content in any language (Korean, Japanese, Chinese, emoji, Latin) is
+lowered to these bytes, so `é` takes 2 bytes, `한` takes 3, and `🙂` takes 4.
+An embedded NUL and a lone UTF-16 surrogate are `EUDSL-TYPE`: the first
+terminates an `STRx` entry and the second is never valid UTF-8. The
+format-spec `fill` is still one ASCII byte (ADR 0014).
+_Avoid_: UTF-16 storage, code-point capacity, system codepage, ANSI text.
+
 **STR-backed**:
 The backing that stores text in an entry of the map string table, giving `FixedString` the STR identity required by `DisplayText` and `PlayWAV`.
 _Avoid_: `StringBuffer`, `DBString`.
 
 **FixedString**:
-A fixed-capacity text buffer backed by the map string table, giving it the STR identity that `DisplayText` and `PlayWAV` require. Text that does not fit is a build-time error, not a silent truncation.
-_Avoid_: `StringBuffer`, `DBString`, `Db`, mutable byte array.
+A fixed-capacity text buffer backed by the map string table, giving it the STR identity that `DisplayText` and `PlayWAV` require. `FixedString(size)` reserves `size` **content bytes** plus the NUL at offset `size`; capacity counts UTF-8 bytes, not characters. Text that does not fit is a build-time error, not a silent truncation and never a split code point.
+_Avoid_: `StringBuffer`, `DBString`, `Db`, mutable byte array, character capacity.
 
 **DisplayText**:
 The stock action helper that shows text to CurrentPlayer, not to every player. Its text must carry STR identity, so it accepts a `FixedString` or a literal; use `DisplayTextIndex` for a pre-resolved string id.
@@ -392,6 +401,12 @@ writes bake their byte mask instead of selecting it with a runtime branch. Paddi
 to scope boundaries, never mid-format-string placeholders: fixed-width format placeholders fold
 compile-time constant offsets across any byte lane directly without auto-padding.
 _Avoid_: "alignment slack", "+4 tail allowance", mid-string auto-padding.
+
+**STRING_PAD_BYTE**:
+The zero-width `0x1A` byte that pads a `FixedString` tail to the next dword at a scope boundary
+(ADR 0003). It is appended after the complete UTF-8 content and counted in bytes; it never appears
+inside a code point, so the visible text is the content with the pad bytes removed.
+_Avoid_: NUL padding, mid-sequence pad, character padding.
 
 **format spec**:
 A format specification inside a `FixedString` interpolation placeholder following the grammar

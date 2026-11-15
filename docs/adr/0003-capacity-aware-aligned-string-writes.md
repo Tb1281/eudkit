@@ -1,6 +1,6 @@
 # Capacity-Aware Aligned FixedString Writes
 
-Status: accepted (2026-11-04; amended 2026-11-06)
+Status: accepted (2026-11-04; amended 2026-11-06, 2026-11-15)
 
 ## Context
 
@@ -61,3 +61,24 @@ is capacity-checked as content alongside the placeholders and following
 literals, and an overlong run fails with `EUDSL-BOUNDS`. This is not a
 scope-boundary flush: the decisions above still govern `pushScope` /
 `popScope` and module/display tails.
+
+## Amendment (2026-11-15)
+
+Literal `FixedString` content is a **UTF-8 byte sequence**. `size` remains a
+byte count, not a character count: `FixedString(2)` fits `"é"` (2 bytes) and
+`FixedString(1)` fails with `EUDSL-BOUNDS`, while `"한"` needs 3 bytes and
+`"🙂"` needs 4. Both frontends lower content to canonical RFC 3629 bytes before
+the layout walk, so every `end > size` comparison still counts bytes and the
+existing capacity path is unchanged.
+
+Static writes never truncate a sequence: a write whose encoded bytes would end
+past `size` emits nothing and fails with `EUDSL-BOUNDS`. `0x1A` padding is
+appended after the complete encoded content and is counted in bytes; it is
+never inserted inside a code point, so stripping the pad bytes still yields
+valid UTF-8. `writeFrom(pos)` remains byte-addressed: a caller that positions
+mid-sequence owns the split, and `write`/`append` never create one.
+
+An embedded NUL would terminate the `STRx` entry and a lone UTF-16 surrogate is
+not valid UTF-8; both are rejected with `EUDSL-TYPE` before emission. The
+format-spec `fill` is still one ASCII byte (ADR 0014); that restriction governs
+only the fill, not literal content.

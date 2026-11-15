@@ -1,6 +1,6 @@
 # Dword-Packed Direct Hex Accumulation and Constant-Offset String Formatting
 
-Status: accepted (2026-11-06; amended 2026-11-06, 2026-11-10)
+Status: accepted (2026-11-06; amended 2026-11-06, 2026-11-10, 2026-11-15)
 
 > **Amendment (2026-11-06, ADR 0014):** Bare `{}` now defaults to decimal.
 > The 8-digit hex behavior described here applies to explicit `{:x}` /
@@ -101,3 +101,17 @@ iteration counts at seeds 499/500/501 and 1/2/3/5 passes. A detached
 `Trigger` (no active module builder) keeps `materialize()`, so the gate is
 only emitted where `when()` would work. The cost-gate fixture has no raw
 `Trigger` `ne` site, so no golden is re-blessed here.
+
+## Amendment (2026-11-15)
+
+Literal segments in a format run — both standalone `write`/`append` content and
+the literal bytes between placeholders — are **UTF-8 bytes** (ADR 0003), and
+`save_tbl` / `TemplateStrings::parse` carry them byte-for-byte. A multi-byte
+literal advances the byte offset by its encoded length; it does not change the
+constant-offset or dword-folding arithmetic.
+
+The packed-hex and fixed-width decimal paths still emit **ASCII bytes only**
+(`0`–`9`, lowercase `a`–`f`, and the format-spec fill), so the trigger and cost
+figures in this ADR are unchanged. The format-spec fill restriction is
+ASCII-only because a fill is repeated as one byte (ADR 0014); literal content is
+not subject to it.

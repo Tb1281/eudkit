@@ -110,22 +110,71 @@ function describeArg(value: unknown): string {
   return describeShared(value);
 }
 
-function encodeAscii(text: string, what: string): number[] {
+/**
+ * Encode literal content as canonical UTF-8 bytes (RFC 3629).
+ *
+ * `FixedString(size)` capacity is a byte capacity (ADR 0003), so string
+ * content is lowered to its UTF-8 bytes here. Iterating the string yields code
+ * points, so a valid UTF-16 surrogate pair is one scalar value and emits four
+ * bytes. A lone surrogate is rejected **before** any `TextEncoder` call:
+ * `TextEncoder` silently substitutes U+FFFD instead of failing, and an
+ * embedded NUL would terminate the `STRx` entry. Both are `EUDSL-TYPE`.
+ */
+export function encodeUtf8(text: string, what: string): number[] {
   const out: number[] = [];
   for (const ch of text) {
     const cp = ch.codePointAt(0) ?? 0;
-    if (cp === 0 || cp > 0x7f) {
+    if (cp === 0) {
       throw new EudslError(
         "EUDSL-TYPE",
-        `${what}: v1 supports ASCII bytes only; got U+${cp
-          .toString(16)
-          .toUpperCase()
-          .padStart(4, "0")} in ${JSON.stringify(text)}`,
+        `${what}: embedded NUL (U+0000) cannot be stored in a FixedString`,
       );
     }
-    out.push(cp);
+    if (cp >= 0xd800 && cp <= 0xdfff) {
+      throw new EudslError(
+        "EUDSL-TYPE",
+        `${what}: lone UTF-16 surrogate U+${cp
+          .toString(16)
+          .toUpperCase()
+          .padStart(4, "0")} is not valid UTF-8`,
+      );
+    }
+    if (cp <= 0x7f) {
+      out.push(cp);
+    } else if (cp <= 0x7ff) {
+      out.push(0xc0 | (cp >> 6));
+      out.push(0x80 | (cp & 0x3f));
+    } else if (cp <= 0xffff) {
+      out.push(0xe0 | (cp >> 12));
+      out.push(0x80 | ((cp >> 6) & 0x3f));
+      out.push(0x80 | (cp & 0x3f));
+    } else {
+      out.push(0xf0 | (cp >> 18));
+      out.push(0x80 | ((cp >> 12) & 0x3f));
+      out.push(0x80 | ((cp >> 6) & 0x3f));
+      out.push(0x80 | (cp & 0x3f));
+    }
   }
   return out;
+}
+
+/**
+ * Encode one ASCII byte for the format-spec `fill` (ADR 0014). Fill is
+ * repeated as a single byte, so a multi-byte character cannot be a fill;
+ * literal content uses `encodeUtf8` instead.
+ */
+function encodeAsciiByte(ch: string, what: string): number {
+  const cp = ch.codePointAt(0) ?? 0;
+  if (cp > 0x7f) {
+    throw new EudslError(
+      "EUDSL-ASCII",
+      `${what}: format fill must be a single ASCII byte; got U+${cp
+        .toString(16)
+        .toUpperCase()
+        .padStart(4, "0")} in ${JSON.stringify(ch)}`,
+    );
+  }
+  return cp;
 }
 
 function hexBytes(value: number): number[] {
@@ -145,7 +194,7 @@ function decBytes(value: number, width?: number, fill?: string): number[] {
     const pad = fill ?? " ";
     s = pad.repeat(width - s.length) + s;
   }
-  return encodeAscii(s, "FixedString {:d}");
+  return encodeUtf8(s, "FixedString {:d}");
 }
 
 function hasPlaceholder(text: string): boolean {
@@ -207,13 +256,7 @@ function parseSpec(spec: string, what: string): FormatSpec {
         `${what}: malformed format string: alignment ${JSON.stringify(a)} is not supported in ${JSON.stringify(spec)}`,
       );
     }
-    const cp = spec.charCodeAt(0);
-    if (cp > 0x7f) {
-      throw new EudslError(
-        "EUDSL-ASCII",
-        `${what}: v1 supports ASCII bytes only; got U+${cp.toString(16).toUpperCase().padStart(4, "0")} in ${JSON.stringify(spec)}`,
-      );
-    }
+    encodeAsciiByte(spec[0], what);
     fill = spec[0];
     align = ">";
     rem = spec.slice(2);
@@ -1176,7 +1219,7 @@ export class FixedString {
             kind: "lit",
             radix: "hex",
             spec: { radix: "hex" },
-            bytes: encodeAscii(part.text, `FixedString.${what}`),
+            bytes: encodeUtf8(part.text, `FixedString.${what}`),
           };
         }
         return this.classifyArg(values[vi++], part.spec, what);
@@ -1258,7 +1301,7 @@ export class FixedString {
         kind: "lit",
         radix: normSpec.radix,
         spec: normSpec,
-        bytes: encodeAscii(arg, `FixedString.${what}`),
+        bytes: encodeUtf8(arg, `FixedString.${what}`),
       };
     }
     if (typeof arg === "number") {
