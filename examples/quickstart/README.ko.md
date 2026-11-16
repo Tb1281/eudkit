@@ -31,12 +31,7 @@ cargo build --workspace
 ./target/debug/eudkit --version
 ```
 
-`cargo build --workspace`는 Python 테스트 헬퍼가 HIR 시뮬레이션에 사용하는 `target/debug/eudkit-compile`도 함께 빌드합니다. 릴리스 바이너리를 빌드하려면:
-
-```sh
-cargo build --release --workspace
-./target/release/eudkit --version
-```
+`cargo build --workspace`는 Python 테스트 헬퍼가 HIR 시뮬레이션에 사용하는 `target/debug/eudkit-compile`도 함께 빌드합니다. 릴리스 바이너리는 `cargo build --release --workspace`로 빌드한 뒤 `target/release/eudkit`을 사용하세요.
 
 ## 예제 하나 실행하기
 
@@ -75,14 +70,7 @@ PYTHONPATH=. python3 -m unittest py/tests/test_quickstart_examples.py
 
 ## 저장소 내부 임포트 vs 설치된 패키지 임포트
 
-모듈 본문은 동일하며 맨 위 임포트 줄만 다릅니다:
-
-| 언어 | 저장소 내부 (예제에서 사용) | 패키지 설치 사용자 |
-|---|---|---|
-| Python | `from py import DisplayText, build_module` | `pip install -e ./py` 후 `from eudkit import DisplayText, build_module` |
-| TypeScript | `from "../../../ts/index.ts"` | `cd ts && npm install && npm run build` 후 `from "eudkit"` |
-
-CLI는 체크아웃의 `py/` 및 `ts/` 트리에서 소스를 로드합니다. 바이너리가 체크아웃 외부에 있다면 `EUDKIT_ROOT=/path/to/eudkit`으로 경로를 지정하세요.
+예제는 이 체크아웃에서 임포트합니다(`from py import ...`, `from "../../../ts/index.ts"`). 설치형 소비자는 `pip install -e ./py` 후, 또는 `cd ts && npm install && npm run build` 후 `ts/`를 설치/링크하고 `from eudkit`을 사용합니다. CLI는 체크아웃의 `py/` 및 `ts/` 트리에서 소스를 로드하며, 바이너리가 체크아웃 외부에 있다면 `EUDKIT_ROOT=/path/to/eudkit`으로 저장소를 지정하세요. 전체 표기는 [docs/quickstart.ko.md](../../docs/quickstart.ko.md#import-표기-체크아웃-vs-설치된-패키지)를 참고하세요.
 
 예제를 `python3 examples/quickstart/py/01_hello_world.py`나 일반 `node`로 직접 실행하지 마세요. 이들은 단독 실행 스크립트가 아니라 **`eudkit` 컴파일러의 소스**입니다. 또한 저장소 루트가 `sys.path` 맨 앞에 없으면 PyPI의 동명 패키지 `py`가 저장소의 `py/` 패키지를 가릴 수 있습니다.
 

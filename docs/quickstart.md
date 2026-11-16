@@ -18,7 +18,7 @@ game memory, and HUD text; `eudkit compile` combines that payload with a base ma
 |---|---|---|
 | Rust 1.85+ | builds the `eudkit` CLI | the workspace uses edition 2024 |
 | Python 3.11+ | Python DSL, tests | the in-repo package is named `py` |
-| Node.js | TypeScript DSL | the frontend invokes Node's type stripping |
+| Node.js 22.6+ | TypeScript DSL | the frontend invokes Node's type stripping (`--experimental-strip-types`, added in Node 22.6.0) |
 | StarCraft: Remastered | in-game verification | optional for synth/compile-only work |
 
 A **basemap** is a normal `.scx` map whose terrain, players, and settings you
@@ -53,16 +53,13 @@ cargo build --release --workspace
 The commands below use `./target/debug/eudkit`; substitute
 `./target/release/eudkit` if you built release.
 
-> The CLI must be able to find the DSL runtime. It resolves one in this order:
-> `EUDKIT_ROOT`; ancestors of the current directory; ancestors of the source
-> file (`compile`/`synth` only); an adjacent `<prefix>/share/eudkit/`; the
-> installed `eudkit` npm/Python package; then, in debug builds only, the
-> build-time checkout unless `EUDKIT_NO_MANIFEST_FALLBACK=1` is set. A
-> set-but-invalid `EUDKIT_ROOT` is an error and never falls back to another
-> runtime.
->
-> `<prefix>/share/eudkit/` is the external standalone distribution layout
-> contract. `cargo install` and the `Makefile` do not populate it automatically.
+> The CLI must be able to find the DSL runtime. It resolves one from
+> `EUDKIT_ROOT`, a checkout ancestor of the current or source directory, an
+> adjacent `<prefix>/share/eudkit/` bundle, the installed `eudkit` npm/Python
+> package, or (debug builds only) the build-time checkout. A set-but-invalid
+> `EUDKIT_ROOT` is an error and never falls back to another runtime. The full
+> order and the `share/eudkit/` layout contract are in
+> [CONTRIBUTING.md#runtime-resolution](../CONTRIBUTING.md#runtime-resolution).
 
 ### Check the runtime with `doctor`
 

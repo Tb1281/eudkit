@@ -7,9 +7,10 @@ packaged and released. The workflows live in
 
 ## The five release deliverables
 
-Each tagged release publishes five independently versioned deliverables. The
-CI `packaging` job builds and smoke-tests all five on every pull request and
-push; the release workflow repeats them with optional registry publishing.
+Each tagged release publishes five deliverables that share one unified version
+(`0.1.0`). The CI `packaging` job builds and smoke-tests all five on every pull
+request and push; the release workflow repeats them with optional registry
+publishing.
 
 | # | Deliverable | Built from | Artifact |
 | --- | --- | --- | --- |

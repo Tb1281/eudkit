@@ -25,7 +25,8 @@ Each file starts with the exact `synth` and `compile` commands for that file.
 
 - Rust 1.85+ (the workspace uses edition 2024)
 - Python 3.11+ for the Python DSL
-- Node.js for the TypeScript DSL and the `ts/` package build
+- Node.js 22.6+ for the TypeScript DSL (the frontend uses
+  `--experimental-strip-types`, added in Node 22.6.0)
 - StarCraft: Remastered only if you want to open the compiled `.scx` in-game
 
 Build the CLI once from the repository root:
@@ -36,12 +37,8 @@ cargo build --workspace
 ```
 
 `cargo build --workspace` also builds `target/debug/eudkit-compile`, which the
-Python test helper uses to simulate HIR. For a release binary:
-
-```sh
-cargo build --release --workspace
-./target/release/eudkit --version
-```
+Python test helper uses to simulate HIR. For a release binary, run
+`cargo build --release --workspace` and use `target/release/eudkit`.
 
 ## Run one example
 
@@ -81,16 +78,14 @@ That suite checks:
 
 ## In-repo imports vs installed packages
 
-The module body is the same in both modes; only the import line changes.
-
-| Language | In this repository (what the examples use) | Installed consumer |
-|---|---|---|
-| Python | `from py import DisplayText, build_module` | `pip install -e ./py`, then `from eudkit import DisplayText, build_module` |
-| TypeScript | `from "../../../ts/index.ts"` | `cd ts && npm install && npm run build`, install/link `ts/`, then `from "eudkit"` |
-
-The CLI captures sources from the checkout's `py/` and `ts/` trees. If the
-binary lives outside the checkout, point it at the repository with
-`EUDKIT_ROOT=/path/to/eudkit`.
+The examples import from this checkout (`from py import ...`,
+`from "../../../ts/index.ts"`). Installed consumers use `from eudkit` after
+`pip install -e ./py`, or after `cd ts && npm install && npm run build` and an
+install/link of `ts/`. The CLI captures sources from the checkout's `py/` and
+`ts/` trees; if the binary lives outside the checkout, point it at the
+repository with `EUDKIT_ROOT=/path/to/eudkit`. See
+[docs/quickstart.md](../../docs/quickstart.md#import-spelling-checkout-vs-installed-package)
+for the full spelling table.
 
 Do not run the examples with `python3 examples/quickstart/py/01_hello_world.py`
 or bare `node`: they are **sources for `eudkit`**, not standalone programs.

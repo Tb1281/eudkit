@@ -68,14 +68,7 @@ cargo build --release --workspace
 
 ## 프로젝트 설치 및 설정
 
-릴리스 빌드는 이 체크아웃 외부에서도 동작합니다. 독립 실행형 `eudkit`은 다음 순서로 DSL 런타임을 찾습니다:
-
-1. `EUDKIT_ROOT` 환경 변수 (설정된 경우).
-2. 현재 작업 디렉터리의 가장 가까운 상위 디렉터리 중 `ts/index.ts`와 `py/__init__.py`를 모두 포함한 경로.
-3. 소스 파일의 가장 가까운 상위 디렉터리 중 위 두 트리를 모두 포함한 경로 (`compile` 및 `synth`만 해당; `doctor`는 현재 디렉터리와 환경만 검사).
-4. 실행 파일 옆의 `<prefix>/share/eudkit/` (외부 배포 번들 규약; `cargo install`이나 `Makefile`은 `share/eudkit/`을 자동으로 채우지 않습니다).
-5. 설치된 `eudkit` npm 또는 Python 패키지.
-6. 디버그 빌드 전용: 빌드 시점의 체크아웃 경로 (`EUDKIT_NO_MANIFEST_FALLBACK=1` 설정 시 비활성화).
+릴리스 빌드는 이 체크아웃 외부에서도 동작합니다. 독립 실행형 `eudkit`은 `EUDKIT_ROOT`, 현재 또는 소스 디렉터리의 상위 체크아웃, 인접한 `share/eudkit/` 번들, 설치된 `eudkit` npm/Python 패키지, (디버그 빌드 전용) 빌드 시점 체크아웃 순으로 DSL 런타임을 찾습니다. 설정된 `EUDKIT_ROOT`가 잘못되면 오류이며 다른 런타임으로 대체하지 않습니다. 전체 탐색 순서와 `share/eudkit/` 레이아웃 계약은 [CONTRIBUTING.md#runtime-resolution](CONTRIBUTING.md#runtime-resolution)에 있습니다.
 
 컴파일 전에 바이너리가 어떤 런타임과 프론트엔드 툴체인을 사용하는지 확인하려면:
 
@@ -140,7 +133,7 @@ export const module = buildModule(() => {
   -o hello.scx
 ```
 
-StarCraft: Remastered에서 `hello.scx`를 열어 생성된 트리거를 확인할 수 있습니다. 맵을 쓰지 않고 HIR만 확인하려면 `./target/release/eudkit synth hello.py`(또는 `hello.ts`)를 실행하고, 비용 데이터까지 읽기 쉽게 보려면 `dump-ir`을 실행하세요.
+StarCraft: Remastered에서 `hello.scx`를 열어 생성된 트리거를 확인할 수 있습니다. 맵을 쓰지 않고 HIR만 확인하려면 `./target/release/eudkit synth hello.py`(또는 `hello.ts`)를 실행하고, 비용 데이터까지 읽기 쉽게 보려면 `dump-ir`을 실행하세요. `--explain-folds`를 추가하면 옵티마이저의 조건/게이트 폴딩 로그가 뒤에 붙습니다.
 
 베이스맵 선택부터 게임 내 검증까지 전체 첫 실행 흐름은 [docs/quickstart.ko.md](docs/quickstart.ko.md)와 [examples/quickstart/README.ko.md](examples/quickstart/README.ko.md)를 참고하세요.
 
@@ -153,14 +146,14 @@ StarCraft: Remastered에서 `hello.scx`를 열어 생성된 트리거를 확인�
 | `crates/eudkit-lower/` | HIR → LIR 로워링 및 릴로케이션 |
 | `crates/eudkit-lir/` | LIR 와이어 스키마 |
 | `crates/eudkit-map/` | CHK 픽스업, MPQ 어셈블리, `.scx` 출력 |
-| `crates/eudkit-cli/` | `eudkit` CLI 바이너리 (`compile`, `dump-ir`, `synth`) |
+| `crates/eudkit-cli/` | `eudkit` CLI 바이너리 (`compile`, `dump-ir`, `synth`, `doctor`, `init`) |
 | `crates/eudkit-lsp/` | JSON-RPC 언어 서버 |
 | `py/` | Python DSL (체크아웃 내부 임포트 `py`, 배포 패키지 `eudkit`) |
 | `ts/` | TypeScript DSL (체크아웃 소스, `npm run build`로 `dist/` 생성) |
 | `schema/` | 스톡 행 스펙 및 레이아웃 JSON 정본 (패키징 사본은 `py/schema/`, `ts/schema/layouts/`) |
-| `examples/` | 입문용 quickstart(`examples/quickstart/`) 및 `eudplib` / `euddraft` 마이그레이션 예제 |
+| `examples/` | 입문용 quickstart(`examples/quickstart/`)와 `eudplib` 기준 구현 및 `py/`/`ts/` 마이그레이션 쌍 |
 | `tests/` | 스톡 골든, 출력 맵 픽스처, 스모크 맵 |
-| `scripts/` | 컴파일 벤치마크 및 코드 생성 검증 헬퍼 |
+| `scripts/` | 버전·번들 검사, 스톡 표면 생성, 벤치마크 및 프로브 헬퍼 |
 | `docs/` | 빠른 시작, 가이드, 아키텍처 결정 기록(ADR) |
 
 ## 문서 색인
@@ -187,49 +180,16 @@ StarCraft: Remastered에서 `hello.scx`를 열어 생성된 트리거를 확인�
 
 ## 빌드 및 테스트
 
-루트 `Makefile`이 기여자 워크플로를 감싸고 있습니다. 저장소 루트에서 실행하세요:
-
-| 타깃 | 실행 내용 |
-| --- | --- |
-| `make build` | `cargo build --workspace` |
-| `make release` | `cargo build --release --workspace` |
-| `make test-rust` | 워크스페이스 테스트 + `map_bridge` 스위트 |
-| `make test-ts` | TypeScript 타입체크 및 테스트 (`ts/` 의존성 설치 포함) |
-| `make test-py` | 저장소 루트에서 Python `unittest` 탐색 실행 |
-| `make test-quickstart` | quickstart 4쌍 Py/TS 동등성 검사 |
-| `make test-examples` | 마이그레이션 예제 Py/TS 동등성 검사 |
-| `make typecheck` | `tsc --noEmit` + truthiness 검사 |
-| `make test` | `test-rust` → `test-ts` → `test-py` 순차 실행 |
-| `make clean` | `cargo clean` + `ts/dist` 정리 |
-
-직접 명령은 다음과 같습니다:
-
-```sh
-cargo build --workspace
-cargo test --workspace
-cargo test -p eudkit-lower --test map_bridge
-(cd ts && npm install && npm run typecheck && npm test)
-PYTHONPATH=. python3 -m unittest discover -s py/tests -p 'test_*.py' -t .
-```
-
-Python 테스트 스위트는 `target/debug/eudkit`과 `target/debug/eudkit-compile`을 실행하므로 먼저 워크스페이스를 빌드해야 합니다. 새로 체크아웃했다면 타입체커나 테스트 실행 전 `ts/`에서 개발 의존성을 먼저 설치하세요.
-
-Python 테스트에는 `pytest`가 아니라 `python3 -m unittest`를 사용하고, TypeScript에는 `bun`이 아니라 `npm`을 사용하세요. 전체 기여 워크플로와 스키마 복사 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md)에 정리되어 있습니다.
+루트 `Makefile`이 기여자 워크플로를 감싸고 있습니다: `make build`, `make test`, 그리고 `make test-quickstart`·`make test-examples` 같은 집중 타깃입니다. 전체 타깃 매트릭스, 동등한 직접 명령, 디버그 바이너리 선행 조건은 [CONTRIBUTING.md#build-and-test](CONTRIBUTING.md#build-and-test)에 있습니다.
 
 ## 버전
 
-| 구성 요소 | 버전 | 정의 위치 |
-| --- | --- | --- |
-| `eudkit` CLI, Rust 워크스페이스, LSP 에디터 확장 | 0.1.0 | `Cargo.toml` (`[workspace.package] version`), `editors/` |
-| Python `eudkit` 패키지 | 0.1.0 | `py/pyproject.toml` |
-| npm `eudkit` 패키지 | 0.1.0 | `ts/package.json` |
-
-모든 백엔드 크레이트, 에디터 확장, Python/npm 패키지는 단일 통합 버전(`0.1.0`)을 사용합니다. 릴리스 패키징과 배포 구조는 [docs/release.md](docs/release.md)를 참고하세요.
+모든 릴리스 산출물은 하나의 통합 버전(`0.1.0`)을 공유합니다: `eudkit` CLI와 Rust 워크스페이스, LSP 에디터 확장, Python 및 npm 패키지가 모두 같습니다. 매니페스트 표, 태그 규칙, 릴리스 규약은 [docs/release.md#version-conventions](docs/release.md#version-conventions)를 참고하세요.
 
 ## 현재 상태 및 제한 사항
 
 - 모든 `compile`에는 베이스맵(`--basemap`)이 필요하며, 빈 맵을 처음부터 생성하는 커맨드는 제공하지 않습니다.
-- CLI는 `EUDKIT_ROOT`, 현재/소스 디렉터리 상위 체크아웃, 인접 `share/eudkit/`, 설치된 `eudkit` 패키지, (디버그 빌드 전용) 빌드 시점 체크아웃 순으로 런타임을 찾습니다. 경로가 안 잡힐 때는 `eudkit doctor`로 확인하세요([CONTRIBUTING.md#runtime-resolution](CONTRIBUTING.md#runtime-resolution)).
+- CLI는 체크아웃, 번들, 설치된 패키지에서 DSL 런타임을 찾습니다. 경로가 잡히지 않으면 `eudkit doctor`로 확인하세요([CONTRIBUTING.md#runtime-resolution](CONTRIBUTING.md#runtime-resolution)).
 - 실제 게임 내 동작 검증은 테스트 스위트가 아닌 스모크 맵으로 수동 확인합니다.
 
 ## 감사의 글 및 라이선스

@@ -1,9 +1,9 @@
 # Contributing to eudkit
 
-eudkit is a Rust workspace plus two mirrored DSL frontends, `py/` and `ts/`.
-Start with the [README](README.md), then read [GLOSSARY.md](GLOSSARY.md) for the
-domain vocabulary and the ADRs that touch your area
-([docs/adr/README.md](docs/adr/README.md)).
+eudkit is a Rust workspace plus two DSL frontends, `py/` and `ts/`, that share
+one canonical vocabulary. Start with the [README](README.md), then read
+[GLOSSARY.md](GLOSSARY.md) for the domain vocabulary and the ADRs that touch
+your area ([docs/adr/README.md](docs/adr/README.md)).
 
 ## Build and test
 
@@ -137,13 +137,29 @@ Consequences:
 ## Stale cargo artifacts
 
 Test binaries bake `env!("CARGO_MANIFEST_DIR")` into their paths. After moving
-or removing a worktree, tests can fail with `No such file or directory` or
+or removing a checkout, tests can fail with `No such file or directory` or
 `Map(Storm(FileNotFound))`. Run `cargo clean` and rebuild; this is stale artifact
 state, not a source regression.
 
 ## Formatting
 
 The workspace is not rustfmt-clean today: `cargo fmt --all -- --check` already
-fails on files an isolated branch did not touch. Do not run a workspace-wide
+fails on files your change did not touch. Do not run a workspace-wide
 `cargo fmt --all`; it rewrites unrelated code and buries the change. Keep
 formatting local to the lines you edit.
+
+## Commit messages
+
+Use Conventional Commits with an imperative summary:
+
+```text
+type(scope): imperative summary
+```
+
+- Keep the subject in the imperative mood (`fix(cli): reject a missing
+  basemap`), lower-case after the colon, and without a trailing period.
+- Put the reason and any migration note in the body, wrapped at 72 columns.
+- Keep commit messages public-repo clean: no internal ticket, cycle, wave,
+  worktree, or handoff tags. Describe the change itself.
+- Do not rewrite or force-push published `master`; add a follow-up commit
+  instead.

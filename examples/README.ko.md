@@ -70,28 +70,23 @@ export됩니다.
 | 06 | [`06_arrays_and_structs.py`](./eudplib/06_arrays_and_structs.py) | [`06_arrays_and_structs.py`](./py/06_arrays_and_structs.py) | [`06_arrays_and_structs.ts`](./ts/06_arrays_and_structs.ts) | `FixedArray`, `FixedArray.const`, `TriggerStruct`, `Trigger.fire()` |
 | 07 | [`07_block_io_and_data.py`](./eudplib/07_block_io_and_data.py) | [`07_block_io_and_data.py`](./py/07_block_io_and_data.py) | [`07_block_io_and_data.ts`](./ts/07_block_io_and_data.ts) | `memcpyEPD`, `memsetEPD`, `Db`, `dataDumper` |
 | 08 | [`08_dynamic_epd_access.py`](./eudplib/08_dynamic_epd_access.py) | [`08_dynamic_epd_access.py`](./py/08_dynamic_epd_access.py) | [`08_dynamic_epd_access.ts`](./ts/08_dynamic_epd_access.ts) | 런타임 `Var` EPD 읽기 (`memcpyEPD`/`CPCursor(0)`) & 쓰기 (`emitVarStore` + `fire()`) |
+| 09 | [`09_unit_list.py`](./eudplib/09_unit_list.py) | [`09_unit_list.py`](./py/09_unit_list.py) | [`09_unit_list.ts`](./ts/09_unit_list.ts) | `for_each_unit_list`/`forEachUnitList` (`U`/`T`/`S`/`D`), `with_epd`/`withEpd`, `BREAK` 센티널 |
 
 ## 모든 예제 검증
 
-먼저 워크스페이스를 빌드합니다. `test_examples.py`는 `target/debug/eudkit`이
-존재하는지 확인한 뒤 그 바이너리로 컴파일합니다:
+먼저 워크스페이스를 빌드한 뒤 Py/TS 동등성 검사를 실행합니다:
 
 ```sh
 cargo build --workspace
+PYTHONPATH=. python3 -m unittest py/tests/test_examples.py
 ```
 
-그다음 합성하고 Py/TS 간 HIR + `.scx` 동등성을 비교하며 `eudplib` 기준
-구현을 검증합니다:
+`test_examples.py`는 `target/debug/eudkit` 존재를 확인하고 각 Py/TS 쌍을 합성·컴파일하며 바이트 단위로 동일한 HIR 및 `.scx` 출력을 요구합니다. 형제 `eudplib` 체크아웃이 없으면 `eudplib` 기준 구현의 임포트 검사는 건너뛰며, Py/TS 동등성 검사는 모두 실행됩니다.
+
+예제 하나를 플레이 가능한 맵으로 컴파일하려면:
 
 ```sh
-# 저장소 루트에서:
-PYTHONPATH=. python3 -m unittest py/tests/test_examples.py
-
-# 또는 예제 하나를 플레이 가능한 .scx로 컴파일:
 ./target/debug/eudkit compile examples/ts/01_direct_memory.ts \
   --basemap tests/outputmap/basemap/basemap_silent.scx \
   -o /tmp/01_direct_memory.scx
 ```
-
-형제 `eudplib` 체크아웃이 없으면 `eudplib` 기준 구현의 임포트 검사는
-건너뛰며, Py/TS 동등성 검사는 모두 실행됩니다.

@@ -31,7 +31,7 @@
    ```sh
    cd editors/vscode
    npm install
-   npx @vscode/vsce package --out eudkit-vscode.vsix
+   npx --yes @vscode/vsce@4.1.1 package --out eudkit-vscode.vsix
    code --install-extension eudkit-vscode.vsix
    ```
 
@@ -61,22 +61,9 @@
 
 신뢰되지 않은 워크스페이스에서는 제한적 지원만 제공됩니다: 전역으로 설정된 서버나 `PATH`의 서버는 사용할 수 있지만, 워크스페이스 내부 바이너리 탐색과 워크스페이스 설정 재정의는 워크스페이스를 신뢰하기 전까지 비활성화됩니다.
 
-## 기능
+## 언어 기능
 
-- DSL 어휘(스톡 및 확장 헬퍼, 핵심 식별자, Python 표기)와 `.` 뒤의 수신자 멤버(`Trigger`, `ActView`, `CondView`, `CUnit`, `CSprite`, `FixedString`, `FixedArray`)에 대한 **자동 완성(Completion)**.
-- 어휘 식별자 및 멤버에 대한 **호버(Hover)** 문서 (Markdown).
-- 소스 `eudkit-lsp`, 코드 `EUDSL-BOUNDS`의 **용량 진단(Diagnostics)**: `FixedString` 용량은 `1..=65535`, `FixedArray` / `Queue` / `Deque` / `Stack` / `UnitGroup` 용량은 양수여야 하며, `Trigger`는 최대 `conds` 16개, `acts` 64개까지만 담을 수 있습니다. 문자열 리터럴과 주석은 검사하지 않습니다.
-
-파일은 언어 기준으로 매칭되며 `file` 스킴의 TypeScript 및 Python 문서에 연결됩니다.
-
-## 제한 사항
-
-- **타입 추론 없음.** 수신자 타입은 식별자 이름(`u`/`unit` → `CUnit`, `s`/`sprite` → `CSprite`, `trig`/`trigger`/`t` → `Trigger`, `str`/`msg` → `FixedString`, `arr`/`array` → `FixedArray`)으로 추정하므로, 이름이 `s`인 `FixedString`에는 `CSprite` 멤버가 제안됩니다.
-- **용량 검사만 수행.** `EUDSL-TYPE`, `EUDSL-SCOPE` 등 나머지 진단 코드는 LSP가 아니라 eudkit 프론트엔드와 컴파일러가 생성합니다.
-- **컴파일 미수행.** 빌드나 로워링을 실행하지 않으며 컴파일된 맵 바이트에도 영향을 주지 않습니다.
-- **전체 문서 동기화만 지원.** 증분 편집(incremental edit)은 지원하지 않으며 디스크가 아니라 에디터 버퍼 내용을 기준으로 동작합니다.
-- **정의 이동, 참조 찾기, 이름 변경, 포매팅, 코드 액션, 시그니처 도움말, 시맨틱 토큰, 워크스페이스 심볼 미지원.**
-- **Python 규칙은 `languageId` 기반.** `python` 문서에만 Python 주석 및 삼중 따옴표 문자열 처리가 적용됩니다.
+이 확장은 얇은 클라이언트입니다. 자동 완성, 호버 문서, `EUDSL-BOUNDS` 용량 진단은 `eudkit-lsp`가 구현합니다. 파일은 언어 기준으로 매칭되며 `file` 스킴의 TypeScript 및 Python 문서에 연결됩니다. 전체 기능 목록, 진단, 문서화된 제한 사항은 [docs/lsp.md](../../docs/lsp.md#supported-features)를 참고하세요.
 
 ## 개발
 

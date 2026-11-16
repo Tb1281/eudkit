@@ -2,7 +2,7 @@
 
 > **SSOT**: 이 문서의 영문 정본(SSOT)은 [ts/README.md](./README.md)입니다. 내용이 다를 경우 영문 정본을 우선합니다.
 
-eudkit DSL의 TypeScript 구현입니다. `py/`와 1:1로 대응합니다.
+eudkit DSL의 TypeScript 구현입니다. `py/`와 정본 어휘를 공유하며, 일부 빌더 경계 동작은 의도적으로 다릅니다. 자세한 내용은 [ADR 0026](../docs/adr/0026-builder-seam-divergence.md)을 참고하세요.
 
 ## 설치
 
@@ -14,7 +14,7 @@ npm install eudkit
 
 ## 개발
 
-먼저 Rust 워크스페이스를 빌드하세요. 테스트 하니스는 `target/debug/eudkit`과 `target/debug/eudkit-compile`을 실행하므로, 바이너리가 없으면 새 체크아웃에서 `npm test`가 실패합니다:
+먼저 Rust 워크스페이스를 빌드하세요. 테스트 하니스는 `target/debug/eudkit`과 `target/debug/eudkit-compile`을 실행하므로, 바이너리가 없으면 새 체크아웃에서 `npm test`가 실패합니다. 전체 빌드/테스트 매트릭스는 [CONTRIBUTING.md#build-and-test](../CONTRIBUTING.md#build-and-test)에 있습니다.
 
 ```sh
 # 저장소 루트에서:
@@ -24,11 +24,6 @@ cargo build --workspace
 npm install        # 개발 도구 전용 (typescript, @types/node; 배포물에 포함되지 않음)
 npm run typecheck  # 소스 + 테스트 전체에 tsc --noEmit 및 truthiness 검사 실행
 npm run dev        # 로컬 개발 중 연속 재빌드 (tsc --watch)
-```
-
-테스트는 `ts/`에서 Node의 내장 테스트 러너로 실행합니다:
-
-```sh
 npm test           # node --test tests/test_*.ts 실행
 ```
 
@@ -42,9 +37,7 @@ npm run build      # 소스에서 dist/ 클린 재빌드
 
 빌드는 번들러 없이 순수 `tsc`(`tsconfig.build.json`)를 사용합니다. `rewriteRelativeImportExtensions`가 소스의 `.ts` 임포트 지정자를 출력 JS의 `.js`로 변환하며, 모든 모듈 옆에 `.d.ts`를 함께 생성합니다. 테스트(`test_*.ts`)와 픽스처(`*_fixture.ts`)는 빌드에서 제외됩니다.
 
-`dist/`는 빌드 출력 디렉터리이므로 gitignore 처리되어 있으며 커밋되지 않습니다. 새 체크아웃에서는 `ts/`에서 `npm install && npm run build`를 실행해 빌드합니다.
-
-빌드는 타입 체크와 함께 진행되므로 타입 오류가 있으면 선언 파일이 어긋난 패키지를 내보내지 않고 즉시 실패합니다. `npm run typecheck`는 파일 방출 없이 테스트까지 포함해 같은 검사를 수행합니다.
+`dist/`는 빌드 출력 디렉터리이므로 gitignore 처리되어 있으며 커밋되지 않습니다. 새 체크아웃에서는 `ts/`에서 `npm install && npm run build`를 실행해 빌드합니다. 빌드는 타입 체크와 함께 진행되므로 타입 오류가 있으면 선언 파일이 어긋난 패키지를 내보내지 않고 즉시 실패합니다. `npm run typecheck`는 파일 방출 없이 테스트까지 포함해 같은 검사를 수행합니다.
 
 ## 사용법
 
@@ -72,7 +65,7 @@ export const module = buildModule(() => {
 });
 ```
 
-`main`/`exports`가 gitignore된 `dist/`를 가리키므로 `npm run build`가 선행되어야 합니다. 컴파일러는 `--experimental-strip-types` 플래그로 Node를 호출하므로 **Node >= 22.6**이 필요합니다. 소스 파일을 직접 실행할 때도 같은 플래그가 필요합니다: `node --experimental-strip-types hello.ts`.
+컴파일러는 `--experimental-strip-types` 플래그로 Node를 호출하므로 **Node >= 22.6**이 필요합니다(플래그는 Node 22.6.0에 추가됨). 소스 파일을 직접 실행할 때도 같은 플래그가 필요합니다: `node --experimental-strip-types hello.ts`.
 
 `package.json`은 다음 빌드 출력을 가리킵니다:
 

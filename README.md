@@ -90,20 +90,12 @@ The first build fetches the `stormlib` git dependency declared in `Cargo.toml`.
 ## Install and set up a project
 
 Release builds also work outside this checkout. A standalone `eudkit` resolves
-its DSL runtime in this order:
-
-1. `EUDKIT_ROOT`, if set.
-2. The nearest ancestor of the current directory containing both `ts/index.ts`
-   and `py/__init__.py`.
-3. The nearest ancestor of the source file containing those same trees
-   (`compile` and `synth` only; `doctor` inspects the current directory and
-   environment).
-4. `<prefix>/share/eudkit/` adjacent to the executable. This is the external
-   standalone distribution layout contract; `cargo install` and the `Makefile`
-   do not populate `share/eudkit/` automatically.
-5. The installed `eudkit` npm or Python package.
-6. Debug builds only: the build-time checkout, unless
-   `EUDKIT_NO_MANIFEST_FALLBACK=1` is set.
+its DSL runtime from `EUDKIT_ROOT`, a checkout ancestor of the current or source
+directory, an adjacent `share/eudkit/` bundle, the installed `eudkit` npm or
+Python package, or (debug builds only) the build-time checkout. A
+set-but-invalid `EUDKIT_ROOT` is an error and never falls back to another
+runtime. The full resolution order and the `share/eudkit/` layout contract are
+in [CONTRIBUTING.md#runtime-resolution](CONTRIBUTING.md#runtime-resolution).
 
 Check which runtime and frontend toolchain the binary will use before
 compiling:
@@ -192,14 +184,14 @@ For the full first-run path, including basemap choice and in-game checks, see
 | `crates/eudkit-lower/` | HIR-to-LIR lowering and relocations |
 | `crates/eudkit-lir/` | LIR wire schema |
 | `crates/eudkit-map/` | CHK fixups, MPQ assembly, and `.scx` output |
-| `crates/eudkit-cli/` | The `eudkit` binary (`compile`, `dump-ir`, `synth`) |
+| `crates/eudkit-cli/` | The `eudkit` binary (`compile`, `dump-ir`, `synth`, `doctor`, `init`) |
 | `crates/eudkit-lsp/` | JSON-RPC language server |
 | `py/` | Python DSL (in-repo import name `py`; installed package `eudkit`) |
 | `ts/` | TypeScript DSL (raw sources in-repo; `npm run build` emits `dist/`) |
 | `schema/` | Canonical stock-row spec and layout JSON; packaged copies live in `py/schema/` and `ts/schema/layouts/` |
-| `examples/` | Beginner quickstart (`examples/quickstart/`) and `eudplib` / `euddraft` migration examples |
+| `examples/` | Beginner quickstart (`examples/quickstart/`) plus `eudplib` baselines and `py/`/`ts/` migration pairs |
 | `tests/` | Stock goldens, output-map fixtures, and smoke maps |
-| `scripts/` | Compile benchmark and generated-surface helpers |
+| `scripts/` | Version and bundle checks, stock-surface generation, benchmark and probe helpers |
 | `docs/` | Quickstart, guides, and architecture decision records (ADRs) |
 
 ## Documentation index
@@ -229,60 +221,24 @@ For the full first-run path, including basemap choice and in-game checks, see
 
 ## Build and test
 
-The root `Makefile` wraps the contributor workflow; run these targets from the
-repository root:
-
-| Target | What it runs |
-| --- | --- |
-| `make build` | `cargo build --workspace` |
-| `make release` | `cargo build --release --workspace` |
-| `make test-rust` | Workspace tests plus the focused `map_bridge` suite |
-| `make test-ts` | TypeScript typecheck and tests (installs `ts/` dependencies first) |
-| `make test-py` | Python `unittest` discovery from the repository root |
-| `make test-quickstart` | The four quickstart Py/TS parity pairs |
-| `make test-examples` | The migration-example Py/TS parity checks |
-| `make typecheck` | `tsc --noEmit` plus the truthiness check |
-| `make test` | `test-rust`, then `test-ts`, then `test-py` |
-| `make clean` | `cargo clean` plus `ts/dist` cleanup |
-
-The equivalent direct commands are:
-
-```sh
-cargo build --workspace
-cargo test --workspace
-cargo test -p eudkit-lower --test map_bridge
-(cd ts && npm install && npm run typecheck && npm test)
-PYTHONPATH=. python3 -m unittest discover -s py/tests -p 'test_*.py' -t .
-```
-
-The Python suite shells out to `target/debug/eudkit` and
-`target/debug/eudkit-compile`, so build the workspace first. On a fresh
-checkout, install the TypeScript dev dependencies from `ts/` before running the
-type checker or tests.
-
-Use `python3 -m unittest`, not `pytest`, and use `npm`, not `bun`. The full
-contributor workflow, including schema-copy rules and the stale-target trap, is
-in [CONTRIBUTING.md](CONTRIBUTING.md).
+The root `Makefile` wraps the contributor workflow: `make build`, `make test`,
+and focused targets such as `make test-quickstart` and `make test-examples`.
+The full target matrix, the equivalent direct commands, and the debug-binary
+prerequisite are in
+[CONTRIBUTING.md#build-and-test](CONTRIBUTING.md#build-and-test).
 
 ## Versions
 
-| Component | Version | Source |
-| --- | --- | --- |
-| `eudkit` CLI, Rust workspace, and LSP editor extensions | 0.1.0 | `Cargo.toml` (`[workspace.package] version`), `editors/` |
-| Python `eudkit` package | 0.1.0 | `py/pyproject.toml` |
-| npm `eudkit` package | 0.1.0 | `ts/package.json` |
-
-All backend crates, editor extensions, and Python/npm packages share the same
-unified version (`0.1.0`). Release packaging, registry publishing, and the
-standalone bundle layout are documented in [docs/release.md](docs/release.md).
+All release deliverables share one unified version (`0.1.0`): the `eudkit` CLI
+and Rust workspace, the LSP editor extensions, and the Python and npm packages.
+The manifest table, tag rules, and release conventions are in
+[docs/release.md#version-conventions](docs/release.md#version-conventions).
 
 ## Status and limitations
 
 - Every `compile` needs a basemap; there is no basemap-from-scratch command.
-- The CLI resolves its DSL runtime through `EUDKIT_ROOT`, checkout ancestors of
-  the current or source directory, an adjacent `share/eudkit/`, an installed
-  `eudkit` package, or (debug builds only) the build-time checkout; run
-  `eudkit doctor` when it cannot find one. See
+- The CLI resolves its DSL runtime from a checkout, a bundle, or an installed
+  package; run `eudkit doctor` when it cannot find one. See
   [CONTRIBUTING.md#runtime-resolution](CONTRIBUTING.md#runtime-resolution).
 - In-game behavior is checked manually with the smoke maps, not by the test
   suites.

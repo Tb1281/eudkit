@@ -68,11 +68,7 @@ Zed는 `editors/zed`를 `wasm32-wasip2` 타깃의 독립 Cargo 패키지로 컴�
 
 ## 동작 방식
 
-- 자동 완성과 호버는 eudkit DSL 어휘 및 `.` 뒤의 수신자 멤버를 다룹니다.
-- 진단은 용량 검사(`FixedString`, `FixedArray`/`Queue`/`Deque`/`Stack`/`UnitGroup`, `Trigger` 조건·액션 상한)만 수행합니다.
-- 서버는 전체 문서 동기화만 사용하며 워크스페이스 인덱싱 없이 에디터 버퍼를 기준으로 동작합니다.
-
-VS Code 및 Neovim 설정을 포함한 전체 프로토콜과 기능 레퍼런스는 [`docs/lsp.md`](../../docs/lsp.md)를 참고하세요.
+이 확장은 `eudkit-lsp`를 실행하며, 서버가 전체 문서 동기화 위에서 자동 완성, 호버 문서, 고정 용량 진단을 제공합니다. 전체 기능 목록, 진단, 문서화된 제한 사항과 VS Code·Neovim 설정은 [`docs/lsp.md`](../../docs/lsp.md#supported-features)를 참고하세요.
 
 ## 라이선스
 

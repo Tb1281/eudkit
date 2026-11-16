@@ -54,15 +54,7 @@ cargo build --release --workspace
 아래 명령들은 `./target/debug/eudkit`을 사용합니다. 릴리스로 빌드했다면
 `./target/release/eudkit`으로 바꿔 쓰면 됩니다.
 
-> CLI가 DSL 런타임을 찾을 수 있어야 합니다. 다음 순서로 런타임을 확인합니다.
-> `EUDKIT_ROOT`; 현재 디렉터리의 상위 디렉터리; 소스 파일의 상위 디렉터리
-> (`compile`/`synth`만); 실행 파일에 인접한 `<prefix>/share/eudkit/`; 설치된
-> `eudkit` npm/Python 패키지; 마지막으로 디버그 빌드에서만 빌드 시점 체크아웃
-> (`EUDKIT_NO_MANIFEST_FALLBACK=1`이면 비활성화). 설정된 `EUDKIT_ROOT`가
-> 잘못되면 오류이며 다른 런타임으로 대체하지 않습니다.
->
-> `<prefix>/share/eudkit/`은 외부 독립 배포 레이아웃 계약입니다. `cargo install`과
-> `Makefile`은 `share/eudkit/`을 자동으로 채우지 않습니다.
+> CLI가 DSL 런타임을 찾을 수 있어야 합니다. `EUDKIT_ROOT`, 현재 또는 소스 디렉터리의 상위 체크아웃, 인접한 `<prefix>/share/eudkit/` 번들, 설치된 `eudkit` npm/Python 패키지, (디버그 빌드 전용) 빌드 시점 체크아웃 순으로 런타임을 확인합니다. 설정된 `EUDKIT_ROOT`가 잘못되면 오류이며 다른 런타임으로 대체하지 않습니다. 전체 순서와 `share/eudkit/` 레이아웃 계약은 [CONTRIBUTING.md#runtime-resolution](../CONTRIBUTING.md#runtime-resolution)에 있습니다.
 
 ### `doctor`로 런타임 확인
 
@@ -217,6 +209,14 @@ DSL 소스를 캡처하려면 `EUDKIT_ROOT`가 이 저장소를 가리키도록 
 | `executed_cost` | 시뮬레이션한 트리거 루프 두 번에서 실제로 방문한 비용 |
 | `storage` | `Var` 셀, `TriggerPage` 슬롯/페이지, dword/bit 셀 |
 | `packing` | 조건과 액션이 트리거 안에 어떻게 패킹되었는지 |
+
+`--explain-folds`를 추가하면 옵티마이저의 폴딩 로그가 뒤에 붙습니다: 조건 융합, 상수 게이트 열기, 죽은 게이트 제거, 형제 `when` 병합, 16개 조건 청킹입니다.
+
+```sh
+./target/debug/eudkit dump-ir /tmp/quickstart-hello.hir.json --explain-folds
+```
+
+텍스트 보고서는 `Folds:` 블록으로 끝납니다. `--json`을 쓰면 같은 이벤트가 `folds` 키 아래(`kind`, `site`, `before`, `after`)에 나타납니다. 이 키는 플래그가 있을 때만 포함되므로 기본 JSON 출력은 바뀌지 않습니다.
 
 시뮬레이터는 생성된 트리거의 모델을 실행할 뿐, StarCraft 자체는 아닙니다.
 게임을 열기 전에 절대 실행되지 않는 분기나 값이 변하지 않는 `Var`를 잡아내는

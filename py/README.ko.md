@@ -33,7 +33,7 @@ cargo build --workspace
 python3 -m unittest discover -s py/tests -p "test_*.py" -t .
 ```
 
-`pytest`가 아닌 `unittest`를 사용하세요. 저장소 루트에서 `pytest`를 실행하면 자체 `py` 의존성 대신 저장소 내부의 `py/` 패키지를 불러오게 되며, `py/` 디렉터리 안에서 실행하면 로컬 `struct.py`가 표준 라이브러리 모듈을 가립니다. `-t .` 플래그는 저장소 루트를 `sys.path`에 유지해 `from py import ...`가 현재 체크아웃을 가리키도록 합니다.
+`pytest`가 아닌 `unittest`를 사용하고, `from py import ...`가 현재 체크아웃을 가리키도록 `-t .`를 유지하세요. 전체 빌드/테스트 매트릭스와 `py`/`struct` 섀도잉 설명은 [CONTRIBUTING.md#build-and-test](../CONTRIBUTING.md#build-and-test)에 있습니다.
 
 ## 패키지 구조 및 빌드
 
@@ -43,7 +43,17 @@ python3 -m unittest discover -s py/tests -p "test_*.py" -t .
 - `package-dir = {"eudkit" = "."}`
 - `package-data = {"eudkit" = ["schema/layouts/*.json", "schema/stock-rows.json"]}`
 
-DSL 프론트엔드 모듈은 `py/` 아래에 위치하며 `eudkit` 패키지 이름으로 노출됩니다: `array.py`, `backing.py`, `bgm.py`, `blockio.py`, `camera.py`, `cp.py`, `dat.py`, `datadumper.py`, `hir.py`, `lazy_binding.py`, `mathf.py`, `noaircollision.py`, `ogg.py`, `queue.py`, `soundlooper.py`, `stock_rows_built.py`, `stock_rows_generated.py`, `string.py`, `struct.py`, `temporal.py`, `trigger.py`, `unlimiter.py`, `var.py`, `view.py`. 별도의 `mem.py`는 없으며 메모리 뷰(`MemView`, `CUnit`, `CSprite`, `MemFieldHandle`, `MemCond`)는 `view.py`에 있습니다. 테스트는 `py/tests/`에 격리되어 있습니다.
+DSL 프론트엔드 모듈은 `py/` 아래에 위치하며 `eudkit` 패키지 이름으로 노출됩니다. 31개 모듈은 영역별로 묶입니다:
+
+- **코어:** `hir.py`, `var.py`, `temporal.py`, `trigger.py`, `lazy_binding.py`
+- **메모리 및 뷰:** `view.py`, `backing.py`, `location.py`, `player.py`, `units.py`, `scstate.py`
+- **자료 구조 및 I/O:** `array.py`, `queue.py`, `string.py`, `struct.py`, `blockio.py`, `capacity.py`
+- **조건 및 수학:** `conditions.py`, `mathf.py`, `random.py`
+- **DAT:** `dat.py`, `datadumper.py`
+- **스톡 카탈로그:** `stock_rows_built.py`, `stock_rows_generated.py`
+- **맵 효과 및 오디오:** `bgm.py`, `camera.py`, `cp.py`, `noaircollision.py`, `ogg.py`, `soundlooper.py`, `unlimiter.py`
+
+별도의 `mem.py`는 없으며 메모리 뷰(`MemView`, `CUnit`, `CSprite`, `MemFieldHandle`, `MemCond`)는 `view.py`에 있습니다. 테스트는 `py/tests/`에 격리되어 있습니다.
 
 패키지는 `schema/layouts/`(`MemView`가 런타임에 읽는 `CUnit`, `CSprite` 등 JSON 레이아웃)와 `schema/stock-rows.json`(`stock_rows_built.py`가 임포트 시 읽는 스톡/확장 스펙)을 모두 포함합니다.
 
@@ -79,7 +89,7 @@ def prog() -> None:
 module = build_module(prog)
 ```
 
-어느 쪽이든 `./target/debug/eudkit synth hello.py`로 컴파일할 수 있습니다(`cargo build --workspace` 선행). 임포트 이름만 다를 뿐 완전히 같은 프로그램입니다.
+어느 쪽이든 `./target/debug/eudkit synth hello.py`로 HIR을 생성할 수 있습니다(`cargo build --workspace` 선행). `synth`는 HIR에서 멈추고, `eudkit compile`이 그 HIR을 로워링해 `.scx`를 어셈블합니다. 임포트 이름만 다를 뿐 완전히 같은 프로그램입니다.
 
 정본 어휘는 두 임포트 이름 아래 모두 동일하게 제공됩니다:
 

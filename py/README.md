@@ -40,11 +40,10 @@ cargo build --workspace
 python3 -m unittest discover -s py/tests -p "test_*.py" -t .
 ```
 
-Use `unittest`, not `pytest`. From the repository root `pytest` imports the
-in-repo `py/` package in place of its own `py` dependency, and from inside
-`py/` the local `struct.py` shadows the standard-library module. The `-t .`
-flag keeps the repository root on `sys.path`, so `from py import ...` resolves
-to this checkout.
+Use `unittest`, not `pytest`, and keep `-t .` so `from py import ...` resolves
+to this checkout. The full build/test matrix and the `py`/`struct` shadowing
+details are in
+[CONTRIBUTING.md#build-and-test](../CONTRIBUTING.md#build-and-test).
 
 ## Package Layout & Build
 
@@ -55,11 +54,19 @@ The package manifest lives directly in `py/` ([`pyproject.toml`](./pyproject.tom
 - `package-data = {"eudkit" = ["schema/layouts/*.json", "schema/stock-rows.json"]}`
 
 The DSL frontend modules live directly in `py/` and are exposed under package
-`eudkit`: `array.py`, `backing.py`, `bgm.py`, `blockio.py`, `camera.py`,
-`cp.py`, `dat.py`, `datadumper.py`, `hir.py`, `lazy_binding.py`, `mathf.py`,
-`noaircollision.py`, `ogg.py`, `queue.py`, `soundlooper.py`,
-`stock_rows_built.py`, `stock_rows_generated.py`, `string.py`, `struct.py`,
-`temporal.py`, `trigger.py`, `unlimiter.py`, `var.py`, and `view.py`.
+`eudkit`. The 31 modules group by area:
+
+- **Core:** `hir.py`, `var.py`, `temporal.py`, `trigger.py`, `lazy_binding.py`
+- **Memory and views:** `view.py`, `backing.py`, `location.py`, `player.py`,
+  `units.py`, `scstate.py`
+- **Data structures and I/O:** `array.py`, `queue.py`, `string.py`, `struct.py`,
+  `blockio.py`, `capacity.py`
+- **Conditions and math:** `conditions.py`, `mathf.py`, `random.py`
+- **DAT:** `dat.py`, `datadumper.py`
+- **Stock catalog:** `stock_rows_built.py`, `stock_rows_generated.py`
+- **Map effects and audio:** `bgm.py`, `camera.py`, `cp.py`,
+  `noaircollision.py`, `ogg.py`, `soundlooper.py`, `unlimiter.py`
+
 There is no `mem.py`; memory views (`MemView`, `CUnit`, `CSprite`,
 `MemFieldHandle`, `MemCond`) live in `view.py`. Tests are isolated under
 `py/tests/`.
@@ -105,9 +112,10 @@ def prog() -> None:
 module = build_module(prog)
 ```
 
-Compile either file with `./target/debug/eudkit synth hello.py` (after
-`cargo build --workspace`). Both forms are the same program; only the import
-name differs.
+Run either file through `./target/debug/eudkit synth hello.py` (after
+`cargo build --workspace`) to emit HIR. `synth` stops at HIR; `eudkit compile`
+lowers that HIR and assembles a `.scx`. Both forms are the same program; only
+the import name differs.
 
 The canonical vocabulary is available under either name:
 

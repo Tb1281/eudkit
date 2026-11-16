@@ -76,18 +76,19 @@ the stage names.
 
 ## Stage reference
 
-Stages run in this order for a map build:
+Stages in pipeline order (`synth.hir` is on the `synth` path; a map build uses
+`hir.parse` and then continues below):
 
 | Stage | Work |
 | --- | --- |
 | `frontend` | Frontend subprocess evaluates the DSL and emits HIR JSON. |
+| `synth.hir` | `eudkit synth` validates and re-serializes the captured HIR JSON; the compile path uses `hir.parse` instead. |
 | `hir.parse` | CLI parses HIR JSON into the HIR document. |
 | `opt.optimize` | HIR optimization pass. |
 | `opt.storage` | Storage/cell analysis of the optimized module. |
 | `lower.basemap-info` | Open the basemap, read/tokenize `scenario.chk`, and extract template strings and MapInfo — the one template string-table parse per compile (map assembly reuses it). |
 | `lower.str-offsets` | Run the control-flow pre-pass once, walk its triggers for the final ordered string list, and build the STR offsets from the shared basemap parse. |
 | `lower.final` | Final lowering to LIR, from the same pre-pass (no second flatten, no probe lowering). |
-| `lir.serialize` | Serialize LIR to JSON for the map tail. |
 | `map.template` | Take the tokenized template CHK from the lowering context (a ~0.003 ms clone; no MPQ re-read), or open/read/tokenize it when assembly has no context. |
 | `map.lir` | Parse the LIR JSON and validate the program entry. |
 | `map.gate` | Append the optional once-per-tick gate. |
@@ -119,19 +120,12 @@ Measured on 2026-11-08 with a release build, using a large external fixture
 - Output: **1,011,328 bytes**, sha256
   `ac5c6dbf7ca9979bc9300f8e88eefb0b3ff5ba66b7ac6c99e002c2d940c8a415`,
   **16,878T static**.
-- Largest stages: `mpq.add-chk` 802 ms (39.6%), `frontend` 492 ms (24.3%),
-  `hir.parse` 166 ms (8.2%), `map.init` 108 ms (5.3%), `map.lir` 75 ms
-  (3.7%).
 
 The map is 16,878 triggers, so its raw CHK is roughly 40 MB even though the
 source is a few kilobytes and the compressed `.scx` is about 1 MB.
 `mpq.add-chk` is dominated by compressing that CHK. Numbers vary with CPU,
 filesystem, and output path; compare runs from the same machine and avoid
 writing the output to a slow network or emulated drive when measuring.
-
-The earlier 16,883T result predates the fixed-width decimal arithmetic
-change and must not be reintroduced; the current deterministic result is
-16,878T.
 
 ## CI rule
 

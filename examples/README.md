@@ -68,28 +68,26 @@ not a library export; pick any scratch dword for your own map. `CP_ADDR`
 | 06 | [`06_arrays_and_structs.py`](./eudplib/06_arrays_and_structs.py) | [`06_arrays_and_structs.py`](./py/06_arrays_and_structs.py) | [`06_arrays_and_structs.ts`](./ts/06_arrays_and_structs.ts) | `FixedArray`, `FixedArray.const`, `TriggerStruct`, `Trigger.fire()` |
 | 07 | [`07_block_io_and_data.py`](./eudplib/07_block_io_and_data.py) | [`07_block_io_and_data.py`](./py/07_block_io_and_data.py) | [`07_block_io_and_data.ts`](./ts/07_block_io_and_data.ts) | `memcpyEPD`, `memsetEPD`, `Db`, `dataDumper` |
 | 08 | [`08_dynamic_epd_access.py`](./eudplib/08_dynamic_epd_access.py) | [`08_dynamic_epd_access.py`](./py/08_dynamic_epd_access.py) | [`08_dynamic_epd_access.ts`](./ts/08_dynamic_epd_access.ts) | Runtime `Var` EPD read (`memcpyEPD`/`CPCursor(0)`) & write (`emitVarStore` + `fire()`) |
+| 09 | [`09_unit_list.py`](./eudplib/09_unit_list.py) | [`09_unit_list.py`](./py/09_unit_list.py) | [`09_unit_list.ts`](./ts/09_unit_list.ts) | `for_each_unit_list`/`forEachUnitList` (`U`/`T`/`S`/`D`), `with_epd`/`withEpd`, `BREAK` sentinel |
 
 ## Verify All Examples
 
-Build the workspace first. `test_examples.py` asserts that
-`target/debug/eudkit` exists and then compiles with it:
+Build the workspace first, then run the Py/TS parity check:
 
 ```sh
 cargo build --workspace
+PYTHONPATH=. python3 -m unittest py/tests/test_examples.py
 ```
 
-Then synthesize, compare HIR + `.scx` parity across Py/TS, and verify the
-`eudplib` baselines:
+`test_examples.py` asserts `target/debug/eudkit` exists, synthesizes and
+compiles each Py/TS pair, and requires byte-identical HIR and `.scx` output.
+The `eudplib` baseline import checks are skipped when no sibling `eudplib`
+checkout exists; all Py/TS parity checks still run.
+
+To compile one example to a playable map:
 
 ```sh
-# From the repository root:
-PYTHONPATH=. python3 -m unittest py/tests/test_examples.py
-
-# Or compile any single example to a playable .scx:
 ./target/debug/eudkit compile examples/ts/01_direct_memory.ts \
   --basemap tests/outputmap/basemap/basemap_silent.scx \
   -o /tmp/01_direct_memory.scx
 ```
-
-The `eudplib` baseline import checks are skipped when no sibling `eudplib`
-checkout exists; all Py/TS parity checks still run.

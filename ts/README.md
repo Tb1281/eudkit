@@ -2,7 +2,9 @@
 
 > **한국어 안내:** [ts/README.ko.md](./README.ko.md) (English document is the SSOT).
 
-TypeScript implementation of the eudkit DSL. Mirrors `py/` 1:1.
+TypeScript implementation of the eudkit DSL. It shares the canonical vocabulary
+with `py/`; a small number of builder-seam behaviours differ by design. See
+[ADR 0026](../docs/adr/0026-builder-seam-divergence.md).
 
 ## Install
 
@@ -21,7 +23,8 @@ package from a checkout still requires `npm run build`; see below.
 
 Build the Rust workspace first. The test harness shells out to
 `target/debug/eudkit` and `target/debug/eudkit-compile`, so `npm test` fails on
-a fresh checkout until those binaries exist:
+a fresh checkout until those binaries exist. The full build/test matrix is in
+[CONTRIBUTING.md#build-and-test](../CONTRIBUTING.md#build-and-test).
 
 ```sh
 # From the repository root:
@@ -31,12 +34,7 @@ cargo build --workspace
 npm install        # dev tools only (typescript, @types/node); never shipped
 npm run typecheck  # tsc --noEmit over sources + tests
 npm run dev        # tsc --watch for continuous rebuild during local development
-```
-
-Tests run from `ts/` via Node's native test runner:
-
-```sh
-npm test           # runs node --test tests/test_*.ts
+npm test           # node --test tests/test_*.ts
 ```
 
 ## Build (JS + .d.ts)
@@ -55,12 +53,10 @@ sources' `.ts` import specifiers to `.js` in the emitted JS, and emits a
 
 `dist/` is build output and is gitignored (the repo `.gitignore` already
 covers `dist/`); it is never committed. A fresh checkout builds with
-`npm install && npm run build` (from `ts/`).
-
-The build is type-checked: `npm run build` fails on any type error
-instead of emitting a package whose declarations do not match the
-sources. `npm run typecheck` runs the same check over the tests too,
-without emitting.
+`npm install && npm run build` (from `ts/`). The build is type-checked, so
+`npm run build` fails on any type error instead of emitting a package whose
+declarations do not match the sources; `npm run typecheck` runs the same check
+over the tests too, without emitting.
 
 ## Consume
 
@@ -92,9 +88,8 @@ export const module = buildModule(() => {
 });
 ```
 
-`npm run build` is a prerequisite: `main`/`exports` point at `dist/`, and
-`dist/` is gitignored. The compiler invokes Node with
-`--experimental-strip-types`, so Node **>= 22.6** is required. The same flag is
+Node **>= 22.6** is required: the compiler invokes Node with
+`--experimental-strip-types`, which landed in Node 22.6.0. The same flag is
 needed if you run a source file directly:
 `node --experimental-strip-types hello.ts`.
 

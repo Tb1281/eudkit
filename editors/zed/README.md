@@ -83,16 +83,11 @@ shows an error asking you to install the binary or set
 
 ## Behaviour
 
-- Completion and hover cover the eudkit DSL vocabulary and receiver members
-  after `.`.
-- Diagnostics are limited to capacity checks (`FixedString`,
-  `FixedArray`/`Queue`/`Deque`/`Stack`/`UnitGroup`, and `Trigger` condition and
-  action limits).
-- The server uses full-document sync and has no workspace indexing, so files
-  are served from the editor buffer.
-
-See [`docs/lsp.md`](../../docs/lsp.md) for the full protocol and feature
-reference, including VS Code and Neovim setup.
+The extension launches `eudkit-lsp`, which provides completion, hover
+documentation, and fixed-capacity diagnostics over full-document sync. See
+[`docs/lsp.md`](../../docs/lsp.md#supported-features) for the full capability
+list, diagnostics, and documented limitations, including VS Code and Neovim
+setup.
 
 ## License
 

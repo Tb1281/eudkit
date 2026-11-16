@@ -37,7 +37,7 @@ the eudkit repository; it contains no DSL logic of its own.
    ```sh
    cd editors/vscode
    npm install
-   npx @vscode/vsce package --out eudkit-vscode.vsix
+   npx --yes @vscode/vsce@4.1.1 package --out eudkit-vscode.vsix
    code --install-extension eudkit-vscode.vsix
    ```
 
@@ -76,38 +76,14 @@ The extension declares limited support for untrusted workspaces: you can use a
 globally configured server or one on `PATH`, but workspace binary discovery and
 workspace setting overrides are disabled until the workspace is trusted.
 
-## Features
+## Language features
 
-- **Completion** for the DSL vocabulary (stock and extension helpers, core
-  identifiers, Python spellings) and for receiver members after `.`
-  (`Trigger`, `ActView`, `CondView`, `CUnit`, `CSprite`, `FixedString`,
-  `FixedArray`).
-- **Hover** documentation (Markdown) for vocabulary identifiers and members.
-- **Capacity diagnostics** with source `eudkit-lsp` and code `EUDSL-BOUNDS`:
-  `FixedString` capacities must be in `1..=65535`, `FixedArray` / `Queue` /
-  `Deque` / `Stack` / `UnitGroup` capacities must be positive, and a `Trigger`
-  may hold at most 16 `conds` and 64 `acts`. String literals and comments are
-  never flagged.
-
-Files are matched by language: the client attaches to TypeScript and Python
-documents with the `file` scheme.
-
-## Limitations
-
-- **No type inference.** Receivers are guessed from their identifier
-  (`u`/`unit` → `CUnit`, `s`/`sprite` → `CSprite`, `trig`/`trigger`/`t` →
-  `Trigger`, `str`/`msg` → `FixedString`, `arr`/`array` → `FixedArray`), so a
-  `FixedString` named `s` offers `CSprite` members.
-- **Capacity checks only.** `EUDSL-TYPE`, `EUDSL-SCOPE`, and the other codes
-  are produced by the eudkit frontends and compiler, not by the LSP.
-- **The server never compiles.** No build, no lowering, no effect on compiled
-  map bytes.
-- **Full-document sync only.** No incremental edits, and files are served from
-  the editor buffer rather than disk.
-- **No definition, references, rename, formatting, code actions, signature
-  help, semantic tokens, or workspace symbols.**
-- **Python rules are `languageId`-based.** Only `python` documents get Python
-  comment and triple-quoted-string handling.
+The extension is a thin client: completion, hover documentation, and
+`EUDSL-BOUNDS` capacity diagnostics are implemented by `eudkit-lsp`. Files are
+matched by language, so the client attaches to TypeScript and Python documents
+with the `file` scheme. The full capability list, diagnostics, and documented
+limitations live in
+[docs/lsp.md](../../docs/lsp.md#supported-features).
 
 ## Development
 

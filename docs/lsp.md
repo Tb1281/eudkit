@@ -19,7 +19,9 @@ cargo build -p eudkit-lsp
 ```
 
 The binary is `target/debug/eudkit-lsp` (or `target/release/eudkit-lsp` with
-`--release`). The crate has no CLI flags; it speaks JSON-RPC over stdio.
+`--release`). The crate has no CLI flags; it speaks JSON-RPC over stdio. For the
+full build/test matrix, see
+[CONTRIBUTING.md#build-and-test](../CONTRIBUTING.md#build-and-test).
 
 The CUnit/CSprite member tables and the stock vocabulary are generated at
 build time from `schema/layouts/*.json` and `schema/stock-rows.json`. If the
