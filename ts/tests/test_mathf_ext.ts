@@ -623,15 +623,48 @@ test("trig tables are shared per builder", () => {
   const first = build();
   const second = build();
   for (const module of [first, second]) {
-    assert.equal(module.blobs.length, 5);
+    assert.equal(module.blobs.length, 3);
     assert.deepEqual(
       module.blobs.map((blob) => blob.size).sort((a, b) => a - b),
-      [260, 260, 364, 364, 1028],
+      [364, 364, 1028],
     );
   }
   // A second buildModule rebuilds the payloads: a global cache would leave
   // the second module with zero blob declarations.
   assert.notStrictEqual(first.blobs, second.blobs);
+});
+
+test("only the tables each entry point uses are materialized", () => {
+  const atanModule = (fn: (y: MathOperand, x: MathOperand) => VarImpl) =>
+    buildModule(() => {
+      const y = Var(0);
+      const x = Var(0);
+      const out = Var(0);
+      out.set(fn(y, x));
+    });
+  const lengthModule = (
+    fn: (length: MathOperand, angle: MathOperand) => [VarImpl, VarImpl],
+  ) =>
+    buildModule(() => {
+      const length = Var(0);
+      const angle = Var(0);
+      const out = Var(0);
+      out.set(fn(length, angle)[0]);
+    });
+
+  const cases: Array<[string, ReturnType<typeof buildModule>, number[]]> = [
+    ["atan2_256", atanModule(atan2_256), [1028]],
+    ["atan2", atanModule(atan2), [1028]],
+    ["lengthdir", lengthModule(lengthdir), [364, 364]],
+    ["lengthdir_256", lengthModule(lengthdir_256), [260, 260]],
+  ];
+  for (const [name, module, sizes] of cases) {
+    assert.deepEqual(
+      module.blobs.map((blob) => blob.size).sort((a, b) => a - b),
+      sizes,
+      name,
+    );
+  }
 });
 
 test("table scale is Q16", () => {

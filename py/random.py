@@ -88,8 +88,10 @@ else:
         _state().set(seed)
 
     def get_seed() -> Var:
-        """Return the current LCG state without advancing it."""
-        return _state()
+        """Return a fresh copy of the current LCG state without advancing it."""
+        out = Var(0)
+        out.set(_state())
+        return out
 
     def randomize() -> None:
         """Fold the game-tick dword into the current state, then advance once."""

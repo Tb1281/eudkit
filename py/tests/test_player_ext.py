@@ -4,9 +4,10 @@ The existing name-matcher contract lives in ``test_player.py`` and stays
 untouched; this module pins the new surface from §3/§4 of the ticket:
 
 * ``turbo`` is one ``SetMemory(0x6509A0, SetTo, 0)`` action;
-* ``user_player``/``game_tick`` share one 32-bit reader body per address;
-* ``player_exists`` is the constant table predicate (two triggers) or
-  arithmetic + ``with_epd`` (no ``SetNextPtr``/``Switch``);
+* ``user_player`` reads the low byte with an 8-bit read; ``game_tick`` keeps
+  the shared 32-bit reader body;
+* ``player_exists`` is the constant table predicate (two triggers) or an
+  in-range-guarded condition probe without ``CurrentPlayer`` / ``with_epd``;
 * ``for_each_player`` saves/restores ``CurrentPlayer`` once per site and emits
   the body once (loop) or once per selected player (unrolled);
 * ``Player``/``PlayerField`` mirror the ``scdata/player.py`` dword arrays and
@@ -78,7 +79,7 @@ from py.player import (
     userPlayer,
 )
 from py.trigger import _get_active_module_builder
-from py.view import CURRENT_PLAYER, EPD, EPD_CURRENT_PLAYER
+from py.view import EPD, EPD_CURRENT_PLAYER
 
 #: §4.2 — the ``scdata/player.py`` dword arrays, one element per player.
 FIELD_ADDRS: dict[str, int] = {
@@ -259,30 +260,43 @@ class TurboTest(unittest.TestCase):
 
 
 class ReaderTest(unittest.TestCase):
-    def test_user_player_and_game_tick_each_declare_one_shared_body(self) -> None:
+    def test_user_player_reads_the_low_byte_and_game_tick_keeps_its_shared_body(
+        self,
+    ) -> None:
         module = _build(lambda: (user_player(), user_player(), game_tick()))
         funcs = module["funcs"]
-        self.assertEqual(len(funcs), 2)
-        calls = [node for node in module["stmts"] if node["kind"] == "call"]
-        self.assertEqual([call["func"] for call in calls], [0, 0, 1])
+        self.assertEqual(len(funcs), 1)
+        # `game_tick` still uses the shared full-dword reader.
+        self.assertEqual(len(funcs[0]["body"]), 33)
+        tick_conds = [cond for trigger in funcs[0]["body"] for cond in trigger["conds"]]
+        self.assertEqual(len(tick_conds), 32)
+        self.assertEqual({cond["condtype"] for cond in tick_conds}, {15})
+        self.assertEqual(
+            tick_conds[0]["player"], EPD(GAME_TICK_ADDR) & 0xFFFFFFFF
+        )
 
-        first_cond: dict[int, int] = {}
-        for func in funcs:
-            self.assertEqual(len(func["body"]), 33)
-            conds = [cond for trigger in func["body"] for cond in trigger["conds"]]
-            self.assertEqual(len(conds), 32)
-            self.assertEqual({cond["condtype"] for cond in conds}, {15})
-            first_cond[func["id"]] = conds[0]["player"]
+        # Each `user_player()` is an inline 8-bit read: one accumulator reset
+        # plus one bit test per byte lane.
+        triggers = [node for node in module["stmts"] if node["kind"] == "trigger"]
+        self.assertEqual(len(triggers), 18)
+        for offset in (0, 9):
+            self.assertEqual(triggers[offset]["conds"], [])
+            bit_conds = [trigger["conds"][0] for trigger in triggers[offset + 1 : offset + 9]]
+            self.assertEqual(len(bit_conds), 8)
+            self.assertEqual(
+                {cond["player"] for cond in bit_conds},
+                {EPD(USER_PLAYER_ADDR) & 0xFFFFFFFF},
+            )
+            self.assertEqual({cond["amount"] for cond in bit_conds}, set(1 << b for b in range(8)))
 
-        self.assertEqual(first_cond[0], EPD(USER_PLAYER_ADDR) & 0xFFFFFFFF)
-        self.assertEqual(first_cond[1], EPD(GAME_TICK_ADDR) & 0xFFFFFFFF)
-
-    def test_two_user_player_sites_share_one_reader_result_var_per_call(self) -> None:
+    def test_two_user_player_sites_use_independent_read_results(self) -> None:
         module = _build(lambda: (user_player(), user_player()))
-        self.assertEqual(len(module["funcs"]), 1)
-        calls = [node for node in module["stmts"] if node["kind"] == "call"]
-        self.assertEqual([call["func"] for call in calls], [0, 0])
-        self.assertNotEqual(calls[0]["dst"], calls[1]["dst"])
+        self.assertNotIn("funcs", module)
+        triggers = [node for node in module["stmts"] if node["kind"] == "trigger"]
+        self.assertEqual(len(triggers), 18)
+        first_result = triggers[0]["acts"][0]["relocs"][0]["target_var"]
+        second_result = triggers[9]["acts"][0]["relocs"][0]["target_var"]
+        self.assertNotEqual(first_result, second_result)
 
 
 class IsUserTest(unittest.TestCase):
@@ -297,8 +311,10 @@ class IsUserTest(unittest.TestCase):
         self.assertEqual(cond["comparison"], Exactly)
         self.assertEqual(cond["amount"], 3)
         self.assertEqual(cond["player"], 0)
-        calls = [node for node in module["stmts"] if node["kind"] == "call"]
-        self.assertEqual(cond["relocs"][0]["target_var"], calls[0]["dst"])
+        triggers = [node for node in module["stmts"] if node["kind"] == "trigger"]
+        self.assertEqual(len(triggers), 9)
+        read_result = triggers[0]["acts"][0]["relocs"][0]["target_var"]
+        self.assertEqual(cond["relocs"][0]["target_var"], read_result)
 
     def test_runtime_is_a_var_equality_condition(self) -> None:
         module = _build(
@@ -362,22 +378,38 @@ class PlayerExistsTest(unittest.TestCase):
                 "EUDSL-TYPE",
             )
 
-    def test_runtime_path_is_arithmetic_and_one_cp_binding(self) -> None:
+    def test_runtime_path_is_a_condition_probe_without_cp_read(self) -> None:
         module = _build(
             lambda: when(player_exists(Var(3)).eq(1), lambda: None)
         )
-        # One CP-relative read per existence site, never the 8-arm switch.
-        self.assertEqual(len(module["funcs"]), 2)
-        func_players = {
-            cond["player"]
-            for func in module["funcs"]
-            for node in _flat(func["body"])
-            for cond in (node.get("conds") or [])
-        }
-        self.assertEqual(func_players, {EPD_CURRENT_PLAYER, CURRENT_PLAYER})
+        # One in-range guard plus the caller's own condition; no CP reader body.
+        self.assertNotIn("funcs", module)
+        stmts = module["stmts"]
+        self.assertEqual([node["kind"] for node in stmts], ["when", "when"])
 
-        conds = _conds(module)
-        self.assertEqual({cond["condtype"] for cond in conds}, {15})
+        guard = stmts[0]
+        self.assertEqual(guard["conds"][0]["amount"], PLAYER_SLOT_COUNT - 1)
+        self.assertEqual(guard["conds"][0]["comparison"], AtMost)
+
+        body = guard["body"]
+        self.assertEqual(body[0]["value"], 1)
+        self.assertEqual(body[0]["modifier"], SetTo)
+        out_var = body[0]["relocs"][0]["target_var"]
+        self.assertEqual(
+            stmts[1]["conds"][0]["relocs"][0]["target_var"], out_var
+        )
+
+        probe = [node for node in body if node["kind"] == "trigger"][0]
+        self.assertEqual(probe["conds"][0]["condtype"], 15)
+        self.assertEqual(probe["conds"][0]["comparison"], Exactly)
+        self.assertEqual(probe["acts"][0]["value"], 0)
+        self.assertEqual(probe["acts"][0]["relocs"][0]["target_var"], out_var)
+
+        stores = [node for node in body if node["kind"] == "varstore"]
+        self.assertEqual(len(stores), 2)
+        for store, field_offset in zip(stores, (12, 16)):
+            self.assertEqual(store["dst_trigger"], probe["id"])
+            self.assertEqual(store["dst_offset"], field_offset)
 
         nodes = _all_nodes(module)
         for node in nodes:
@@ -395,12 +427,13 @@ class PlayerExistsTest(unittest.TestCase):
             for node in nodes
             if node.get("kind") == "varstore" and node.get("dst_addr") == CP_ADDR
         ]
-        self.assertEqual(len(cp_stores), 2)
+        self.assertEqual(cp_stores, [])
 
         # §6 deviation: the switch spelling is not in the source either.
         source = inspect.getsource(player_exists)
         self.assertNotIn("SetNextPtr", source)
         self.assertNotIn("Switch", source)
+        self.assertNotIn("with_epd", source)
 
     def test_runtime_rejects_non_operands(self) -> None:
         for bad in (True, "1", None, 1.0):
@@ -456,19 +489,30 @@ class ForEachPlayerTest(unittest.TestCase):
         stmts = module["stmts"]
         self.assertEqual(
             [node["kind"] for node in stmts],
-            ["call", "when", "when", "varstore"],
+            [
+                "call",
+                "trigger",
+                "when",
+                "when",
+                "trigger",
+                "when",
+                "when",
+                "varstore",
+            ],
         )
-        for player, node in zip((0, 2), stmts[1:3]):
+        for index, player in enumerate((0, 2)):
+            guard = stmts[2 + 3 * index]
+            run = stmts[3 + 3 * index]
             base = PLAYER_TABLE_ADDR + PLAYER_SLOT_BYTES * player
-            cond = node["conds"][0]
+            cond = guard["conds"][0]
             self.assertEqual(cond["player"], EPD(base + 8) & 0xFFFFFFFF)
             self.assertEqual(cond["amount"], (~(base + 4)) & 0xFFFFFFFF)
 
-            acts = [act for act in _flat(node["body"]) if act.get("kind") == "act"]
+            acts = [act for act in _flat(run["body"]) if act.get("kind") == "act"]
             self.assertEqual(acts[0]["dest"], EPD_CURRENT_PLAYER)
             self.assertEqual(acts[0]["value"], player)
             self.assertEqual(acts[1]["dest"], 9000)
-        self.assertEqual(stmts[3]["src_var"], stmts[0]["dst"])
+        self.assertEqual(stmts[7]["src_var"], stmts[0]["dst"])
 
     def test_unrolled_ungated_mode_has_no_gate(self) -> None:
         module = _build(

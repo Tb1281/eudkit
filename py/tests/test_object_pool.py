@@ -101,6 +101,9 @@ class ObjectPoolTests(unittest.TestCase):
                     build_module(lambda: ObjectPool(capacity))
                 self.assertEqual(_code(caught.exception), code)
 
+    def test_free_list_camel_case_alias_is_the_snake_case_twin(self) -> None:
+        self.assertIs(ObjectPool.freeList, ObjectPool.free_list)
+
     def test_pool_null_identity(self) -> None:
         from py import queue, view
 

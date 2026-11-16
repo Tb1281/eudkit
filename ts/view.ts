@@ -1986,7 +1986,20 @@ export class CUnitView {
   }
 
   read(name: string): VarImpl {
-    return this.field(name).read();
+    const handle = this.field(name);
+    if (typeof this.epd === "number") {
+      return handle.read();
+    }
+    return requireWithEpdFactory()(
+      epdAdd(this.epd, handle.dwordOffset),
+      () =>
+        readEpd(
+          CurrentPlayer,
+          handle.size * 8,
+          handle.shift,
+          handle.bitMask,
+        ),
+    ) as VarImpl;
   }
 
   nextUnit(): VarImpl {
@@ -2018,7 +2031,8 @@ export class CUnitView {
   }
 
   isBurrowed(): VarImpl {
-    return readStatusBitAt(epdAdd(this.epd, 55), 4);
+    const mask = StatusFlags.Burrowed;
+    return readStatusBitAt(epdAdd(this.epd, 55), 31 - Math.clz32(mask));
   }
 
   is_burrowed(): VarImpl {
@@ -2032,11 +2046,8 @@ export class CUnitView {
         `setInvincible on must be a bool, got ${describeValue(on)}`,
       );
     }
-    writeMaskedAt(
-      epdAdd(this.epd, 55),
-      on ? 0x04000000 : 0,
-      0x04000000,
-    );
+    const mask = StatusFlags.Invincible;
+    writeMaskedAt(epdAdd(this.epd, 55), on ? mask : 0, mask);
   }
 
   set_invincible(on = true): void {

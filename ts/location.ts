@@ -113,7 +113,6 @@ export const location_epd = locationEpd;
 /** Handle over one 5-dword location record. */
 export class Location {
   private readonly _id: number | VarImpl;
-  private _epd: VarImpl | null = null;
 
   constructor(location: LocationOperand) {
     this._id = requireId(location, "Location()");
@@ -123,24 +122,25 @@ export class Location {
     return this._id;
   }
 
+  /** EPD of the record, recomputed for a runtime id on every access. */
   get epd(): number | VarImpl {
     if (typeof this._id === "number") {
       return locationEpd(this._id);
     }
-    if (this._epd === null) {
-      const epd = new Var(0);
-      epd.set(this._id.mul(LOCATION_STRIDE_DWORDS));
-      epd.iadd(EPD(LOCATION_TABLE_ADDR));
-      this._epd = epd;
-    }
-    return this._epd;
+    const epd = new Var(0);
+    epd.set(this._id.mul(LOCATION_STRIDE_DWORDS));
+    epd.iadd(EPD(LOCATION_TABLE_ADDR));
+    return epd;
   }
 
   get addr(): number | null {
     return typeof this._id === "number" ? locationAddr(this._id) : null;
   }
 
-  private readMany(offsets: readonly number[]): Map<number, VarImpl> {
+  private readMany(
+    offsets: readonly number[],
+    baseEpd?: VarImpl,
+  ): Map<number, VarImpl> {
     const out = new Map<number, VarImpl>();
     if (typeof this._id === "number") {
       const base = this.epd as number;
@@ -150,7 +150,7 @@ export class Location {
       return out;
     }
 
-    withEpd(this.epd, (cp: EpdCursor) => {
+    withEpd(baseEpd === undefined ? this.epd : baseEpd, (cp: EpdCursor) => {
       for (const offset of offsets) {
         out.set(offset, cp.at(offset).read());
       }
@@ -171,8 +171,19 @@ export class Location {
       }
     }
     const offsets = [...needRead].sort((a, b) => a - b);
+    let runtimeEpd: VarImpl | null = null;
+    if (runtimeId) {
+      for (const [, value, modifier] of entries) {
+        if (modifier === SET || !(isPlainInt(value) && value === 0)) {
+          runtimeEpd = this.epd as VarImpl;
+          break;
+        }
+      }
+    }
     const current =
-      offsets.length === 0 ? new Map<number, VarImpl>() : this.readMany(offsets);
+      offsets.length === 0
+        ? new Map<number, VarImpl>()
+        : this.readMany(offsets, runtimeEpd ?? undefined);
     const baseAddr = runtimeId ? null : locationAddr(this._id as number);
 
     for (const [offset, value, modifier] of entries) {
@@ -195,8 +206,10 @@ export class Location {
         }
         stored = total;
       }
-      const epd = this.epd;
-      const dest = typeof epd === "number" ? epd + offset : epd.add(offset);
+      const dest =
+        runtimeEpd !== null
+          ? runtimeEpd.add(offset)
+          : (this.epd as number) + offset;
       memsetEPD(dest, stored, 1);
     }
   }
@@ -257,13 +270,17 @@ export class Location {
   }
 
   /**
-   * Add to the record, skipping zero constants. `add(x, y)` adjusts the
-   * top-left corner; `add(l, t, r, b)` adjusts all four dwords.
+   * Add to the record, skipping zero constants. `add(x, y)` mirrors the
+   * point across all four dwords as `(x, y, x, y)`; `add(l, t, r, b)`
+   * adjusts each dword.
    */
   add(...coords: CoordOperand[]): void {
-    const values = Location.coords(coords, "Location.add()");
-    const offsets = values.length === 2 ? [0, 1] : [0, 1, 2, 3];
-    this.apply(offsets.map((offset) => [offset, values[offset], ADD] as const));
+    let values = Location.coords(coords, "Location.add()");
+    if (values.length === 2) {
+      const [x, y] = values;
+      values = [x, y, x, y];
+    }
+    this.apply(values.map((value, offset) => [offset, value, ADD] as const));
   }
 
   /** Grow the record by `(-l, -t, +r, +b)`; `dilate(x, y)` mirrors. */

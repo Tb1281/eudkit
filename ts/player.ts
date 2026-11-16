@@ -21,12 +21,11 @@
 
 import { FixedArray, arrayDword, type FixedArrayImpl } from "./array.ts";
 import { GAME_TICK_ADDR, USER_PLAYER_ADDR } from "./camera.ts";
-import { CP_ADDR, readCurrentPlayerRegister, withEpd } from "./cp.ts";
+import { CP_ADDR, readCurrentPlayerRegister } from "./cp.ts";
 import {
   Add,
   AddrReloc,
-  AtLeast,
-  AtMost,
+  Always,
   CenterView,
   Deaths,
   DeathsX,
@@ -42,22 +41,29 @@ import {
   SetTo,
   Subtract,
   TalkingPortrait,
+  TriggerFieldReloc,
   emitVarStore,
   type HirCond,
 } from "./hir.ts";
 import { encodeUtf8 } from "./string.ts";
 import { when, whileLoop } from "./temporal.ts";
-import { _getActiveModuleBuilder, type CondLike } from "./trigger.ts";
 import {
-  CURRENT_PLAYER,
+  Trigger,
+  _getActiveModuleBuilder,
+  _registerTrigger,
+  type CondLike,
+} from "./trigger.ts";
+import {
   EPD,
   EPD_CURRENT_PLAYER,
   EudslError,
+  FieldValueSpace,
   MemFieldHandle,
   describeValue,
   defineMemView,
   readEpd,
   requirePlainInt,
+  type ComparisonOp,
   type FieldSpec,
 } from "./view.ts";
 import { Expr, Var, VarImpl, toVar, type ReadonlyVar } from "./var.ts";
@@ -73,14 +79,12 @@ export const PLAYER_NAME_BYTES = 36;
 /** Longest name that still fits its trailing NUL in the record. */
 export const PLAYER_NAME_MAX_BYTES = 35;
 
-const PLAYER_MAX = 11;
-
 function requirePlayer(player: unknown, what: string): number {
   const value = requirePlainInt(player, `${what}: player`);
-  if (value < 0 || value > PLAYER_MAX) {
+  if (value < 0 || value > PLAYER_MAX_ID) {
     throw new EudslError(
       "EUDSL-RANGE",
-      `${what}: player must be in 0..${PLAYER_MAX}, got ${value}`,
+      `${what}: player must be in 0..${PLAYER_MAX_ID}, got ${value}`,
     );
   }
   return value;
@@ -210,10 +214,10 @@ function validatePlayers(players: Iterable<number>): readonly number[] {
         `matchNames(): every player must be a plain integer, got ${describeValue(player)}`,
       );
     }
-    if (player < 0 || player > PLAYER_MAX) {
+    if (player < 0 || player > PLAYER_MAX_ID) {
       throw new EudslError(
         "EUDSL-RANGE",
-        `matchNames(): player must be in 0..${PLAYER_MAX}, got ${player}`,
+        `matchNames(): player must be in 0..${PLAYER_MAX_ID}, got ${player}`,
       );
     }
     if (seen.has(player)) {
@@ -312,9 +316,9 @@ export function turbo(): void {
   SetMemory(TURBO_ADDR, SetTo, 0);
 }
 
-/** Read `dwUserPlayerId` (the local human player index). */
+/** Read the low byte of `dwUserPlayerId` (the local human player index). */
 export function userPlayer(): VarImpl {
-  return readEpd(EPD(USER_PLAYER_ADDR), 32, 0);
+  return readEpd(EPD(USER_PLAYER_ADDR), 8, 0);
 }
 
 export const user_player = userPlayer;
@@ -391,26 +395,47 @@ export function playerExists(
   }
 
   const source = toVar(player);
-  // np = 3 * player (three table dwords), built with value copies.
-  const np = Var(0);
-  np.set(source);
-  np.iadd(source);
-  np.iadd(source);
-  // a = EPD(table) + 2 + np: the "has left" dword of the record.
-  const target = Var(0);
-  target.set((EPD(PLAYER_TABLE_ADDR) + 2) >>> 0);
-  target.iadd(np);
-  // amt = ~(table + 4) - 4 * np, the expected value in 32-bit byte space.
-  const expected = Var(0);
-  expected.set(~(PLAYER_TABLE_ADDR + 4) >>> 0);
-  expected.isub(np);
-  expected.isub(np);
-  expected.isub(np);
-  expected.isub(np);
-  const value = withEpd(target, (_cp) => readEpd(CURRENT_PLAYER, 32, 0));
   const out = Var(0);
-  out.set(0);
-  when(value.eq(expected), () => out.set(1));
+
+  const inRange = (): void => {
+    out.set(1);
+    // np = 3 * player (three table dwords), built with value copies.
+    const np = Var(0);
+    np.set(source);
+    np.iadd(source);
+    np.iadd(source);
+    // target = EPD(table) + 2 + np: the "has left" dword of the record.
+    const target = Var(0);
+    target.set((EPD(PLAYER_TABLE_ADDR) + 2) >>> 0);
+    target.iadd(np);
+    // expected = ~(table + 4) - 12 * player, the "has left" sentinel.
+    const expected = Var(0);
+    expected.set(~(PLAYER_TABLE_ADDR + 4) >>> 0);
+    expected.isub(np);
+    expected.isub(np);
+    expected.isub(np);
+    expected.isub(np);
+    // The condition's player/amount fields are patched at runtime by the
+    // preceding VarStores. The probe is registered after them, so it runs
+    // with the freshly written EPD, and it clears `out` only when the
+    // record carries the "has left" sentinel.
+    const probe = new Trigger({
+      conds: [Deaths(0, Exactly, 0, 0)],
+      acts: [out.act_set(0)],
+      register: false,
+    });
+    emitVarStore(
+      target.id,
+      TriggerFieldReloc(probe.id, probe.cond(0).player.byteOffset),
+    );
+    emitVarStore(
+      expected.id,
+      TriggerFieldReloc(probe.id, probe.cond(0).amount.byteOffset),
+    );
+    _registerTrigger(probe);
+  };
+
+  when(source.le(PLAYER_SLOT_COUNT - 1), inRange);
   return out;
 }
 
@@ -511,7 +536,7 @@ export function forEachPlayer(
         body(playerVar);
       };
       if (activeOnly) {
-        when([existsCondition(index)], run);
+        when(playerExists(index).eq(1), run);
       } else {
         run();
       }
@@ -527,6 +552,7 @@ const PLAYER_FIELD_VIEW = defineMemView("PlayerField", 4, {
   value: { offset: 0, size: 4 },
 });
 const PLAYER_FIELD_SPEC: FieldSpec = { offset: 0, size: 4 };
+const PLAYER_FIELD_VALUE_SPACE = new FieldValueSpace(0xffffffff, 0);
 
 /** The `scdata/player.py` dword arrays, one element per player. */
 const PLAYER_FIELD_ADDRS: readonly (readonly [string, number])[] = [
@@ -606,21 +632,14 @@ export class PlayerField {
 
   private compare(op: string, rhs: number): HirCond | CondLike {
     const value = requirePlainInt(rhs, `PlayerField.${op} value`) >>> 0;
-    if (op === "eq") return Deaths(this.epd, Exactly, value, 0);
-    if (op === "ge") return Deaths(this.epd, AtLeast, value, 0);
-    if (op === "le") return Deaths(this.epd, AtMost, value, 0);
-    if (op === "gt") {
-      if (value === 0xffffffff) return Never();
-      return Deaths(this.epd, AtLeast, (value + 1) >>> 0, 0);
+    const plan = PLAYER_FIELD_VALUE_SPACE.compare(op as ComparisonOp, value);
+    if (plan.fold === "never") return Never();
+    if (plan.fold === "always") return Always();
+    if (plan.fold === "defer") return this.handle().ne(value);
+    if (plan.comparison === undefined) {
+      throw new Error(`PlayerField.${op} produced no comparison`);
     }
-    if (op === "lt") {
-      if (value === 0) return Never();
-      return Deaths(this.epd, AtMost, (value - 1) >>> 0, 0);
-    }
-    if (op === "ne") {
-      return this.handle().ne(value);
-    }
-    throw new Error(`unknown PlayerField comparison ${op}`);
+    return Deaths(this.epd, plan.comparison, plan.value ?? 0, 0);
   }
 
   eq(rhs: number): HirCond {
@@ -779,39 +798,40 @@ export class PVariable {
   }
 
   get(player: number | VarImpl | ReadonlyVar | Expr): VarImpl {
-    const index = this.index(player);
-    return typeof index === "number"
-      ? this.array.get(index)
-      : this.array.get(index);
-  }
-
-  at(player: number | VarImpl | ReadonlyVar | Expr): VarImpl {
-    return this.get(player);
+    return this.readSlot(this.index(player));
   }
 
   set(player: number | VarImpl | ReadonlyVar | Expr, value: number | VarImpl): void {
     const index = this.index(player);
     if (typeof value === "number") {
-      const number = requirePlainInt(value, "PVariable.set value");
-      if (typeof index === "number") {
-        this.array.set(index, number);
-      } else {
-        this.array.set(index, number);
-      }
+      this.writeSlot(index, requirePlainInt(value, "PVariable.set value"));
       return;
     }
     if (value instanceof VarImpl) {
-      if (typeof index === "number") {
-        this.array.set(index, value);
-      } else {
-        this.array.set(index, value);
-      }
+      this.writeSlot(index, value);
       return;
     }
     throw new EudslError(
       "EUDSL-TYPE",
       `PVariable.set value must be a plain integer or Var; got ${describeValue(value)}`,
     );
+  }
+
+  // `FixedArray` declares separate overloads for constant and dynamic
+  // indices. `index()` already normalised both forms, so erase the overload
+  // at this one boundary instead of duplicating the same call in a dead
+  // `typeof index` branch.
+  private readSlot(index: number | VarImpl): VarImpl {
+    return (this.array.get as (index: number | VarImpl) => VarImpl)(index);
+  }
+
+  private writeSlot(index: number | VarImpl, value: number | VarImpl): void {
+    (
+      this.array.set as (
+        index: number | VarImpl,
+        value: number | VarImpl,
+      ) => unknown
+    )(index, value);
   }
 }
 
@@ -825,7 +845,7 @@ function requireText(text: unknown, what: string): string {
   return text;
 }
 
-/** Show `text` to every live player. */
+/** Show `text` to every live player (slots 0..7 only; observers excluded). */
 export function displayTextAll(text: string): void {
   const message = requireText(text, "displayTextAll()");
   forEachPlayer((_p) => {
@@ -835,7 +855,7 @@ export function displayTextAll(text: string): void {
 
 export const display_text_all = displayTextAll;
 
-/** Play `wav` for every live player. */
+/** Play `wav` for every live player (slots 0..7 only; observers excluded). */
 export function playWavAll(wav: string): void {
   const sound = requireText(wav, "playWavAll()");
   forEachPlayer((_p) => {
@@ -845,7 +865,11 @@ export function playWavAll(wav: string): void {
 
 export const play_wav_all = playWavAll;
 
-/** Ping a raw location id (`0..255`) on every live player's minimap. */
+/**
+ * Ping a raw location id (`0..255`) on every live player's minimap.
+ *
+ * Only live slots `0..7` are addressed; observers (`8..11`) are excluded.
+ */
 export function minimapPingAll(location: number): void {
   const loc = requirePlainInt(location, "minimapPingAll() location");
   if (loc < 0 || loc > 255) {
@@ -861,7 +885,11 @@ export function minimapPingAll(location: number): void {
 
 export const minimap_ping_all = minimapPingAll;
 
-/** Center every live player's view on a raw location id (`0..255`). */
+/**
+ * Center every live player's view on a raw location id (`0..255`).
+ *
+ * Only live slots `0..7` are addressed; observers (`8..11`) are excluded.
+ */
 export function centerViewAll(location: number): void {
   const loc = requirePlainInt(location, "centerViewAll() location");
   if (loc < 0 || loc > 255) {
@@ -877,7 +905,11 @@ export function centerViewAll(location: number): void {
 
 export const center_view_all = centerViewAll;
 
-/** Replace the mission objectives text for every live player. */
+/**
+ * Replace the mission objectives text for every live player.
+ *
+ * Only live slots `0..7` are addressed; observers (`8..11`) are excluded.
+ */
 export function setMissionObjectivesAll(text: string): void {
   const message = requireText(text, "setMissionObjectivesAll()");
   forEachPlayer((_p) => {
@@ -887,7 +919,11 @@ export function setMissionObjectivesAll(text: string): void {
 
 export const set_mission_objectives_all = setMissionObjectivesAll;
 
-/** Show `unit`'s portrait for `time` ms to every live player. */
+/**
+ * Show `unit`'s portrait for `time` ms to every live player.
+ *
+ * Only live slots `0..7` are addressed; observers (`8..11`) are excluded.
+ */
 export function talkingPortraitAll(unit: number, time: number): void {
   const portrait = requirePlainInt(unit, "talkingPortraitAll() unit");
   if (portrait < 0 || portrait > 227) {

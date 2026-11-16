@@ -231,6 +231,19 @@ test("CUnitView resolves mem and fields", () => {
   assert.equal(status.epd, BASE + 55);
 });
 
+test("CUnitView read by name matches the field handle at a constant EPD", () => {
+  for (const name of ["hp", "owner", "statusFlags"]) {
+    assert.equal(
+      buildModule(() => {
+        new CUnitView(BASE).read(name);
+      }).toJson(),
+      buildModule(() => {
+        new CUnitView(BASE).field(name).read();
+      }).toJson(),
+    );
+  }
+});
+
 test("CUnitView unknown field", () => {
   assert.throws(
     () => moduleOf(() => new CUnitView(BASE).field("nope")),
@@ -323,6 +336,36 @@ test("validation guards", () => {
   for (const [fn, code] of cases) {
     assert.throws(() => moduleOf(fn), (err) => codeOf(err) === code);
   }
+});
+
+test("CUnitView read at a runtime EPD binds CP and keeps the field window", () => {
+  const module = moduleOf(() => {
+    new CUnitView(Var(BASE)).read("owner");
+  });
+  const conditions = (flattenStmts(module.stmts as Stmt[]) as Json[]).flatMap(
+    (stmt) => (stmt.conds ?? []) as Json[],
+  );
+  const locids = [
+    ...new Set<number>(
+      conditions
+        .filter((cond) => cond.player === 13 && cond.locid)
+        .map((cond) => cond.locid as number),
+    ),
+  ].sort((a, b) => a - b);
+  assert.deepEqual(locids, [1, 2, 4, 8, 16, 32, 64, 128]);
+
+  const full = moduleOf(() => {
+    new CUnitView(Var(BASE)).read("hp");
+  });
+  const fullConditions = (full.funcs as Json[]).flatMap((func) =>
+    (flattenStmts(func.body as Stmt[]) as Json[]).flatMap(
+      (stmt) => (stmt.conds ?? []) as Json[],
+    ),
+  );
+  assert.ok(
+    fullConditions.some((cond) => cond.player === 13),
+    "the full-dword read must gate on the CP-bound dword",
+  );
 });
 
 test("runtime masked write uses a pointer and varstore", () => {

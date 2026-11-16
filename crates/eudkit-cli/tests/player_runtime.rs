@@ -98,13 +98,12 @@ fn indent_ts(lines: &[&str]) -> String {
 }
 
 /// Seed the "has left" dword of one 12-byte existence record.
+///
+/// A present player carries any non-sentinel value; an absent player carries
+/// the sentinel `!(base + 4)` that `player_exists` looks for.
 fn seed_player(seeds: &mut Vec<(u32, u32)>, player: u32, present: bool) {
     let base = PLAYER_TABLE_ADDR + PLAYER_SLOT_BYTES * player;
-    let value = if present {
-        !(base + 4)
-    } else {
-        0xDEAD_BEEF
-    };
+    let value = if present { 0u32 } else { !(base + 4) };
     seeds.push((epd_u32(base + 8), value));
 }
 
@@ -134,41 +133,101 @@ fn run_with_sim(
 }
 
 #[test]
-fn player_exists_constant_and_runtime_track_the_table() {
+fn player_exists_constant_and_runtime_track_the_table_asymmetrically() {
     let dir = tempdir("player-exists-");
     let py_body = indent_py(&[
-        "count = Var(0)",
-        "when(player_exists(0).eq(1), lambda: count.iadd(1))",
-        "when(player_exists(1).eq(1), lambda: count.iadd(1))",
+        "c0 = Var(0)",
+        "c1 = Var(0)",
+        "c3 = Var(0)",
+        "c2 = Var(0)",
+        "when(player_exists(0).eq(1), lambda: c0.iadd(1))",
+        "when(player_exists(1).eq(1), lambda: c1.iadd(1))",
         "p = Var(0)",
         "p.set(3)",
-        "when(player_exists(p).eq(1), lambda: count.iadd(1))",
+        "when(player_exists(p).eq(1), lambda: c3.iadd(1))",
         "p.set(2)",
-        "when(player_exists(p).eq(1), lambda: count.iadd(1))",
+        "when(player_exists(p).eq(1), lambda: c2.iadd(1))",
     ]);
     let ts_body = indent_ts(&[
-        "const count = Var(0);",
-        "when(playerExists(0).eq(1), () => count.iadd(1));",
-        "when(playerExists(1).eq(1), () => count.iadd(1));",
+        "const c0 = Var(0);",
+        "const c1 = Var(0);",
+        "const c3 = Var(0);",
+        "const c2 = Var(0);",
+        "when(playerExists(0).eq(1), () => c0.iadd(1));",
+        "when(playerExists(1).eq(1), () => c1.iadd(1));",
         "const p = Var(0);",
         "p.set(3);",
-        "when(playerExists(p).eq(1), () => count.iadd(1));",
+        "when(playerExists(p).eq(1), () => c3.iadd(1));",
         "p.set(2);",
-        "when(playerExists(p).eq(1), () => count.iadd(1));",
+        "when(playerExists(p).eq(1), () => c2.iadd(1));",
     ]);
 
     let py_path = write_py(dir.path(), "exists.py", &py_body);
     let ts_path = write_ts(dir.path(), "exists.ts", &ts_body);
 
-    let mut seeds = existence_seeds(&[0, 3]);
+    // `[0, 3]` proves constant 0 vs 1 and runtime 3 vs 2, while `[3]` alone
+    // proves the constants do not accidentally share the runtime seed.
+    let scenarios: [(&[u32], [u32; 4]); 2] = [
+        (&[0, 3], [1, 0, 1, 0]),
+        (&[3], [0, 0, 1, 0]),
+    ];
+    for (present, expected) in scenarios {
+        let mut seeds = existence_seeds(present);
+        seeds.push((CP_EPD, 0x1234));
+
+        let (py_prepared, py_sim) = run_with_sim(Frontend::Py, &py_path, &seeds);
+        let (ts_prepared, ts_sim) = run_with_sim(Frontend::Ts, &ts_path, &seeds);
+
+        for (var_id, want) in expected.iter().enumerate() {
+            assert_eq!(
+                common::read_var(&py_prepared, &py_sim, var_id),
+                *want,
+                "py existence counter {var_id} for present {present:?}"
+            );
+            assert_eq!(
+                common::read_var(&ts_prepared, &ts_sim, var_id),
+                *want,
+                "ts existence counter {var_id} for present {present:?}"
+            );
+        }
+        assert_eq!(
+            py_sim.last_executed_cost.triggers,
+            ts_sim.last_executed_cost.triggers,
+            "existence executed triggers must agree for present {present:?}"
+        );
+        assert_eq!(py_sim.read_epd(CP_EPD), 0x1234, "py must not bind CP");
+        assert_eq!(ts_sim.read_epd(CP_EPD), 0x1234, "ts must not bind CP");
+    }
+}
+
+#[test]
+fn player_exists_runtime_guard_returns_false_for_slot_eight() {
+    let dir = tempdir("player-exists-guard-");
+    let py_body = indent_py(&[
+        "count = Var(0)",
+        "p = Var(0)",
+        "p.set(8)",
+        "when(player_exists(p).eq(1), lambda: count.iadd(1))",
+    ]);
+    let ts_body = indent_ts(&[
+        "const count = Var(0);",
+        "const p = Var(0);",
+        "p.set(8);",
+        "when(playerExists(p).eq(1), () => count.iadd(1));",
+    ]);
+
+    let py_path = write_py(dir.path(), "guard.py", &py_body);
+    let ts_path = write_ts(dir.path(), "guard.ts", &ts_body);
+
+    // Slot 8 must leave the result at 0 without reading past the table.
+    let mut seeds = existence_seeds(&[0]);
     seeds.push((CP_EPD, 0x1234));
 
-    let (py, ts) = common::run_case("player_exists", &py_path, &ts_path, &seeds);
-    // Constant player 0 and runtime player 3 exist; 1 and 2 do not.
-    assert_eq!(py.count, 2, "py existence count");
-    assert_eq!(ts.count, 2, "ts existence count");
-    assert_eq!(py.cp_value, 0x1234, "py must restore the ambient CP");
-    assert_eq!(ts.cp_value, 0x1234, "ts must restore the ambient CP");
+    let (py, ts) = common::run_case("player_exists_guard", &py_path, &ts_path, &seeds);
+    assert_eq!(py.count, 0, "py out-of-range existence must be false");
+    assert_eq!(ts.count, 0, "ts out-of-range existence must be false");
+    assert_eq!(py.cp_value, 0x1234, "py must not bind CP on the guard path");
+    assert_eq!(ts.cp_value, 0x1234, "ts must not bind CP on the guard path");
 }
 
 #[test]
@@ -288,6 +347,55 @@ fn broadcast_records_active_slots_and_restores_cp() {
         );
     }
 
+    assert_eq!(py_sim.read_epd(CP_EPD), 0x1234, "py must restore CP");
+    assert_eq!(ts_sim.read_epd(CP_EPD), 0x1234, "ts must restore CP");
+}
+
+#[test]
+fn for_each_player_active_only_visits_live_slots() {
+    let dir = tempdir("player-active-only-");
+    let py_body = indent_py(&[
+        "pv = PVariable()",
+        "def body(player):",
+        "    q = Var(0)",
+        "    q.set(player)",
+        "    q.iadd(1)",
+        "    pv.set(player, q)",
+        "for_each_player(body)",
+    ]);
+    let ts_body = indent_ts(&[
+        "const pv = new PVariable();",
+        "forEachPlayer((player) => {",
+        "  const q = Var(0);",
+        "  q.set(player);",
+        "  q.iadd(1);",
+        "  pv.set(player, q);",
+        "});",
+    ]);
+
+    let py_path = write_py(dir.path(), "active_only.py", &py_body);
+    let ts_path = write_ts(dir.path(), "active_only.ts", &ts_body);
+
+    // Departed players 1, 3, 4, 6, 7 must be skipped.
+    let mut seeds = existence_seeds(&[0, 2, 5]);
+    seeds.push((CP_EPD, 0x1234));
+
+    let (py_prepared, py_sim) = run_with_sim(Frontend::Py, &py_path, &seeds);
+    let (ts_prepared, ts_sim) = run_with_sim(Frontend::Ts, &ts_path, &seeds);
+
+    let expected = [1, 0, 3, 0, 0, 6, 0, 0];
+    for (slot, want) in expected.iter().enumerate() {
+        assert_eq!(
+            common::read_var(&py_prepared, &py_sim, slot),
+            *want,
+            "py active-only PVariable slot {slot}"
+        );
+        assert_eq!(
+            common::read_var(&ts_prepared, &ts_sim, slot),
+            *want,
+            "ts active-only PVariable slot {slot}"
+        );
+    }
     assert_eq!(py_sim.read_epd(CP_EPD), 0x1234, "py must restore CP");
     assert_eq!(ts_sim.read_epd(CP_EPD), 0x1234, "ts must restore CP");
 }
@@ -443,10 +551,12 @@ const fn case(
 #[test]
 fn player_costs_are_pinned_for_both_frontends() {
     let dir = tempdir("player-costs-");
-    // Observed through `dump-ir --json --loops 1`. The shared dword reader and
-    // `PlayerField.read` pay 33 = 32 bit tests + 1 accumulator reset, which is
-    // the stale §5 row's 32 plus the mandatory reset. PVariable's runtime
-    // index paths are substrate-driven (25/11 and 6/5), not the old 1/1 row.
+    // Observed through `dump-ir --json --loops 1`. The 32-bit shared reader and
+    // `PlayerField.read` pay 33 = 32 bit tests + 1 accumulator reset, while the
+    // 8-bit `dwUserPlayerId` reader pays 9 = 8 bit tests + 1 reset. Runtime
+    // `player_exists` is a condition probe (15 static triggers, 24 executed),
+    // not the old CP-reader body. PVariable's runtime index paths are
+    // substrate-driven (25/11 and 6/5), not the old 1/1 row.
     let cases = [
         case(
             "turbo",
@@ -459,8 +569,8 @@ fn player_costs_are_pinned_for_both_frontends() {
             "user_player",
             "    user_player()\n",
             "  userPlayer();\n",
-            (33, 32, 33),
-            (33, 32, 1),
+            (9, 8, 9),
+            (9, 8, 1),
         ),
         case(
             "game_tick",
@@ -473,8 +583,8 @@ fn player_costs_are_pinned_for_both_frontends() {
             "is_user",
             "    when(is_user(3), lambda: None)\n",
             "  when(isUser(3), () => {});\n",
-            (33, 32, 33),
-            (33, 32, 1),
+            (9, 8, 9),
+            (9, 8, 1),
         ),
         case(
             "pex_const",
@@ -487,15 +597,15 @@ fn player_costs_are_pinned_for_both_frontends() {
             "pex_runtime",
             "    p = Var(1)\n    when(player_exists(p).eq(1), lambda: None)\n",
             "  const p = Var(1);\n  when(playerExists(p).eq(1), () => {});\n",
-            (85, 65, 238),
-            (100, 65, 1133),
+            (15, 2, 154),
+            (24, 2, 729),
         ),
         case(
             "loop_active_body",
             "    for_each_player(lambda q: SetDeaths(9000, SetTo, q, 0))\n",
             "  forEachPlayer((q) => { SetDeaths(9000, SetTo, q, 0); });\n",
-            (93, 67, 258),
-            (825, 569, 7706),
+            (55, 36, 199),
+            (277, 65, 6484),
         ),
         case(
             "loop_inactive_body",
@@ -508,8 +618,8 @@ fn player_costs_are_pinned_for_both_frontends() {
             "unroll_gated",
             "    for_each_player(lambda q: SetDeaths(9000, SetTo, q, 0), players=[0, 2])\n",
             "  forEachPlayer((q) => { SetDeaths(9000, SetTo, q, 0); }, { players: [0, 2] });\n",
-            (38, 34, 104),
-            (38, 34, 68),
+            (42, 36, 108),
+            (42, 36, 74),
         ),
         case(
             "unroll_ungated",

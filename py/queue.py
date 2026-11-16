@@ -1048,6 +1048,8 @@ class ObjectPool:
         """The LIFO index stack backing allocation."""
         return self._free
 
+    freeList = free_list
+
     def allocate(self) -> Var:
         """Pop one free index, or return ``POOL_NULL`` when full."""
         out = Var(0)

@@ -14,7 +14,7 @@ so its runtime form dispatches over the four lanes.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable, NamedTuple
 
 from .cp import with_epd
 from .hir import AtLeast, DeathsX, SetDeathsX, SetTo
@@ -49,30 +49,37 @@ UPGRADE_STATE_BW_STRIDE: int = 15
 
 MAX_PLAYER_ID: int = 11
 
-#: ``(sc_count, sc_base, bw_base, sc_stride, bw_stride)`` for one id domain.
-_Split = tuple[int, int, int, int, int]
-_TECH_SPLIT: _Split = (
-    TECH_SC_COUNT,
-    TECH_STATE_SC_BASE,
-    TECH_STATE_BW_BASE,
-    TECH_STATE_SC_STRIDE,
-    TECH_STATE_BW_STRIDE,
+class _Split(NamedTuple):
+    """The SC/BW bases, counts, and strides for one id domain."""
+
+    sc_count: int
+    sc_base: int
+    bw_base: int
+    sc_stride: int
+    bw_stride: int
+
+
+_TECH_SPLIT = _Split(
+    sc_count=TECH_SC_COUNT,
+    sc_base=TECH_STATE_SC_BASE,
+    bw_base=TECH_STATE_BW_BASE,
+    sc_stride=TECH_STATE_SC_STRIDE,
+    bw_stride=TECH_STATE_BW_STRIDE,
 )
-_UPGRADE_SPLIT: _Split = (
-    UPGRADE_SC_COUNT,
-    UPGRADE_STATE_SC_BASE,
-    UPGRADE_STATE_BW_BASE,
-    UPGRADE_STATE_SC_STRIDE,
-    UPGRADE_STATE_BW_STRIDE,
+_UPGRADE_SPLIT = _Split(
+    sc_count=UPGRADE_SC_COUNT,
+    sc_base=UPGRADE_STATE_SC_BASE,
+    bw_base=UPGRADE_STATE_BW_BASE,
+    sc_stride=UPGRADE_STATE_SC_STRIDE,
+    bw_stride=UPGRADE_STATE_BW_STRIDE,
 )
 
 
 def _sc_bw_slot(index: int, split: _Split) -> tuple[int, int]:
     """``(base + index_offset, player_stride)`` for one id in a split table."""
-    sc_count, sc_base, bw_base, sc_stride, bw_stride = split
-    if index < sc_count:
-        return sc_base + index, sc_stride
-    return bw_base + (index - sc_count), bw_stride
+    if index < split.sc_count:
+        return split.sc_base + index, split.sc_stride
+    return split.bw_base + (index - split.sc_count), split.bw_stride
 
 
 def _require_count(value: object, what: str, maximum: int) -> int:
@@ -155,42 +162,35 @@ def _masked_write(epd: int | Var, value: int, shift: int) -> None:
     )
 
 
-def _lane_read(addr: Var) -> Var:
-    """Read the byte at ``addr`` through a four-arm lane dispatch."""
+def _with_lane(addr: Var, body: Callable[[int], None]) -> None:
+    """Bind the dword EPD of ``addr`` and dispatch to its byte lane."""
     epd = _addr_epd(addr)
     lane = Var(0)
     lane.set(addr.bitAnd(3))
-    out = Var(0)
 
-    def body(_cp: Any) -> None:
+    def dispatch(_cp: Any) -> None:
         for k in range(4):
-            when(
-                lane.eq(k),
-                lambda k=k: out.set(
-                    _masked_read(CURRENT_PLAYER, 8 * k)
-                ),
-            )
+            when(lane.eq(k), lambda k=k: body(k))
 
-    with_epd(epd, body)
+    with_epd(epd, dispatch)
+
+
+def _lane_read(addr: Var) -> Var:
+    """Read the byte at ``addr`` through a four-arm lane dispatch."""
+    out = Var(0)
+    _with_lane(
+        addr,
+        lambda k: out.set(_masked_read(CURRENT_PLAYER, 8 * k)),
+    )
     return out
 
 
 def _lane_write(addr: Var, level: int) -> None:
     """Write ``level`` to the byte at ``addr`` through four lane arms."""
-    epd = _addr_epd(addr)
-    lane = Var(0)
-    lane.set(addr.bitAnd(3))
-
-    def body(_cp: Any) -> None:
-        for k in range(4):
-            when(
-                lane.eq(k),
-                lambda k=k: _masked_write(
-                    CURRENT_PLAYER, level, 8 * k
-                ),
-            )
-
-    with_epd(epd, body)
+    _with_lane(
+        addr,
+        lambda k: _masked_write(CURRENT_PLAYER, level, 8 * k),
+    )
 
 
 def tech_state_slot(tech: int, player: int) -> tuple[int, int]:

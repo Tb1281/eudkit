@@ -1773,8 +1773,22 @@ class CUnitView:
         return MemFieldHandle(CUnitSchema, spec, self._epd, canonical)
 
     def read(self, name: str) -> Any:
-        """Read one CUnit field by name."""
-        return self.field(name).read()
+        """Read one CUnit field by name at a constant or runtime EPD."""
+        handle = self.field(name)
+        if _is_plain_int(self._epd):
+            return handle.read()
+
+        from .cp import with_epd
+
+        return with_epd(
+            _epd_add(self._epd, handle.dwordOffset),
+            lambda _cp: read_epd(
+                CURRENT_PLAYER,
+                handle.size * 8,
+                handle.shift,
+                mask=handle.bitMask,
+            ),
+        )
 
     def next_unit(self) -> Any:
         """Read the slot-biased ``next`` link and return its target EPD."""
@@ -1794,7 +1808,10 @@ class CUnitView:
 
     def is_burrowed(self) -> Any:
         """Return 1 when ``statusFlags.Burrowed`` is set (always a ``Var``)."""
-        return _read_status_bit_at(_epd_add(self._epd, 55), 4)
+        mask = StatusFlags.Burrowed
+        return _read_status_bit_at(
+            _epd_add(self._epd, 55), mask.bit_length() - 1
+        )
 
     def set_invincible(self, on: bool = True) -> None:
         """Set or clear ``statusFlags.Invincible``."""
@@ -1803,10 +1820,11 @@ class CUnitView:
                 "EUDSL-TYPE",
                 f"set_invincible on must be a bool, got {_describe_value(on)}",
             )
+        mask = StatusFlags.Invincible
         _write_masked_at(
             _epd_add(self._epd, 55),
-            0x04000000 if on else 0,
-            0x04000000,
+            mask if on else 0,
+            mask,
         )
 
     def give_to(self, player: int) -> None:
@@ -1847,6 +1865,15 @@ class CUnitView:
         top.ishl(16)
         top.ior(left)
         memsetEPD(_epd_add(self._epd, 10), top, 1)
+
+    nextUnit = next_unit
+    prevUnit = prev_unit
+    spriteEpd = sprite_epd
+    isBurrowed = is_burrowed
+    setInvincible = set_invincible
+    giveTo = give_to
+    setColor = set_color
+    setLocation = set_location
 
 
 splitDword = split_dword

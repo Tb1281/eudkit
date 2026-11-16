@@ -1229,18 +1229,11 @@ export class ObjectPool {
 
   /** Read a user-data slot through the backing array. */
   get(index: number | VarImpl): unknown {
-    if (typeof index === "number") {
-      return this.storage.get(index);
-    }
-    return this.storage.get(index);
+    return this.storage.get(index as VarImpl);
   }
 
   /** Write a user-data slot through the backing array. */
   set(index: number | VarImpl, value: unknown): void {
-    if (typeof index === "number") {
-      this.storage.set(index, value as any);
-      return;
-    }
-    this.storage.set(index, value as any);
+    this.storage.set(index as VarImpl, value as any);
   }
 }

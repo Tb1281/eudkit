@@ -298,6 +298,50 @@ fn set_color_writes_the_sprite_player_lane_only() {
 }
 
 #[test]
+fn read_by_name_works_at_constant_and_runtime_epds() {
+    let base = CUNIT_BASE_EPD;
+    let mut py_body = format!(
+        "    rt = CUnitView(Var({base}))\n\
+         \x20   hp = CUnitView({base}).read(\"hp\")\n"
+    );
+    let mut ts_body = format!(
+        "  const rt = new CUnitView(Var({base}));\n\
+         \x20 const hp = new CUnitView({base}).read(\"hp\");\n"
+    );
+    py_body.push_str(&py_marker("hp", 0));
+    ts_body.push_str(&ts_marker("hp", 0));
+    py_body.push_str(&format!(
+        "    owner = CUnitView({base}).read(\"owner\")\n"
+    ));
+    ts_body.push_str(&format!(
+        "  const owner = new CUnitView({base}).read(\"owner\");\n"
+    ));
+    py_body.push_str(&py_marker("owner", 1));
+    ts_body.push_str(&ts_marker("owner", 1));
+    py_body.push_str("    rhp = rt.read(\"hp\")\n");
+    ts_body.push_str("  const rhp = rt.read(\"hp\");\n");
+    py_body.push_str(&py_marker("rhp", 2));
+    ts_body.push_str(&ts_marker("rhp", 2));
+    py_body.push_str("    rowner = rt.read(\"owner\")\n");
+    ts_body.push_str("  const rowner = rt.read(\"owner\");\n");
+    py_body.push_str(&py_marker("rowner", 3));
+    ts_body.push_str(&ts_marker("rowner", 3));
+
+    let markers: Vec<u32> = (0..4).map(|index| MARKER_EPD + index).collect();
+    let (py, _) = run_pair(
+        "read",
+        &py_body,
+        &ts_body,
+        &[(base + 2, 0x1234_5678), (base + 19, 0xAABB_CCDD)],
+        &markers,
+        0,
+    );
+    // `hp` is dword 2; `owner` is the low byte (offset 76) of dword 19. The
+    // runtime EPD must resolve to the same seeded dwords.
+    assert_eq!(py.memory, vec![0x1234_5678, 0xDD, 0x1234_5678, 0xDD]);
+}
+
+#[test]
 fn object_pool_allocates_in_lifo_order_then_returns_null() {
     let mut py_body = String::from("    pool = ObjectPool(4)\n");
     let mut ts_body = String::from("  const pool = new ObjectPool(4);\n");
