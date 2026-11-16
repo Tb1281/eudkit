@@ -14,8 +14,12 @@ per-player variables (`PVariable`), and broadcast actions to active players.
 
 1. **`player_exists` arithmetic without `Switch`/`SetNextPtr`:** Constant players
    `0..7` emit a single `Memory(0x51A280 + 12*p + 8, Exactly, ~(0x51A280 + 12*p + 4))`
-   comparison. Runtime player operands compute `EPD(0x51A280) + 2 + 3*p` and
-   compare against `~(0x51A280 + 4) - 12*p` through `with_epd`. Slots `8..11` are
+   comparison. Runtime player operands default to absent, and inside a
+   `player <= 7` guard compute `EPD(0x51A280) + 2 + 3*p` and
+   `~(0x51A280 + 4) - 12*p`, write both into a condition-probe trigger's
+   `player`/`amount` fields with `emitVarStore`, and let that probe clear the
+   result when the record carries the "has left" sentinel. This avoids both
+   `CurrentPlayer` binding and the 32-bit `read_epd` sweep. Slots `8..11` are
    rejected with `EUDSL-RANGE` for existence/broadcasts (avoiding out-of-table
    reads) while staying readable on `Player(p)`.
 2. **`Player` & `PlayerField`:** `Player(0..11)` exposes the 15 SC:R player
@@ -29,4 +33,6 @@ per-player variables (`PVariable`), and broadcast actions to active players.
    `read_current_player_register()` and restoring it once with `emitVarStore`.
    Broadcast helpers (`display_text_all`, `play_wav_all`, `minimap_ping_all`,
    `center_view_all`, `set_mission_objectives_all`, `talking_portrait_all`) take
-   raw `0..255` integer location ids so `player` remains independent of `location`.
+   raw `0..255` integer location ids so `player` remains independent of
+   `location`. Broadcasts loop the active melee slots `0..7` only; observers
+   (`8..11`) are excluded.

@@ -6,9 +6,10 @@
  * module pins the new surface from §3/§4 of the ticket:
  *
  * - `turbo` is one `SetMemory(0x6509A0, SetTo, 0)` action;
- * - `userPlayer`/`gameTick` share one 32-bit reader body per address;
- * - `playerExists` is the constant table predicate (two triggers) or
- *   arithmetic + `withEpd` (no `SetNextPtr`/`Switch`);
+ * - `userPlayer` reads the low byte with an 8-bit read; `gameTick` keeps the
+ *   shared 32-bit reader body;
+ * - `playerExists` is the constant table predicate (two triggers) or an
+ *   in-range-guarded condition probe without `CurrentPlayer`/`withEpd`;
  * - `forEachPlayer` saves/restores `CurrentPlayer` once per site and emits
  *   the body once (loop) or once per selected player (unrolled);
  * - `Player`/`PlayerField` mirror the `scdata/player.py` dword arrays and
@@ -75,7 +76,7 @@ import {
   user_player,
 } from "../player.ts";
 import { CP_ADDR } from "../cp.ts";
-import { CURRENT_PLAYER, EPD, EPD_CURRENT_PLAYER } from "../view.ts";
+import { EPD, EPD_CURRENT_PLAYER } from "../view.ts";
 import type { CondLike } from "../trigger.ts";
 
 // `tsc` pins §3.2 by assigning each export to its declared signature.
@@ -349,41 +350,53 @@ test("turbo is one SetMemory action in one trigger", () => {
   assert.equal(EPD(TURBO_ADDR), 203151);
 });
 
-test("userPlayer and gameTick each declare one shared body", () => {
+test("userPlayer reads the low byte and gameTick keeps its shared body", () => {
   const module = moduleOf(() => {
     userPlayer();
     userPlayer();
     gameTick();
   });
-  assert.equal(module.funcs.length, 2);
-  const calls = module.stmts.filter((node: Module) => node.kind === "call");
-  assert.deepEqual(
-    calls.map((call: Module) => call.func),
-    [0, 0, 1],
-  );
+  assert.equal(module.funcs.length, 1);
+  // `gameTick` still uses the shared full-dword reader.
+  const tick = module.funcs[0];
+  assert.equal(tick.body.length, 33);
+  const tickConds = tick.body.flatMap((trigger: Module) => trigger.conds ?? []);
+  assert.equal(tickConds.length, 32);
+  assert.deepEqual(new Set(tickConds.map((cond: Module) => cond.condtype)), new Set([15]));
+  assert.equal(tickConds[0].player, EPD(0x57f23c) >>> 0);
 
-  const firstCond = new Map<number, number>();
-  for (const func of module.funcs) {
-    assert.equal(func.body.length, 33);
-    const funcConds = func.body.flatMap((trigger: Module) => trigger.conds ?? []);
-    assert.equal(funcConds.length, 32);
-    assert.deepEqual(new Set(funcConds.map((cond: Module) => cond.condtype)), new Set([15]));
-    firstCond.set(func.id, funcConds[0].player);
+  // Each `userPlayer()` is an inline 8-bit read: one accumulator reset plus
+  // one bit test per byte lane.
+  const triggers = module.stmts.filter((node: Module) => node.kind === "trigger");
+  assert.equal(triggers.length, 18);
+  for (const offset of [0, 9]) {
+    assert.deepEqual(triggers[offset].conds, []);
+    const bitConds = triggers
+      .slice(offset + 1, offset + 9)
+      .map((trigger: Module) => trigger.conds[0]);
+    assert.equal(bitConds.length, 8);
+    assert.deepEqual(
+      new Set(bitConds.map((cond: Module) => cond.player)),
+      new Set([EPD(0x512684) >>> 0]),
+    );
+    assert.deepEqual(
+      new Set(bitConds.map((cond: Module) => cond.amount)),
+      new Set(Array.from({ length: 8 }, (_, bit) => 1 << bit)),
+    );
   }
-  assert.equal(firstCond.get(0), EPD(0x512684) >>> 0);
-  assert.equal(firstCond.get(1), EPD(0x57f23c) >>> 0);
+});
 
-  const twoSites = moduleOf(() => {
+test("two userPlayer sites use independent read results", () => {
+  const module = moduleOf(() => {
     userPlayer();
     userPlayer();
   });
-  assert.equal(twoSites.funcs.length, 1);
-  const twoCalls = twoSites.stmts.filter((node: Module) => node.kind === "call");
-  assert.deepEqual(
-    twoCalls.map((call: Module) => call.func),
-    [0, 0],
-  );
-  assert.notEqual(twoCalls[0].dst, twoCalls[1].dst);
+  assert.equal(module.funcs, undefined);
+  const triggers = module.stmts.filter((node: Module) => node.kind === "trigger");
+  assert.equal(triggers.length, 18);
+  const firstResult = triggers[0].acts[0].relocs[0].target_var;
+  const secondResult = triggers[9].acts[0].relocs[0].target_var;
+  assert.notEqual(firstResult, secondResult);
 });
 
 test("isUser constant is one condition against the shared read", () => {
@@ -399,8 +412,10 @@ test("isUser constant is one condition against the shared read", () => {
   assert.equal(cond.comparison, Exactly);
   assert.equal(cond.amount, 3);
   assert.equal(cond.player, 0);
-  const call = module.stmts.find((node: Module) => node.kind === "call");
-  assert.equal(cond.relocs[0].target_var, call.dst);
+  const triggers = module.stmts.filter((node: Module) => node.kind === "trigger");
+  assert.equal(triggers.length, 9);
+  const readResult = triggers[0].acts[0].relocs[0].target_var;
+  assert.equal(cond.relocs[0].target_var, readResult);
 });
 
 test("isUser runtime is a var equality condition", () => {
@@ -476,27 +491,43 @@ test("playerExists constant guards the slot range and operand type", () => {
   }
 });
 
-test("playerExists runtime is arithmetic and one CP binding", () => {
+test("playerExists runtime is a condition probe without a CP read", () => {
   const module = moduleOf(() => {
     when(playerExists(Var(3)).eq(1), () => {});
   });
-  assert.equal(module.funcs.length, 2);
-  const funcPlayers = new Set(
-    module.funcs.flatMap((func: Module) =>
-      flatten(func.body).flatMap((node: Module) =>
-        (node.conds ?? []).map((cond: Module) => cond.player),
-      ),
-    ),
-  );
-  assert.deepEqual(funcPlayers, new Set([EPD_CURRENT_PLAYER, CURRENT_PLAYER]));
-
+  // One in-range guard plus the caller's own condition; no CP reader body.
+  assert.equal(module.funcs, undefined);
+  const nodes = module.stmts;
   assert.deepEqual(
-    new Set(conds(module).map((cond) => cond.condtype)),
-    new Set([15]),
+    nodes.map((node: Module) => node.kind),
+    ["when", "when"],
   );
 
-  const nodes = allNodes(module);
-  for (const node of nodes) {
+  const guard = nodes[0];
+  assert.equal(guard.conds[0].amount, PLAYER_SLOT_COUNT - 1);
+  assert.equal(guard.conds[0].comparison, AtMost);
+
+  const body = guard.body;
+  assert.equal(body[0].value, 1);
+  assert.equal(body[0].modifier, SetTo);
+  const outVar = body[0].relocs[0].target_var;
+  assert.equal(nodes[1].conds[0].relocs[0].target_var, outVar);
+
+  const probe = body.find((node: Module) => node.kind === "trigger");
+  assert.equal(probe.conds[0].condtype, 15);
+  assert.equal(probe.conds[0].comparison, Exactly);
+  assert.equal(probe.acts[0].value, 0);
+  assert.equal(probe.acts[0].relocs[0].target_var, outVar);
+
+  const stores = body.filter((node: Module) => node.kind === "varstore");
+  assert.equal(stores.length, 2);
+  [12, 16].forEach((fieldOffset, index) => {
+    assert.equal(stores[index].dst_trigger, probe.id);
+    assert.equal(stores[index].dst_offset, fieldOffset);
+  });
+
+  const all = allNodes(module);
+  for (const node of all) {
     for (const reloc of node.relocs ?? []) {
       assert.ok(!("target_trigger" in reloc));
     }
@@ -512,10 +543,10 @@ test("playerExists runtime is arithmetic and one CP binding", () => {
     }
   }
 
-  const cpStores = nodes.filter(
+  const cpStores = all.filter(
     (node) => node.kind === "varstore" && node.dst_addr === CP_ADDR,
   );
-  assert.equal(cpStores.length, 2);
+  assert.equal(cpStores.length, 0);
 });
 
 test("playerExists runtime rejects non-operands", () => {
@@ -576,21 +607,31 @@ test("forEachPlayer unrolled mode gates once per selected player", () => {
   const nodes = module.stmts;
   assert.deepEqual(
     nodes.map((node: Module) => node.kind),
-    ["call", "when", "when", "varstore"],
+    [
+      "call",
+      "trigger",
+      "when",
+      "when",
+      "trigger",
+      "when",
+      "when",
+      "varstore",
+    ],
   );
   [0, 2].forEach((player, index) => {
-    const node = nodes[1 + index];
+    const guard = nodes[2 + 3 * index];
+    const run = nodes[3 + 3 * index];
     const base = PLAYER_TABLE_ADDR + PLAYER_SLOT_BYTES * player;
-    const cond = node.conds[0];
+    const cond = guard.conds[0];
     assert.equal(cond.player, EPD(base + 8) >>> 0);
     assert.equal(cond.amount, ~(base + 4) >>> 0);
 
-    const bodyActs = flatten(node.body).filter((item) => item.kind === "act");
+    const bodyActs = flatten(run.body).filter((item) => item.kind === "act");
     assert.equal(bodyActs[0].dest, EPD_CURRENT_PLAYER);
     assert.equal(bodyActs[0].value, player);
     assert.equal(bodyActs[1].dest, 9000);
   });
-  assert.equal(nodes[3].src_var, nodes[0].dst);
+  assert.equal(nodes[7].src_var, nodes[0].dst);
 });
 
 test("forEachPlayer unrolled ungated mode has no gate", () => {

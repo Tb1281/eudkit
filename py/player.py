@@ -24,11 +24,10 @@ from typing import Any, Callable, Iterable, Sequence
 
 from .array import FixedArray, arrayDword
 from .camera import GAME_TICK_ADDR, USER_PLAYER_ADDR
-from .cp import CP_ADDR, read_current_player_register, with_epd
+from .cp import CP_ADDR, read_current_player_register
 from .hir import (
     AddrReloc,
-    AtLeast,
-    AtMost,
+    Always,
     CenterView,
     Deaths,
     DeathsX,
@@ -42,18 +41,19 @@ from .hir import (
     SetMissionObjectives,
     SetTo,
     TalkingPortrait,
+    TriggerFieldReloc,
     emitVarStore,
 )
 from .string import encode_utf8
 from .temporal import when, while_loop
-from .trigger import _get_active_module_builder
+from .trigger import Trigger, _get_active_module_builder, _register_trigger
 from .var import Expr, ReadonlyVar, Var, to_var
 from .view import (
-    CURRENT_PLAYER,
     EPD,
     EPD_CURRENT_PLAYER,
     EudslError,
     FieldSpec,
+    FieldValueSpace,
     MemFieldHandle,
     _describe_value,
     _is_plain_int,
@@ -114,7 +114,8 @@ PLAYER_NAME_BYTES = 36
 #: Longest name that still fits its trailing NUL in the record.
 PLAYER_NAME_MAX_BYTES = 35
 
-_PLAYER_MAX = 11
+#: Highest id accepted by :class:`Player` (mirrors ``TrgPlayer.range``).
+PLAYER_MAX_ID = 11
 
 
 def _require_player(player: object, what: str) -> int:
@@ -124,10 +125,10 @@ def _require_player(player: object, what: str) -> int:
             f"{what}: player must be a plain integer, got {_describe_value(player)}",
         )
     value = int(player)  # type: ignore[arg-type]
-    if value < 0 or value > _PLAYER_MAX:
+    if value < 0 or value > PLAYER_MAX_ID:
         raise EudslError(
             "EUDSL-RANGE",
-            f"{what}: player must be in 0..{_PLAYER_MAX}, got {value}",
+            f"{what}: player must be in 0..{PLAYER_MAX_ID}, got {value}",
         )
     return value
 
@@ -310,10 +311,9 @@ PLAYER_TABLE_ADDR = 0x51A280
 PLAYER_SLOT_BYTES = 12
 #: Live melee slots addressed by ``player_exists``/``for_each_player``.
 PLAYER_SLOT_COUNT = 8
-#: Highest id accepted by :class:`Player` (mirrors ``TrgPlayer.range``).
-PLAYER_MAX_ID = 11
 #: ``dwTurbo``; ``turbo()`` writes zero here in the tail position.
 TURBO_ADDR = 0x6509A0
+
 
 def turbo() -> None:
     """Disable the game's speed governor (``eudTurbo.py:9``).
@@ -327,8 +327,8 @@ def turbo() -> None:
 
 
 def user_player() -> Var:
-    """Read ``dwUserPlayerId`` (the local human player index)."""
-    return read_epd(EPD(USER_PLAYER_ADDR), 32, 0)
+    """Read the low byte of ``dwUserPlayerId`` (the local human player index)."""
+    return read_epd(EPD(USER_PLAYER_ADDR), 8, 0)
 
 
 def game_tick() -> Var:
@@ -399,26 +399,46 @@ def player_exists(player: int | Var) -> Var:
         )
 
     source = to_var(player)
-    # np = 3 * player (three table dwords), built with value copies.
-    np = Var(0)
-    np.set(source)
-    np.iadd(source)
-    np.iadd(source)
-    # a = EPD(table) + 2 + np: the "has left" dword of the record.
-    target = Var(0)
-    target.set((EPD(PLAYER_TABLE_ADDR) + 2) & 0xFFFFFFFF)
-    target.iadd(np)
-    # amt = ~(table + 4) - 4 * np, the expected value in 32-bit byte space.
-    expected = Var(0)
-    expected.set((~(PLAYER_TABLE_ADDR + 4)) & 0xFFFFFFFF)
-    expected.isub(np)
-    expected.isub(np)
-    expected.isub(np)
-    expected.isub(np)
-    value = with_epd(target, lambda _cp: read_epd(CURRENT_PLAYER, 32, 0))
     out = Var(0)
-    out.set(0)
-    when(value.eq(expected), lambda: out.set(1))
+
+    def in_range() -> None:
+        out.set(1)
+        # np = 3 * player (three table dwords), built with value copies.
+        np = Var(0)
+        np.set(source)
+        np.iadd(source)
+        np.iadd(source)
+        # target = EPD(table) + 2 + np: the "has left" dword of the record.
+        target = Var(0)
+        target.set((EPD(PLAYER_TABLE_ADDR) + 2) & 0xFFFFFFFF)
+        target.iadd(np)
+        # expected = ~(table + 4) - 12 * player, the "has left" sentinel.
+        expected = Var(0)
+        expected.set((~(PLAYER_TABLE_ADDR + 4)) & 0xFFFFFFFF)
+        expected.isub(np)
+        expected.isub(np)
+        expected.isub(np)
+        expected.isub(np)
+        # The condition's player/amount fields are patched at runtime by the
+        # preceding VarStores. The probe is registered after them, so it runs
+        # with the freshly written EPD, and it clears `out` only when the
+        # record carries the "has left" sentinel.
+        probe = Trigger(
+            conds=[Deaths(0, Exactly, 0, 0)],
+            acts=[out.act_set(0)],
+            register=False,
+        )
+        emitVarStore(
+            target.id,
+            TriggerFieldReloc(probe.id, probe.cond(0).player.byteOffset),
+        )
+        emitVarStore(
+            expected.id,
+            TriggerFieldReloc(probe.id, probe.cond(0).amount.byteOffset),
+        )
+        _register_trigger(probe)
+
+    when(source.le(PLAYER_SLOT_COUNT - 1), in_range)
     return out
 
 
@@ -500,7 +520,7 @@ def for_each_player(
                 body(var)
 
             if active_only:
-                when(_exists_condition(player), run)
+                when(player_exists(player).eq(1), run)
             else:
                 run()
 
@@ -516,6 +536,7 @@ _PLAYER_FIELD_VIEW = defineMemView(
     {"value": FieldSpec(offset=0, size=4)},
 )
 _PLAYER_FIELD_SPEC = FieldSpec(offset=0, size=4)
+_PLAYER_FIELD_VALUE_SPACE = FieldValueSpace(0xFFFFFFFF, 0)
 
 #: The ``scdata/player.py`` dword arrays, one element per player.
 _PLAYER_FIELD_ADDRS: tuple[tuple[str, int], ...] = (
@@ -620,23 +641,15 @@ class PlayerField:
 
     def _compare(self, op: str, rhs: int) -> Any:
         value = _require_field_value(rhs, f"PlayerField.{op}") & 0xFFFFFFFF
-        if op == "eq":
-            return Deaths(self.epd, Exactly, value, 0)
-        if op == "ge":
-            return Deaths(self.epd, AtLeast, value, 0)
-        if op == "le":
-            return Deaths(self.epd, AtMost, value, 0)
-        if op == "gt":
-            if value == 0xFFFFFFFF:
-                return Never()
-            return Deaths(self.epd, AtLeast, (value + 1) & 0xFFFFFFFF, 0)
-        if op == "lt":
-            if value == 0:
-                return Never()
-            return Deaths(self.epd, AtMost, (value - 1) & 0xFFFFFFFF, 0)
-        if op == "ne":
+        plan = _PLAYER_FIELD_VALUE_SPACE.compare(op, value)
+        if plan.fold == "never":
+            return Never()
+        if plan.fold == "always":
+            return Always()
+        if plan.fold == "defer":
             return self._handle().ne(value)
-        raise AssertionError(f"unknown PlayerField comparison {op!r}")
+        assert plan.comparison is not None
+        return Deaths(self.epd, plan.comparison, plan.value, 0)
 
     def eq(self, rhs: int) -> Any:
         return self._compare("eq", rhs)
@@ -758,7 +771,7 @@ def _require_stock_range(value: object, name: str, minimum: int, maximum: int) -
 
 
 def display_text_all(text: str) -> None:
-    """Show ``text`` to every live player."""
+    """Show ``text`` to every live player (slots 0..7 only; observers excluded)."""
     message = _require_text(text, "display_text_all()")
     for_each_player(lambda _p: DisplayText(message, always_display=4))
 
@@ -767,7 +780,7 @@ displayTextAll = display_text_all
 
 
 def play_wav_all(wav: str) -> None:
-    """Play ``wav`` for every live player."""
+    """Play ``wav`` for every live player (slots 0..7 only; observers excluded)."""
     sound = _require_text(wav, "play_wav_all()")
     for_each_player(lambda _p: PlayWAV(sound))
 
@@ -776,7 +789,10 @@ playWavAll = play_wav_all
 
 
 def minimap_ping_all(location: int) -> None:
-    """Ping a raw location id (``0..255``) on every live player's minimap."""
+    """Ping a raw location id (``0..255``) on every live player's minimap.
+
+    Only live slots ``0..7`` are addressed; observers (``8..11``) are excluded.
+    """
     loc = _require_stock_range(location, "minimap_ping_all() location", 0, 255)
     for_each_player(lambda _p: MinimapPing(loc))
 
@@ -785,7 +801,10 @@ minimapPingAll = minimap_ping_all
 
 
 def center_view_all(location: int) -> None:
-    """Center every live player's view on a raw location id (``0..255``)."""
+    """Center every live player's view on a raw location id (``0..255``).
+
+    Only live slots ``0..7`` are addressed; observers (``8..11``) are excluded.
+    """
     loc = _require_stock_range(location, "center_view_all() location", 0, 255)
     for_each_player(lambda _p: CenterView(loc))
 
@@ -794,7 +813,10 @@ centerViewAll = center_view_all
 
 
 def set_mission_objectives_all(text: str) -> None:
-    """Replace the mission objectives text for every live player."""
+    """Replace the mission objectives text for every live player.
+
+    Only live slots ``0..7`` are addressed; observers (``8..11``) are excluded.
+    """
     message = _require_text(text, "set_mission_objectives_all()")
     for_each_player(lambda _p: SetMissionObjectives(message))
 
@@ -803,7 +825,10 @@ setMissionObjectivesAll = set_mission_objectives_all
 
 
 def talking_portrait_all(unit: int, time: int) -> None:
-    """Show ``unit``'s portrait for ``time`` ms to every live player."""
+    """Show ``unit``'s portrait for ``time`` ms to every live player.
+
+    Only live slots ``0..7`` are addressed; observers (``8..11``) are excluded.
+    """
     portrait = _require_stock_range(unit, "talking_portrait_all() unit", 0, 227)
     delay = _require_stock_range(
         time, "talking_portrait_all() time", 0, 0xFFFFFFFF
