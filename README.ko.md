@@ -164,6 +164,7 @@ StarCraft: Remastered에서 `hello.scx`를 열어 생성된 트리거를 확인�
 | [docs/quickstart.ko.md](docs/quickstart.ko.md) | 처음부터 플레이 가능한 맵까지 단계별 가이드 ([영문 정본](docs/quickstart.md)) |
 | [examples/quickstart/README.ko.md](examples/quickstart/README.ko.md) | 실행 가능한 Hello World 4단계 예제 ([영문 정본](examples/quickstart/README.md)) |
 | [examples/README.ko.md](examples/README.ko.md) | `eudplib` → `eudkit` 마이그레이션 예제 및 Py/TS 동등성 ([영문 정본](examples/README.md)) |
+| [docs/eudplib-comparison.ko.md](docs/eudplib-comparison.ko.md) | `eudplib` 대비 비교, 장단점 및 전체 스펙 카탈로그 |
 | [py/README.ko.md](py/README.ko.md) | Python DSL 진입점, 카탈로그, DAT 테이블 ([영문 정본](py/README.md)) |
 | [ts/README.ko.md](ts/README.ko.md) | TypeScript DSL 진입점, 카탈로그, DAT 테이블 ([영문 정본](ts/README.md)) |
 | [editors/vscode/README.ko.md](editors/vscode/README.ko.md) | VS Code용 `eudkit-lsp` 확장 ([영문 정본](editors/vscode/README.md)) |
