@@ -1,6 +1,13 @@
 # Player state accessors, `PVariable`, and CP-preserving broadcasts
 
-Status: accepted (2026-11-16)
+Status: accepted (2026-11-16; amended 2026-11-16)
+
+> **Amendment (2026-11-16):** decision 1's runtime `player_exists` probe now
+> relocates the condition's `player`/`amount` fields with
+> `TriggerFieldReloc` rather than writing through a raw trigger pointer, and
+> `user_player()` reads only the low 8 bits of `dwUserPlayerId`
+> (`read_epd(EPD(USER_PLAYER_ADDR), 8, 0)`) so the adjacent dword cannot leak
+> into the result.
 
 ## Context
 
@@ -22,7 +29,7 @@ per-player variables (`PVariable`), and broadcast actions to active players.
    `CurrentPlayer` binding and the 32-bit `read_epd` sweep. Slots `8..11` are
    rejected with `EUDSL-RANGE` for existence/broadcasts (avoiding out-of-table
    reads) while staying readable on `Player(p)`.
-2. **`Player` & `PlayerField`:** `Player(0..11)` exposes the 15 SC:R player
+2. **`Player` & `PlayerField`:** `Player(0..11)` exposes the 18 SC:R player
    dword arrays (`minerals`, `gas`, control/supply/psi triples, scores) via
    `PlayerField` (`read()` -> `Var`, build-time `int` `set`/`iadd`/`isub`,
    condition comparisons `eq`/`ne`/`ge`/`le`/`gt`/`lt`).

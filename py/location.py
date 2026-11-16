@@ -605,7 +605,6 @@ def draw_star(
 
 
 #: camelCase aliases (same objects); the snake_case names remain canonical.
-setRect = Location.set_rect
 drawCircle = draw_circle
 drawLine = draw_line
 drawPolygon = draw_polygon
@@ -621,7 +620,6 @@ __all__ = [
     "location_epd",
     "locationEpd",
     "Location",
-    "setRect",
     "getloc_tl",
     "getlocTl",
     "draw_circle",

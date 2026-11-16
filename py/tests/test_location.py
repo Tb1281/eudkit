@@ -39,7 +39,6 @@ from py.location import (
     location_epd,
     locationAddr,
     locationEpd,
-    setRect,
 )
 from py.tests.helpers import read_dword, run_sim
 from py.view import EPD, EudslError
@@ -49,7 +48,6 @@ ALIASES: tuple[tuple[Any, Any], ...] = (
     (locationAddr, location_addr),
     (locationEpd, location_epd),
     (getlocTl, getloc_tl),
-    (setRect, Location.set_rect),
     (Location.setRect, Location.set_rect),
     (Location.topLeft, Location.top_left),
     (drawCircle, draw_circle),
@@ -68,7 +66,6 @@ EXPECTED_ALL = [
     "location_epd",
     "locationEpd",
     "Location",
-    "setRect",
     "getloc_tl",
     "getlocTl",
     "draw_circle",
@@ -463,7 +460,6 @@ class SurfaceTest(unittest.TestCase):
     def test_class_camel_case_aliases_are_the_same_objects(self) -> None:
         self.assertIs(Location.setRect, Location.set_rect)
         self.assertIs(Location.topLeft, Location.top_left)
-        self.assertIn("setRect", location_module.__all__)
 
     def test_no_trigger_rewiring_primitives(self) -> None:
         source = location_module.__file__

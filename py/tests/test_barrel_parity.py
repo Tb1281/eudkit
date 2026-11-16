@@ -31,6 +31,15 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 #: Modules absorbed into the flat root during Cycle 2.
 ABSORBED_MODULES = ("mathf", "random", "player", "location", "scstate")
 
+#: Python-only type aliases (erased from the TypeScript runtime surface).
+TYPE_ALIAS_EXPORTS = {
+    "MathOperand",
+    "RandSeed",
+    "LocationOperand",
+    "CoordOperand",
+    "PlayerOperand",
+}
+
 #: Absorbed ``view`` exports: CUnitView, flags, bit helpers, and split helpers.
 VIEW_RUNTIME_EXPORTS = (
     "CUnitView",
@@ -65,9 +74,6 @@ ALIAS_EXCEPTIONS = {
     },
     "random": {"dwRand": "dwrand"},
 }
-
-#: Camel module names that are intentionally not paired here (see class test).
-MODULE_ALIAS_SKIP = {"location": {"setRect"}}
 
 #: Explicit camel→snake method aliases required by Cycle 2.
 CLASS_ALIAS_PAIRS = {
@@ -145,7 +151,6 @@ class TestRootBarrel(unittest.TestCase):
         for name in py.__all__:
             with self.subTest(name=name):
                 self.assertTrue(hasattr(py, name), f"py.{name} is missing")
-                self.assertIs(getattr(py, name), getattr(py, name))
 
     def test_cycle_2_names_are_listed_and_resolve(self) -> None:
         for name in (
@@ -167,10 +172,6 @@ class TestAbsorbedModuleAll(unittest.TestCase):
         for module_name in ABSORBED_MODULES:
             module = importlib.import_module(f"py.{module_name}")
             exported = set(module.__all__)
-            if module_name == "location":
-                # ``setRect`` is a ``Location.set_rect`` method alias; the class
-                # test below pins it without promoting the module-level binding.
-                exported.discard("setRect")
             for name in sorted(exported):
                 with self.subTest(module=module_name, name=name):
                     self.assertIn(name, py.__all__)
@@ -203,6 +204,18 @@ class TestTypeScriptRootParity(unittest.TestCase):
                 self.assertIn(name, py.__all__, f"py.__all__ lost {name}")
                 self.assertTrue(hasattr(py, name), f"py.{name} is missing")
 
+    def test_py_module_runtime_exports_exist_in_ts_modules_and_index(self) -> None:
+        index_exports = set(self.ts["index"])
+        for module_name in ABSORBED_MODULES:
+            module = importlib.import_module(f"py.{module_name}")
+            ts_exports = set(self.ts[module_name])
+            for name in sorted(module.__all__):
+                if name in TYPE_ALIAS_EXPORTS:
+                    continue
+                with self.subTest(module=module_name, name=name):
+                    self.assertIn(name, ts_exports, f"ts/{module_name}.ts lost {name}")
+                    self.assertIn(name, index_exports, f"ts/index.ts lost {name}")
+
     def test_view_subset_is_present_in_view_module(self) -> None:
         view_exports = set(self.ts["view"])
         for name in VIEW_RUNTIME_EXPORTS:
@@ -221,10 +234,9 @@ class TestAliasIdentity(unittest.TestCase):
         for module_name in ABSORBED_MODULES:
             module: ModuleType = importlib.import_module(f"py.{module_name}")
             exceptions = ALIAS_EXCEPTIONS.get(module_name, {})
-            skipped = MODULE_ALIAS_SKIP.get(module_name, set())
             checked = 0
             for camel in module.__all__:
-                if camel in skipped or not _is_camel(camel):
+                if not _is_camel(camel):
                     continue
                 snake = exceptions.get(camel, _camel_to_snake(camel))
                 with self.subTest(module=module_name, camel=camel, snake=snake):
