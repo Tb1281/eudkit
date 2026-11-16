@@ -35,6 +35,7 @@ const PY_IMPORTS: &str = "from py import (\n\
          \x20   build_module,\n\
          \x20   when,\n\
          )\n\
+         from py.cp import read_current_player_register\n\
          from py.player import (\n\
          \x20   PVariable,\n\
          \x20   Player,\n\
@@ -57,6 +58,7 @@ const TS_IMPORTS: &str = "import {\n\
          \x20 SetTo,\n\
          \x20 Var,\n\
          \x20 buildModule,\n\
+         \x20 readCurrentPlayerRegister,\n\
          \x20 when,\n\
          } from \"{root}/ts/index.ts\";\n\
          import {\n\
@@ -347,57 +349,66 @@ fn broadcast_records_active_slots_and_restores_cp() {
         );
     }
 
-    assert_eq!(py_sim.read_epd(CP_EPD), 0x1234, "py must restore CP");
-    assert_eq!(ts_sim.read_epd(CP_EPD), 0x1234, "ts must restore CP");
+    assert_eq!(py_sim.read_epd(CP_EPD), 0x1234, "py must preserve CP");
+    assert_eq!(ts_sim.read_epd(CP_EPD), 0x1234, "ts must preserve CP");
 }
 
 #[test]
-fn for_each_player_active_only_visits_live_slots() {
-    let dir = tempdir("player-active-only-");
+fn for_each_player_does_not_overwrite_cp_inside_body() {
+    let dir = tempdir("player-no-cp-");
     let py_body = indent_py(&[
         "pv = PVariable()",
         "def body(player):",
-        "    q = Var(0)",
-        "    q.set(player)",
-        "    q.iadd(1)",
-        "    pv.set(player, q)",
-        "for_each_player(body)",
+        "    pv.set(player, read_current_player_register())",
+        "for_each_player(body, players=[0, 2])",
     ]);
     let ts_body = indent_ts(&[
         "const pv = new PVariable();",
         "forEachPlayer((player) => {",
-        "  const q = Var(0);",
-        "  q.set(player);",
-        "  q.iadd(1);",
-        "  pv.set(player, q);",
-        "});",
+        "  pv.set(player, readCurrentPlayerRegister());",
+        "}, { players: [0, 2] });",
     ]);
 
-    let py_path = write_py(dir.path(), "active_only.py", &py_body);
-    let ts_path = write_ts(dir.path(), "active_only.ts", &ts_body);
+    let py_path = write_py(dir.path(), "no_cp.py", &py_body);
+    let ts_path = write_ts(dir.path(), "no_cp.ts", &ts_body);
 
-    // Departed players 1, 3, 4, 6, 7 must be skipped.
-    let mut seeds = existence_seeds(&[0, 2, 5]);
+    let mut seeds = existence_seeds(&[0, 2]);
     seeds.push((CP_EPD, 0x1234));
 
     let (py_prepared, py_sim) = run_with_sim(Frontend::Py, &py_path, &seeds);
     let (ts_prepared, ts_sim) = run_with_sim(Frontend::Ts, &ts_path, &seeds);
 
-    let expected = [1, 0, 3, 0, 0, 6, 0, 0];
-    for (slot, want) in expected.iter().enumerate() {
-        assert_eq!(
-            common::read_var(&py_prepared, &py_sim, slot),
-            *want,
-            "py active-only PVariable slot {slot}"
-        );
-        assert_eq!(
-            common::read_var(&ts_prepared, &ts_sim, slot),
-            *want,
-            "ts active-only PVariable slot {slot}"
-        );
+    for slot in [0, 2] {
+        assert_eq!(common::read_var(&py_prepared, &py_sim, slot), 0x1234);
+        assert_eq!(common::read_var(&ts_prepared, &ts_sim, slot), 0x1234);
     }
-    assert_eq!(py_sim.read_epd(CP_EPD), 0x1234, "py must restore CP");
-    assert_eq!(ts_sim.read_epd(CP_EPD), 0x1234, "ts must restore CP");
+    assert_eq!(py_sim.read_epd(CP_EPD), 0x1234);
+    assert_eq!(ts_sim.read_epd(CP_EPD), 0x1234);
+}
+
+#[test]
+fn all_broadcast_runs_as_local_observer_and_restores_cp() {
+    let dir = tempdir("player-all-local-");
+    let py_body = indent_py(&[
+        "display_text_all(\"hello\")",
+        "play_wav_all(\"sound\")",
+    ]);
+    let ts_body = indent_ts(&[
+        "displayTextAll(\"hello\");",
+        "playWavAll(\"sound\");",
+    ]);
+
+    let py_path = write_py(dir.path(), "all_local.py", &py_body);
+    let ts_path = write_ts(dir.path(), "all_local.ts", &ts_body);
+
+    // Observer slot 8 should still run without error and restore ambient CP.
+    let seeds = vec![(epd_u32(USER_PLAYER_ADDR), 8), (CP_EPD, 0x1234)];
+
+    let (_py_prepared, py_sim) = run_with_sim(Frontend::Py, &py_path, &seeds);
+    let (_ts_prepared, ts_sim) = run_with_sim(Frontend::Ts, &ts_path, &seeds);
+
+    assert_eq!(py_sim.read_epd(CP_EPD), 0x1234, "py broadcast must restore CP");
+    assert_eq!(ts_sim.read_epd(CP_EPD), 0x1234, "ts broadcast must restore CP");
 }
 
 fn parity_bodies() -> (String, String) {
@@ -604,29 +615,36 @@ fn player_costs_are_pinned_for_both_frontends() {
             "loop_active_body",
             "    for_each_player(lambda q: SetDeaths(9000, SetTo, q, 0))\n",
             "  forEachPlayer((q) => { SetDeaths(9000, SetTo, q, 0); });\n",
-            (55, 36, 199),
-            (277, 65, 6484),
+            (18, 4, 158),
+            (217, 33, 5864),
         ),
         case(
             "loop_inactive_body",
             "    for_each_player(lambda q: SetDeaths(9000, SetTo, q, 0), active_only=False)\n",
             "  forEachPlayer((q) => { SetDeaths(9000, SetTo, q, 0); }, { activeOnly: false });\n",
-            (39, 33, 107),
-            (69, 41, 636),
+            (2, 1, 4),
+            (17, 9, 32),
         ),
         case(
             "unroll_gated",
             "    for_each_player(lambda q: SetDeaths(9000, SetTo, q, 0), players=[0, 2])\n",
             "  forEachPlayer((q) => { SetDeaths(9000, SetTo, q, 0); }, { players: [0, 2] });\n",
-            (42, 36, 108),
-            (42, 36, 74),
+            (6, 4, 6),
+            (6, 4, 4),
         ),
         case(
             "unroll_ungated",
             "    for_each_player(lambda q: SetDeaths(9000, SetTo, q, 0), active_only=False, players=[0, 2])\n",
             "  forEachPlayer((q) => { SetDeaths(9000, SetTo, q, 0); }, { activeOnly: false, players: [0, 2] });\n",
-            (36, 32, 104),
-            (36, 32, 72),
+            (1, 0, 2),
+            (1, 0, 2),
+        ),
+        case(
+            "broadcast_display",
+            "    display_text_all(\"hello\")\n",
+            "  displayTextAll(\"hello\");\n",
+            (46, 40, 113),
+            (47, 40, 137),
         ),
         case(
             "field_read",

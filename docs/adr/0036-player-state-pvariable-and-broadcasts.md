@@ -4,10 +4,13 @@ Status: accepted (2026-11-16; amended 2026-11-16)
 
 > **Amendment (2026-11-16):** decision 1's runtime `player_exists` probe now
 > relocates the condition's `player`/`amount` fields with
-> `TriggerFieldReloc` rather than writing through a raw trigger pointer, and
+> `TriggerFieldReloc` rather than writing through a raw trigger pointer,
 > `user_player()` reads only the low 8 bits of `dwUserPlayerId`
 > (`read_epd(EPD(USER_PLAYER_ADDR), 8, 0)`) so the adjacent dword cannot leak
-> into the result.
+> into the result, `for_each_player` iterates without saving/modifying
+> `CurrentPlayer` (matching `eudplib`'s `EUDLoopPlayer`), and the six `*_all`
+> broadcast helpers run once with `CurrentPlayer` bound to `user_player()`
+> (including observers) and restore ambient `CurrentPlayer` afterwards.
 
 ## Context
 
@@ -35,11 +38,14 @@ per-player variables (`PVariable`), and broadcast actions to active players.
    condition comparisons `eq`/`ne`/`ge`/`le`/`gt`/`lt`).
 3. **`PVariable`:** Wraps `FixedArray(arrayDword, 8)` with optional non-zero
    `init` fill.
-4. **`for_each_player` and six broadcasts:** Sets `CurrentPlayer` to each
-   selected player id while saving ambient `CurrentPlayer` once via
-   `read_current_player_register()` and restoring it once with `emitVarStore`.
-   Broadcast helpers (`display_text_all`, `play_wav_all`, `minimap_ping_all`,
-   `center_view_all`, `set_mission_objectives_all`, `talking_portrait_all`) take
-   raw `0..255` integer location ids so `player` remains independent of
-   `location`. Broadcasts loop the active melee slots `0..7` only; observers
-   (`8..11`) are excluded.
+4. **`for_each_player` and six local-user broadcasts:** `for_each_player`
+   iterates the selected player slots (`0..7` runtime loop or build-time
+   unrolled `players` subset, gated by `player_exists` when `active_only` is
+   true) without touching `CurrentPlayer`. The six broadcast helpers
+   (`display_text_all`, `play_wav_all`, `minimap_ping_all`,
+   `center_view_all`, `set_mission_objectives_all`, `talking_portrait_all`)
+   save ambient `CurrentPlayer` via `read_current_player_register()`, set
+   `CurrentPlayer` to `user_player()` (`0x512684`, including observers), emit
+   the single stock action (taking raw `0..255` integer location ids so
+   `player` remains independent of `location`), and restore `CurrentPlayer`
+   with `emitVarStore`.

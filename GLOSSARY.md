@@ -428,7 +428,7 @@ A per-builder private `Var` updated by `state = state * 1103515245 + 12345`, wit
 _Avoid_: process-global seed variables, `Switch` rewiring in `randomize`.
 
 **player state accessor / `PVariable` / player broadcast loop**:
-`Player(0..11)` (`PlayerField` views over SC:R player arrays), the 8-slot `PVariable` (`FixedArray(arrayDword, 8)`), `turbo()` (`0x6509A0 = 0`), arithmetic `player_exists(0..7)`, and the CP-preserving `for_each_player` loop with six `*_all` broadcasts ([ADR 0036](./docs/adr/0036-player-state-pvariable-and-broadcasts.md)).
+`Player(0..11)` (`PlayerField` views over SC:R player arrays), the 8-slot `PVariable` (`FixedArray(arrayDword, 8)`), `turbo()` (`0x6509A0 = 0`), arithmetic `player_exists(0..7)`, the `for_each_player` loop (`0..7` or unrolled subset without touching `CurrentPlayer`), and six local-user `*_all` broadcasts ([ADR 0036](./docs/adr/0036-player-state-pvariable-and-broadcasts.md)).
 _Avoid_: per-player hand-written loops, player-index magic numbers.
 
 **location handle / 5-dword location record / build-time geometry**:

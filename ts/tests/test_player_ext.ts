@@ -561,7 +561,7 @@ test("playerExists runtime rejects non-operands", () => {
   }
 });
 
-test("forEachPlayer loop emits the body once and restores CP unconditionally", () => {
+test("forEachPlayer loop emits the body once without modifying CP", () => {
   const module = moduleOf(() => {
     forEachPlayer((player) => {
       SetDeaths(9000, SetTo, player, 0);
@@ -570,32 +570,25 @@ test("forEachPlayer loop emits the body once and restores CP unconditionally", (
   const nodes = module.stmts;
   assert.deepEqual(
     nodes.map((node: Module) => node.kind),
-    ["call", "while", "varstore"],
+    ["while"],
   );
 
-  const loop = nodes[1];
+  const loop = nodes[0];
   assert.equal(loop.conds[0].amount, PLAYER_SLOT_COUNT - 1);
   assert.equal(loop.conds[0].comparison, AtMost);
 
   const markers = acts(module).filter((act) => act.dest === 9000);
   assert.equal(markers.length, 1);
 
-  const currentId = loop.conds[0].relocs[0].target_var;
-  const loopNodes = flatten(loop.body);
-  const seeds = loopNodes.filter(
-    (node) =>
-      node.kind === "varstore" &&
-      node.dst_addr === CP_ADDR &&
-      node.src_var === currentId,
+  const cpStores = flatten(module.stmts).filter(
+    (node) => node.kind === "varstore" && node.dst_addr === CP_ADDR,
   );
-  assert.equal(seeds.length, 1);
-
-  const restore = nodes[2];
-  assert.equal(restore.dst_addr, CP_ADDR);
-  assert.equal(restore.src_var, nodes[0].dst);
+  assert.equal(cpStores.length, 0);
+  const cpActs = acts(module).filter((act) => act.dest === EPD_CURRENT_PLAYER);
+  assert.equal(cpActs.length, 0);
 });
 
-test("forEachPlayer unrolled mode gates once per selected player", () => {
+test("forEachPlayer unrolled mode gates once per selected player without modifying CP", () => {
   const module = moduleOf(() => {
     forEachPlayer(
       (player) => {
@@ -607,34 +600,25 @@ test("forEachPlayer unrolled mode gates once per selected player", () => {
   const nodes = module.stmts;
   assert.deepEqual(
     nodes.map((node: Module) => node.kind),
-    [
-      "call",
-      "trigger",
-      "when",
-      "when",
-      "trigger",
-      "when",
-      "when",
-      "varstore",
-    ],
+    ["trigger", "when", "when", "trigger", "when", "when"],
   );
   [0, 2].forEach((player, index) => {
-    const guard = nodes[2 + 3 * index];
-    const run = nodes[3 + 3 * index];
+    const guard = nodes[1 + 3 * index];
+    const run = nodes[2 + 3 * index];
     const base = PLAYER_TABLE_ADDR + PLAYER_SLOT_BYTES * player;
     const cond = guard.conds[0];
     assert.equal(cond.player, EPD(base + 8) >>> 0);
     assert.equal(cond.amount, ~(base + 4) >>> 0);
 
     const bodyActs = flatten(run.body).filter((item) => item.kind === "act");
-    assert.equal(bodyActs[0].dest, EPD_CURRENT_PLAYER);
-    assert.equal(bodyActs[0].value, player);
-    assert.equal(bodyActs[1].dest, 9000);
+    assert.deepEqual(
+      bodyActs.map((act) => act.dest),
+      [9000],
+    );
   });
-  assert.equal(nodes[7].src_var, nodes[0].dst);
 });
 
-test("forEachPlayer unrolled ungated mode has no gate", () => {
+test("forEachPlayer unrolled ungated mode has no gate or CP write", () => {
   const module = moduleOf(() => {
     forEachPlayer(
       (player) => {
@@ -646,20 +630,16 @@ test("forEachPlayer unrolled ungated mode has no gate", () => {
   const nodes = module.stmts;
   assert.deepEqual(
     nodes.map((node: Module) => node.kind),
-    ["call", "trigger", "varstore"],
+    ["trigger"],
   );
-  const triggerActs = nodes[1].acts;
+  const triggerActs = nodes[0].acts;
   assert.deepEqual(
     triggerActs.map((act: Module) => act.dest),
-    [EPD_CURRENT_PLAYER, 9000, EPD_CURRENT_PLAYER, 9000],
-  );
-  assert.deepEqual(
-    triggerActs.slice(0, 2).map((act: Module) => act.value),
-    [0, 0],
+    [9000, 9000],
   );
 });
 
-test("forEachPlayer loop ungated mode has no playerExists read", () => {
+test("forEachPlayer loop ungated mode has no playerExists read or helper funcs", () => {
   const module = moduleOf(() => {
     forEachPlayer(
       (player) => {
@@ -668,15 +648,11 @@ test("forEachPlayer loop ungated mode has no playerExists read", () => {
       { activeOnly: false },
     );
   });
-  assert.equal(module.funcs.length, 1);
-  const funcPlayers = new Set(
-    module.funcs.flatMap((func: Module) =>
-      flatten(func.body).flatMap((node: Module) =>
-        (node.conds ?? []).map((cond: Module) => cond.player),
-      ),
-    ),
+  assert.equal((module.funcs ?? []).length, 0);
+  const cpStores = flatten(module.stmts).filter(
+    (node) => node.kind === "varstore" && node.dst_addr === CP_ADDR,
   );
-  assert.deepEqual(funcPlayers, new Set([EPD_CURRENT_PLAYER]));
+  assert.equal(cpStores.length, 0);
 });
 
 test("forEachPlayer validation leaves no partial emission", () => {
@@ -999,16 +975,23 @@ const ACTTYPE_NAMES: Readonly<Record<number, string>> = {
   29: "TalkingPortrait",
 };
 
-function loopModule(call: () => void): Module {
+function localBroadcastModule(call: () => void): Module {
   const module = moduleOf(call);
   const whileStmts = module.stmts.filter((node: Module) => node.kind === "while");
-  assert.equal(whileStmts.length, 1);
-  assert.equal(whileStmts[0].conds[0].amount, PLAYER_SLOT_COUNT - 1);
-  assert.equal(module.stmts.at(-1).dst_addr, CP_ADDR);
+  assert.equal(whileStmts.length, 0);
+  const kinds = module.stmts.map((node: Module) => node.kind);
+  assert.equal(kinds[0], "call");
+  assert.deepEqual(kinds.slice(-3), ["varstore", "trigger", "varstore"]);
+  assert.ok(kinds.slice(1, -3).every((kind: string) => kind === "trigger"));
+  const saveCall = module.stmts[0];
+  const [setLocal, , restore] = module.stmts.slice(-3);
+  assert.equal(setLocal.dst_addr, CP_ADDR);
+  assert.equal(restore.dst_addr, CP_ADDR);
+  assert.equal(restore.src_var, saveCall.dst);
   return module;
 }
 
-test("each broadcast helper emits one loop over the stock action", () => {
+test("each broadcast helper targets userPlayer and restores CP without looping", () => {
   const cases: readonly (readonly [() => void, number, Record<string, unknown>])[] = [
     [() => displayTextAll("hello"), 9, { text: "hello", flags: 4 }],
     [() => playWavAll("sound"), 8, { wav: "sound", flags: 4 }],
@@ -1018,7 +1001,7 @@ test("each broadcast helper emits one loop over the stock action", () => {
     [() => talkingPortraitAll(5, 100), 29, { unit: 5, time: 100, flags: 20 }],
   ];
   for (const [call, acttype, expected] of cases) {
-    const module = loopModule(call);
+    const module = localBroadcastModule(call);
     const matches = acts(module).filter((act) => act.acttype === acttype);
     assert.equal(matches.length, 1, ACTTYPE_NAMES[acttype]);
     for (const [key, value] of Object.entries(expected)) {

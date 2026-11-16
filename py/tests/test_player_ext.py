@@ -448,38 +448,32 @@ class PlayerExistsTest(unittest.TestCase):
 
 
 class ForEachPlayerTest(unittest.TestCase):
-    def test_loop_emits_body_once_and_restores_cp_unconditionally(self) -> None:
+    def test_loop_emits_body_once_without_modifying_cp(self) -> None:
         module = _build(
             lambda: for_each_player(
                 lambda player: SetDeaths(9000, SetTo, player, 0)
             )
         )
         stmts = module["stmts"]
-        self.assertEqual([node["kind"] for node in stmts], ["call", "while", "varstore"])
+        self.assertEqual([node["kind"] for node in stmts], ["while"])
 
-        loop = stmts[1]
+        loop = stmts[0]
         self.assertEqual(loop["conds"][0]["amount"], PLAYER_SLOT_COUNT - 1)
         self.assertEqual(loop["conds"][0]["comparison"], AtMost)
 
         markers = [act for act in _acts(module) if act.get("dest") == 9000]
         self.assertEqual(len(markers), 1)
 
-        current_id = loop["conds"][0]["relocs"][0]["target_var"]
-        loop_nodes = _flat(loop["body"])
-        seeds = [
+        cp_stores = [
             node
-            for node in loop_nodes
-            if node.get("kind") == "varstore"
-            and node.get("dst_addr") == CP_ADDR
-            and node.get("src_var") == current_id
+            for node in _flat(stmts)
+            if node.get("kind") == "varstore" and node.get("dst_addr") == CP_ADDR
         ]
-        self.assertEqual(len(seeds), 1)
+        self.assertEqual(cp_stores, [])
+        cp_acts = [act for act in _acts(module) if act.get("dest") == EPD_CURRENT_PLAYER]
+        self.assertEqual(cp_acts, [])
 
-        restore = stmts[2]
-        self.assertEqual(restore["dst_addr"], CP_ADDR)
-        self.assertEqual(restore["src_var"], stmts[0]["dst"])
-
-    def test_unrolled_mode_gates_once_per_selected_player(self) -> None:
+    def test_unrolled_mode_gates_once_per_selected_player_without_modifying_cp(self) -> None:
         module = _build(
             lambda: for_each_player(
                 lambda player: SetDeaths(9000, SetTo, player, 0),
@@ -489,32 +483,20 @@ class ForEachPlayerTest(unittest.TestCase):
         stmts = module["stmts"]
         self.assertEqual(
             [node["kind"] for node in stmts],
-            [
-                "call",
-                "trigger",
-                "when",
-                "when",
-                "trigger",
-                "when",
-                "when",
-                "varstore",
-            ],
+            ["trigger", "when", "when", "trigger", "when", "when"],
         )
         for index, player in enumerate((0, 2)):
-            guard = stmts[2 + 3 * index]
-            run = stmts[3 + 3 * index]
+            guard = stmts[1 + 3 * index]
+            run = stmts[2 + 3 * index]
             base = PLAYER_TABLE_ADDR + PLAYER_SLOT_BYTES * player
             cond = guard["conds"][0]
             self.assertEqual(cond["player"], EPD(base + 8) & 0xFFFFFFFF)
             self.assertEqual(cond["amount"], (~(base + 4)) & 0xFFFFFFFF)
 
             acts = [act for act in _flat(run["body"]) if act.get("kind") == "act"]
-            self.assertEqual(acts[0]["dest"], EPD_CURRENT_PLAYER)
-            self.assertEqual(acts[0]["value"], player)
-            self.assertEqual(acts[1]["dest"], 9000)
-        self.assertEqual(stmts[7]["src_var"], stmts[0]["dst"])
+            self.assertEqual([act["dest"] for act in acts], [9000])
 
-    def test_unrolled_ungated_mode_has_no_gate(self) -> None:
+    def test_unrolled_ungated_mode_has_no_gate_or_cp_write(self) -> None:
         module = _build(
             lambda: for_each_player(
                 lambda player: SetDeaths(9000, SetTo, player, 0),
@@ -523,29 +505,24 @@ class ForEachPlayerTest(unittest.TestCase):
             )
         )
         stmts = module["stmts"]
-        self.assertEqual([node["kind"] for node in stmts], ["call", "trigger", "varstore"])
-        acts = stmts[1]["acts"]
-        self.assertEqual([act["dest"] for act in acts], [EPD_CURRENT_PLAYER, 9000] * 2)
-        self.assertEqual(
-            [act["value"] for act in acts[:2]],
-            [0, 0],
-        )
+        self.assertEqual([node["kind"] for node in stmts], ["trigger"])
+        acts = stmts[0]["acts"]
+        self.assertEqual([act["dest"] for act in acts], [9000, 9000])
 
-    def test_loop_ungated_mode_has_no_player_exists_read(self) -> None:
+    def test_loop_ungated_mode_has_no_player_exists_read_or_helper_funcs(self) -> None:
         module = _build(
             lambda: for_each_player(
                 lambda player: SetDeaths(9000, SetTo, player, 0),
                 active_only=False,
             )
         )
-        self.assertEqual(len(module["funcs"]), 1)
-        func_players = {
-            cond["player"]
-            for func in module["funcs"]
-            for node in _flat(func["body"])
-            for cond in (node.get("conds") or [])
-        }
-        self.assertEqual(func_players, {EPD_CURRENT_PLAYER})
+        self.assertEqual(module.get("funcs") or [], [])
+        cp_stores = [
+            node
+            for node in _flat(module["stmts"])
+            if node.get("kind") == "varstore" and node.get("dst_addr") == CP_ADDR
+        ]
+        self.assertEqual(cp_stores, [])
 
     def test_validation_leaves_no_partial_emission(self) -> None:
         cases: list[tuple[Callable[[], Any], str]] = [
@@ -794,12 +771,19 @@ class BroadcastTest(unittest.TestCase):
     def _module_for(self, call: Callable[[], Any]) -> dict[str, Any]:
         module = _build(call)
         while_stmts = [node for node in module["stmts"] if node["kind"] == "while"]
-        self.assertEqual(len(while_stmts), 1)
-        self.assertEqual(while_stmts[0]["conds"][0]["amount"], PLAYER_SLOT_COUNT - 1)
-        self.assertEqual(module["stmts"][-1]["dst_addr"], CP_ADDR)
+        self.assertEqual(len(while_stmts), 0)
+        kinds = [node["kind"] for node in module["stmts"]]
+        self.assertEqual(kinds[0], "call")
+        self.assertEqual(kinds[-3:], ["varstore", "trigger", "varstore"])
+        self.assertTrue(all(kind == "trigger" for kind in kinds[1:-3]))
+        save_call = module["stmts"][0]
+        set_local, _, restore = module["stmts"][-3:]
+        self.assertEqual(set_local["dst_addr"], CP_ADDR)
+        self.assertEqual(restore["dst_addr"], CP_ADDR)
+        self.assertEqual(restore["src_var"], save_call["dst"])
         return module
 
-    def test_each_helper_emits_one_loop_over_the_stock_action(self) -> None:
+    def test_each_helper_targets_user_player_and_restores_cp(self) -> None:
         cases = (
             (lambda: display_text_all("hello"), 9, {"text": "hello", "flags": 4}),
             (lambda: play_wav_all("sound"), 8, {"wav": "sound", "flags": 4}),

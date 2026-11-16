@@ -55,7 +55,6 @@ import {
 } from "./trigger.ts";
 import {
   EPD,
-  EPD_CURRENT_PLAYER,
   EudslError,
   FieldValueSpace,
   MemFieldHandle,
@@ -488,11 +487,10 @@ function validatePlayerSubset(players: unknown, what: string): readonly number[]
 }
 
 /**
- * Run `body(playerVar)` once per selected player with CP bound to it.
+ * Run `body(playerVar)` once per selected player without changing `CurrentPlayer`.
  *
  * With `players` omitted the selection is the runtime loop `0..7`; when a
- * subset is given the loop is unrolled at build time. The ambient
- * `CurrentPlayer` register is saved once and restored unconditionally.
+ * subset is given the loop is unrolled at build time.
  */
 export function forEachPlayer(
   body: (player: VarImpl) => unknown,
@@ -511,39 +509,27 @@ export function forEachPlayer(
       ? null
       : validatePlayerSubset(opts.players, "forEachPlayer()");
 
-  const saved = readCurrentPlayerRegister();
-
   if (selected === null) {
     const current = Var(0);
 
     whileLoop(current.le(PLAYER_SLOT_COUNT - 1), () => {
-      const active = (): void => {
-        emitVarStore(current.id, AddrReloc(CP_ADDR), SetTo);
-        body(current);
-      };
       if (activeOnly) {
-        when(playerExists(current).eq(1), active);
+        when(playerExists(current).eq(1), () => body(current));
       } else {
-        active();
+        body(current);
       }
       current.iadd(1);
     });
   } else {
     for (const index of selected) {
       const playerVar = Var(index);
-      const run = (): void => {
-        SetDeaths(EPD_CURRENT_PLAYER, SetTo, index, 0);
-        body(playerVar);
-      };
       if (activeOnly) {
-        when(playerExists(index).eq(1), run);
+        when(playerExists(index).eq(1), () => body(playerVar));
       } else {
-        run();
+        body(playerVar);
       }
     }
   }
-
-  emitVarStore(saved.id, AddrReloc(CP_ADDR));
 }
 
 export const for_each_player = forEachPlayer;
@@ -845,31 +831,39 @@ function requireText(text: unknown, what: string): string {
   return text;
 }
 
-/** Show `text` to every live player (slots 0..7 only; observers excluded). */
+/**
+ * Run a local UI/sound action with `CurrentPlayer` bound to `userPlayer()`,
+ * saving and restoring the ambient `CurrentPlayer` register around it.
+ */
+function runAsLocalUser(action: () => void): void {
+  const saved = readCurrentPlayerRegister();
+  const localUser = userPlayer();
+  emitVarStore(localUser.id, AddrReloc(CP_ADDR));
+  action();
+  emitVarStore(saved.id, AddrReloc(CP_ADDR));
+}
+
+/** Show `text` to every local player (including observers). */
 export function displayTextAll(text: string): void {
   const message = requireText(text, "displayTextAll()");
-  forEachPlayer((_p) => {
+  runAsLocalUser(() => {
     DisplayText(message, 4);
   });
 }
 
 export const display_text_all = displayTextAll;
 
-/** Play `wav` for every live player (slots 0..7 only; observers excluded). */
+/** Play `wav` for every local player (including observers). */
 export function playWavAll(wav: string): void {
   const sound = requireText(wav, "playWavAll()");
-  forEachPlayer((_p) => {
+  runAsLocalUser(() => {
     PlayWAV(sound);
   });
 }
 
 export const play_wav_all = playWavAll;
 
-/**
- * Ping a raw location id (`0..255`) on every live player's minimap.
- *
- * Only live slots `0..7` are addressed; observers (`8..11`) are excluded.
- */
+/** Ping a raw location id (`0..255`) on every local player's minimap (including observers). */
 export function minimapPingAll(location: number): void {
   const loc = requirePlainInt(location, "minimapPingAll() location");
   if (loc < 0 || loc > 255) {
@@ -878,18 +872,14 @@ export function minimapPingAll(location: number): void {
       `minimapPingAll(): location must be in 0..255, got ${loc}`,
     );
   }
-  forEachPlayer((_p) => {
+  runAsLocalUser(() => {
     MinimapPing(loc);
   });
 }
 
 export const minimap_ping_all = minimapPingAll;
 
-/**
- * Center every live player's view on a raw location id (`0..255`).
- *
- * Only live slots `0..7` are addressed; observers (`8..11`) are excluded.
- */
+/** Center every local player's view on a raw location id (`0..255`, including observers). */
 export function centerViewAll(location: number): void {
   const loc = requirePlainInt(location, "centerViewAll() location");
   if (loc < 0 || loc > 255) {
@@ -898,32 +888,24 @@ export function centerViewAll(location: number): void {
       `centerViewAll(): location must be in 0..255, got ${loc}`,
     );
   }
-  forEachPlayer((_p) => {
+  runAsLocalUser(() => {
     CenterView(loc);
   });
 }
 
 export const center_view_all = centerViewAll;
 
-/**
- * Replace the mission objectives text for every live player.
- *
- * Only live slots `0..7` are addressed; observers (`8..11`) are excluded.
- */
+/** Replace the mission objectives text for every local player (including observers). */
 export function setMissionObjectivesAll(text: string): void {
   const message = requireText(text, "setMissionObjectivesAll()");
-  forEachPlayer((_p) => {
+  runAsLocalUser(() => {
     SetMissionObjectives(message);
   });
 }
 
 export const set_mission_objectives_all = setMissionObjectivesAll;
 
-/**
- * Show `unit`'s portrait for `time` ms to every live player.
- *
- * Only live slots `0..7` are addressed; observers (`8..11`) are excluded.
- */
+/** Show `unit`'s portrait for `time` ms to every local player (including observers). */
 export function talkingPortraitAll(unit: number, time: number): void {
   const portrait = requirePlainInt(unit, "talkingPortraitAll() unit");
   if (portrait < 0 || portrait > 227) {
@@ -939,7 +921,7 @@ export function talkingPortraitAll(unit: number, time: number): void {
       `talkingPortraitAll(): time must be in 0..4294967295, got ${delay}`,
     );
   }
-  forEachPlayer((_p) => {
+  runAsLocalUser(() => {
     TalkingPortrait(portrait, delay);
   });
 }

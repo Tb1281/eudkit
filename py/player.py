@@ -50,7 +50,6 @@ from .trigger import Trigger, _get_active_module_builder, _register_trigger
 from .var import Expr, ReadonlyVar, Var, to_var
 from .view import (
     EPD,
-    EPD_CURRENT_PLAYER,
     EudslError,
     FieldSpec,
     FieldValueSpace,
@@ -479,11 +478,10 @@ def for_each_player(
     active_only: bool = True,
     players: Iterable[int] | None = None,
 ) -> None:
-    """Run ``body(player_var)`` once per selected player with CP bound to it.
+    """Run ``body(player_var)`` once per selected player without changing ``CurrentPlayer``.
 
     With ``players=None`` the selection is the runtime loop ``0..7``; when a
-    subset is given the loop is unrolled at build time. The ambient
-    ``CurrentPlayer`` register is saved once and restored unconditionally.
+    subset is given the loop is unrolled at build time.
     """
     if not callable(body):
         raise EudslError("EUDSL-TYPE", "for_each_player(): body must be callable")
@@ -494,37 +492,27 @@ def for_each_player(
         else _validate_player_subset(players, "for_each_player()")
     )
 
-    saved = read_current_player_register()
-
     if selected is None:
         current = Var(0)
 
         def iteration() -> None:
-            def active() -> None:
-                emitVarStore(current.id, AddrReloc(CP_ADDR), SetTo)
-                body(current)
-
             if active_only:
-                when(player_exists(current).eq(1), active)
+                when(player_exists(current).eq(1), lambda: body(current))
             else:
-                active()
+                body(current)
             current.iadd(1)
 
         while_loop(current.le(PLAYER_SLOT_COUNT - 1), iteration)
     else:
         for player in selected:
             player_var = Var(player)
-
-            def run(index: int = player, var: Var = player_var) -> None:
-                SetDeaths(EPD_CURRENT_PLAYER, SetTo, index, 0)
-                body(var)
-
             if active_only:
-                when(player_exists(player).eq(1), run)
+                when(
+                    player_exists(player).eq(1),
+                    lambda var=player_var: body(var),
+                )
             else:
-                run()
-
-    emitVarStore(saved.id, AddrReloc(CP_ADDR))
+                body(player_var)
 
 
 forEachPlayer = for_each_player
@@ -770,70 +758,69 @@ def _require_stock_range(value: object, name: str, minimum: int, maximum: int) -
     return number
 
 
+def _run_as_local_user(action: Callable[[], Any]) -> None:
+    """Run a local UI/sound action with ``CurrentPlayer`` bound to ``user_player()``,
+    saving and restoring the ambient ``CurrentPlayer`` register around it.
+    """
+    saved = read_current_player_register()
+    local_user = user_player()
+    emitVarStore(local_user.id, AddrReloc(CP_ADDR))
+    action()
+    emitVarStore(saved.id, AddrReloc(CP_ADDR))
+
+
 def display_text_all(text: str) -> None:
-    """Show ``text`` to every live player (slots 0..7 only; observers excluded)."""
+    """Show ``text`` to every local player (including observers)."""
     message = _require_text(text, "display_text_all()")
-    for_each_player(lambda _p: DisplayText(message, always_display=4))
+    _run_as_local_user(lambda: DisplayText(message, always_display=4))
 
 
 displayTextAll = display_text_all
 
 
 def play_wav_all(wav: str) -> None:
-    """Play ``wav`` for every live player (slots 0..7 only; observers excluded)."""
+    """Play ``wav`` for every local player (including observers)."""
     sound = _require_text(wav, "play_wav_all()")
-    for_each_player(lambda _p: PlayWAV(sound))
+    _run_as_local_user(lambda: PlayWAV(sound))
 
 
 playWavAll = play_wav_all
 
 
 def minimap_ping_all(location: int) -> None:
-    """Ping a raw location id (``0..255``) on every live player's minimap.
-
-    Only live slots ``0..7`` are addressed; observers (``8..11``) are excluded.
-    """
+    """Ping a raw location id (``0..255``) on every local player's minimap (including observers)."""
     loc = _require_stock_range(location, "minimap_ping_all() location", 0, 255)
-    for_each_player(lambda _p: MinimapPing(loc))
+    _run_as_local_user(lambda: MinimapPing(loc))
 
 
 minimapPingAll = minimap_ping_all
 
 
 def center_view_all(location: int) -> None:
-    """Center every live player's view on a raw location id (``0..255``).
-
-    Only live slots ``0..7`` are addressed; observers (``8..11``) are excluded.
-    """
+    """Center every local player's view on a raw location id (``0..255``, including observers)."""
     loc = _require_stock_range(location, "center_view_all() location", 0, 255)
-    for_each_player(lambda _p: CenterView(loc))
+    _run_as_local_user(lambda: CenterView(loc))
 
 
 centerViewAll = center_view_all
 
 
 def set_mission_objectives_all(text: str) -> None:
-    """Replace the mission objectives text for every live player.
-
-    Only live slots ``0..7`` are addressed; observers (``8..11``) are excluded.
-    """
+    """Replace the mission objectives text for every local player (including observers)."""
     message = _require_text(text, "set_mission_objectives_all()")
-    for_each_player(lambda _p: SetMissionObjectives(message))
+    _run_as_local_user(lambda: SetMissionObjectives(message))
 
 
 setMissionObjectivesAll = set_mission_objectives_all
 
 
 def talking_portrait_all(unit: int, time: int) -> None:
-    """Show ``unit``'s portrait for ``time`` ms to every live player.
-
-    Only live slots ``0..7`` are addressed; observers (``8..11``) are excluded.
-    """
+    """Show ``unit``'s portrait for ``time`` ms to every local player (including observers)."""
     portrait = _require_stock_range(unit, "talking_portrait_all() unit", 0, 227)
     delay = _require_stock_range(
         time, "talking_portrait_all() time", 0, 0xFFFFFFFF
     )
-    for_each_player(lambda _p: TalkingPortrait(portrait, delay))
+    _run_as_local_user(lambda: TalkingPortrait(portrait, delay))
 
 
 talkingPortraitAll = talking_portrait_all
