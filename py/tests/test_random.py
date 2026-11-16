@@ -145,26 +145,21 @@ class TestSequence(unittest.TestCase):
                 self.assertEqual(values["draw"], expected)
                 self.assertEqual(values["state"], expected_state)
 
-    def test_get_seed_returns_the_current_state_without_advancing(self) -> None:
+    def test_get_seed_returns_a_fresh_snapshot_without_advancing(self) -> None:
         holder: dict[str, Var] = {}
-
-        def snapshot() -> Var:
-            # A copy is needed: get_seed() returns the live state Var, so two
-            # captures of the same object would both read its final value.
-            copy = Var(0)
-            copy.set(rnd.get_seed())
-            return copy
 
         def body() -> None:
             rnd.srand(0xBEEF)
             holder["first_view"] = rnd.get_seed()
             holder["second_view"] = rnd.get_seed()
-            holder["before"] = snapshot()
+            holder["before"] = rnd.get_seed()
             holder["draw"] = rnd.rand()
-            holder["after"] = snapshot()
+            holder["after"] = rnd.get_seed()
 
         module = buildModule(body)
         report = run_sim(module.to_json(), 1)
+        # The pre-draw snapshot must stay pinned after rand() advances the
+        # live state: get_seed() copies rather than aliasing it.
         self.assertEqual(report["var_values"][holder["before"].id], 0xBEEF)
         self.assertEqual(
             report["var_values"][holder["draw"].id],
@@ -174,7 +169,11 @@ class TestSequence(unittest.TestCase):
             report["var_values"][holder["after"].id],
             next_state(0xBEEF),
         )
-        self.assertIs(holder["first_view"], holder["second_view"])
+        self.assertEqual(report["var_values"][holder["first_view"].id], 0xBEEF)
+        self.assertEqual(report["var_values"][holder["second_view"].id], 0xBEEF)
+        self.assertIsNot(holder["first_view"], holder["second_view"])
+        self.assertIsNot(holder["first_view"], holder["before"])
+        self.assertIsNot(holder["first_view"], holder["after"])
 
     def test_each_module_starts_from_a_private_state(self) -> None:
         # Two modules seeded identically must replay the same sequence...
@@ -206,17 +205,12 @@ class TestRandomize(unittest.TestCase):
     def test_randomize_folds_the_tick_and_updates_twice(self) -> None:
         holder: dict[str, Var] = {}
 
-        def snapshot() -> Var:
-            copy = Var(0)
-            copy.set(rnd.get_seed())
-            return copy
-
         def body() -> None:
             rnd.srand(0)
             rnd.randomize()
-            holder["first"] = snapshot()
+            holder["first"] = rnd.get_seed()
             rnd.randomize()
-            holder["second"] = snapshot()
+            holder["second"] = rnd.get_seed()
 
         module = buildModule(body)
         text = module.to_json()

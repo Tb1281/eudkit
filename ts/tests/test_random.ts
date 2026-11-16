@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { EudslError, EPD, Var, buildModule } from "../index.ts";
+import { EudslError, EPD, buildModule } from "../index.ts";
 import type { VarImpl } from "../var.ts";
 import { runSim } from "./helpers.ts";
 import {
@@ -80,14 +80,6 @@ function unseededSequence(count: number): number[] {
   return ids.map((id) => report.var_values[id]);
 }
 
-function snapshotState(): VarImpl {
-  // getSeed() returns the live state Var, so a capture must copy it first;
-  // two captures of the same object would both read its final value.
-  const copy = Var(0);
-  copy.set(getSeed());
-  return copy;
-}
-
 test("module identity and public surface", () => {
   assert.equal(typeof srand, "function");
   assert.equal(LCG_MULT, MULT);
@@ -132,7 +124,7 @@ test("dwrand joins two draw hiwords and advances twice", () => {
     const mod = buildModule(() => {
       srand(seed);
       ids.draw = dwrand().id;
-      ids.state = snapshotState().id;
+      ids.state = getSeed().id;
     });
     const report = runSim(mod.toJson(), 1);
     const expected = referenceDwrand(seed);
@@ -141,21 +133,31 @@ test("dwrand joins two draw hiwords and advances twice", () => {
   }
 });
 
-test("getSeed returns the current state without advancing", () => {
-  const ids = { before: -1, draw: -1, after: -1 };
+test("getSeed returns a fresh snapshot without advancing", () => {
+  const ids = { first: -1, second: -1, before: -1, draw: -1, after: -1 };
   const views: VarImpl[] = [];
   const mod = buildModule(() => {
     srand(0xbeef);
-    views.push(getSeed(), getSeed());
-    ids.before = snapshotState().id;
+    const first = getSeed();
+    const second = getSeed();
+    views.push(first, second);
+    ids.first = first.id;
+    ids.second = second.id;
+    ids.before = getSeed().id;
     ids.draw = rand().id;
-    ids.after = snapshotState().id;
+    ids.after = getSeed().id;
   });
   const report = runSim(mod.toJson(), 1);
+  // The pre-draw snapshot must stay pinned after rand() advances the live
+  // state: getSeed() copies rather than aliasing it.
   assert.equal(report.var_values[ids.before], 0xbeef);
+  assert.equal(report.var_values[ids.first], 0xbeef);
+  assert.equal(report.var_values[ids.second], 0xbeef);
   assert.equal(report.var_values[ids.draw], referenceRand(0xbeef, 1)[0]);
   assert.equal(report.var_values[ids.after], nextState(0xbeef));
-  assert.equal(views[0], views[1]);
+  assert.notEqual(views[0], views[1]);
+  assert.notEqual(ids.before, ids.first);
+  assert.notEqual(ids.before, ids.after);
 });
 
 test("each module starts from a private state", () => {
@@ -182,9 +184,9 @@ test("randomize folds the tick and updates twice", () => {
   const mod = buildModule(() => {
     srand(0);
     randomize();
-    ids.first = snapshotState().id;
+    ids.first = getSeed().id;
     randomize();
-    ids.second = snapshotState().id;
+    ids.second = getSeed().id;
   });
   const text = mod.toJson();
   const report = runSim(text, 1);
@@ -228,7 +230,7 @@ test("a single-value span folds without consuming a draw", () => {
   const mod = buildModule(() => {
     srand(123);
     ids.value = randRange(5, 5).id;
-    ids.state = snapshotState().id;
+    ids.state = getSeed().id;
   });
   const report = runSim(mod.toJson(), 1);
   assert.equal(report.var_values[ids.value], 5);

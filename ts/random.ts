@@ -65,9 +65,11 @@ export function srand(seed: RandSeed): void {
   state().set(seed);
 }
 
-/** Return the current LCG state without advancing it. */
+/** Return a fresh copy of the current LCG state without advancing it. */
 export function getSeed(): VarImpl {
-  return state();
+  const out = Var(0);
+  out.set(state());
+  return out;
 }
 
 export const get_seed = getSeed;

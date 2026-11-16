@@ -555,14 +555,46 @@ class TrigTableTest(unittest.TestCase):
         first = build_module(prog)
         second = build_module(prog)
         for module in (first, second):
-            self.assertEqual(len(module.blobs), 5)
+            self.assertEqual(len(module.blobs), 3)
             self.assertEqual(
                 sorted(blob["size"] for blob in module.blobs),
-                [260, 260, 364, 364, 1028],
+                [364, 364, 1028],
             )
         # Per-builder keying: a second buildModule rebuilds the payloads
         # instead of reusing the first module's blob declarations.
         self.assertIsNot(first.blobs, second.blobs)
+
+    def test_only_the_tables_each_entry_point_uses_are_materialized(self) -> None:
+        def atan_module(fn: Callable[[Any, Any], Var]) -> Any:
+            def prog() -> None:
+                y = Var(0)
+                x = Var(0)
+                out = Var(0)
+                out.set(fn(y, x))
+
+            return build_module(prog)
+
+        def lengthdir_module(fn: Callable[[Any, Any], tuple[Var, Var]]) -> Any:
+            def prog() -> None:
+                length = Var(0)
+                angle = Var(0)
+                dx = Var(0)
+                dx.set(fn(length, angle)[0])
+
+            return build_module(prog)
+
+        cases = [
+            ("atan2_256", atan_module(atan2_256), [1028]),
+            ("atan2", atan_module(atan2), [1028]),
+            ("lengthdir", lengthdir_module(lengthdir), [364, 364]),
+            ("lengthdir_256", lengthdir_module(lengthdir_256), [260, 260]),
+        ]
+        for name, module, sizes in cases:
+            with self.subTest(name=name):
+                self.assertEqual(
+                    sorted(blob["size"] for blob in module.blobs),
+                    sizes,
+                )
 
     def test_table_scale_is_q16(self) -> None:
         self.assertEqual(TRIG_TABLE_Q, 16)
@@ -650,7 +682,7 @@ class ExportSurfaceTest(unittest.TestCase):
         import py.mathf as mathf
 
         expected = [
-            "MathOperand", "TRIG_TABLE_Q", "TRIG_TABLE_SCALE",
+            "isqrt", "MathOperand", "TRIG_TABLE_Q", "TRIG_TABLE_SCALE",
             "div_towards_zero", "divTowardsZero", "div_floor", "divFloor",
             "div_euclid", "divEuclid", "mod_towards_zero", "modTowardsZero",
             "mod_floor", "modFloor", "mod_euclid", "modEuclid",
@@ -677,6 +709,14 @@ class ExportSurfaceTest(unittest.TestCase):
         for name, target in aliases.items():
             with self.subTest(alias=name):
                 self.assertIs(getattr(mathf, name), target)
+
+    def test_star_import_exports_isqrt(self) -> None:
+        import py.mathf as mathf
+
+        namespace: dict[str, Any] = {}
+        exec("from py.mathf import *", namespace)
+        self.assertIn("isqrt", namespace)
+        self.assertIs(namespace["isqrt"], mathf.isqrt)
 
 
 class OperandDomainTest(unittest.TestCase):

@@ -153,6 +153,53 @@ fn dwrand_joins_two_draw_hiwords_and_leaves_the_second_state() {
 }
 
 #[test]
+fn get_seed_returns_a_snapshot_that_does_not_alias_future_draws() {
+    let dir = common::tempdir("random-seed-copy-");
+    let addr_before = marker_addr(MARKER_EPD);
+    let addr_draw = marker_addr(MARKER_EPD.wrapping_add(1));
+    let addr_after = marker_addr(MARKER_EPD.wrapping_add(2));
+    // The pre-draw snapshot is stored only *after* `rand()` advances the live
+    // state, so an aliasing get_seed() would report the advanced value.
+    let py_body = format!(
+        "    srand(0xBEEF)\n\
+         \x20   before = get_seed()\n\
+         \x20   draw = rand()\n\
+         \x20   emitVarStore(before.id, AddrReloc({addr_before}))\n\
+         \x20   emitVarStore(draw.id, AddrReloc({addr_draw}))\n\
+         \x20   after = get_seed()\n\
+         \x20   emitVarStore(after.id, AddrReloc({addr_after}))\n"
+    );
+    let ts_body = format!(
+        "  srand(0xBEEF);\n\
+         \x20 const before = getSeed();\n\
+         \x20 const draw = rand();\n\
+         \x20 emitVarStore(before.id, AddrReloc({addr_before}));\n\
+         \x20 emitVarStore(draw.id, AddrReloc({addr_draw}));\n\
+         \x20 const after = getSeed();\n\
+         \x20 emitVarStore(after.id, AddrReloc({addr_after}));\n"
+    );
+    let (py_path, ts_path) = write_pair(dir.path(), "seed_copy", &py_body, &ts_body);
+
+    let py_hir = capture_source(&py_path, Frontend::Py).expect("capture Python HIR");
+    let ts_hir = capture_source(&ts_path, Frontend::Ts).expect("capture TS HIR");
+    assert_eq!(
+        py_hir, ts_hir,
+        "get_seed copy: frontends must emit byte-identical HIR"
+    );
+
+    let first = next_state(0xBEEF);
+    for (label, frontend, path) in [
+        ("python", Frontend::Py, py_path),
+        ("typescript", Frontend::Ts, ts_path),
+    ] {
+        let sim = run(frontend, &path, &[]);
+        assert_eq!(marker(&sim, 0), 0xBEEF, "{label}: pre-draw snapshot moved");
+        assert_eq!(marker(&sim, 1), first >> 16, "{label}: draw");
+        assert_eq!(marker(&sim, 2), first, "{label}: post-draw snapshot");
+    }
+}
+
+#[test]
 fn rand_range_stays_in_bounds_and_the_fold_consumes_no_draw() {
     let dir = common::tempdir("random-range-");
     let mut py = String::from("    srand(123)\n");
@@ -294,8 +341,8 @@ fn per_site_costs_are_pinned_and_under_the_ticket_ceilings() {
             "get_seed",
             "    srand(0)\n    s = get_seed()\n",
             "  srand(0);\n  const s = getSeed();\n",
-            1,
-            1,
+            3,
+            3,
             3,
             3,
         ),

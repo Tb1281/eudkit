@@ -19,8 +19,7 @@ import {
   SetDeathsX,
   epdOfDb,
 } from "./hir.ts";
-import { FixedArray, type ConstFixedArrayImpl } from "./array.ts";
-import { withEpd } from "./cp.ts";
+import { _setCpFromVar, withEpd } from "./cp.ts";
 import { when } from "./temporal.ts";
 import { _getActiveModuleBuilder, Trigger, type HirCond } from "./trigger.ts";
 import {
@@ -51,32 +50,6 @@ function plainInt(name: string, value: unknown, minimum: number, maximum: number
     );
   }
   return checked;
-}
-
-/**
- * Materialize the full operand domain through the canonical `toVar`.
- *
- * `boolean` is checked explicitly because `toVar` would reject it with the
- * generic "Var operand" text, and `isqrt` owns its diagnostic.
- */
-function asVar(value: unknown): VarImpl {
-  if (typeof value === "boolean") {
-    throw new EudslError(
-      "EUDSL-TYPE",
-      `isqrt(): value must be a Var, ReadonlyVar, Expr, or integer constant, got ${String(value)}`,
-    );
-  }
-  try {
-    return toVar(value as VarOperand);
-  } catch (err) {
-    if (err instanceof EudslError) {
-      throw new EudslError(
-        "EUDSL-TYPE",
-        `isqrt(): value must be a Var, ReadonlyVar, Expr, or integer constant, got ${String(value)}`,
-      );
-    }
-    throw err;
-  }
 }
 
 /** Exact integer square root of a non-negative bigint. */
@@ -115,7 +88,7 @@ function bigintSqrt(value: bigint): bigint {
  * zero init only holds for the first pass.
  */
 export function isqrt(
-  value: VarOperand,
+  value: MathOperand,
   valueBits = 32,
   fixedBits = 0,
 ): VarImpl {
@@ -154,7 +127,7 @@ export function isqrt(
     return out;
   }
 
-  const source = asVar(value);
+  const source = mathOperand("isqrt", "value", value);
   const rem = Var(0);
   const root = Var(0);
   const u = Var(0);
@@ -512,30 +485,37 @@ function payload(values: readonly number[]): Uint8Array {
   return bytes;
 }
 
-/** One build's shared trig payloads and their runtime base EPDs. */
+/** One build's lazily materialized trig payloads and runtime base EPDs. */
 class TrigTables {
-  readonly atan: ConstFixedArrayImpl;
-  readonly cos: ConstFixedArrayImpl;
-  readonly sin: ConstFixedArrayImpl;
-  readonly cos256: ConstFixedArrayImpl;
-  readonly sin256: ConstFixedArrayImpl;
-  readonly atanEpd: VarImpl;
-  readonly cosEpd: VarImpl;
-  readonly sinEpd: VarImpl;
-  readonly cos256Epd: VarImpl;
-  readonly sin256Epd: VarImpl;
+  private readonly epds = new Map<string, VarImpl>();
 
-  constructor() {
-    this.atan = FixedArray.const(ATAN256_Q16);
-    this.cos = FixedArray.const(COS_DEG_Q16);
-    this.sin = FixedArray.const(SIN_DEG_Q16);
-    this.cos256 = FixedArray.const(COS_256_Q16);
-    this.sin256 = FixedArray.const(SIN_256_Q16);
-    this.atanEpd = epdOfDb(new Db(payload(ATAN256_Q16)));
-    this.cosEpd = epdOfDb(new Db(payload(COS_DEG_Q16)));
-    this.sinEpd = epdOfDb(new Db(payload(SIN_DEG_Q16)));
-    this.cos256Epd = epdOfDb(new Db(payload(COS_256_Q16)));
-    this.sin256Epd = epdOfDb(new Db(payload(SIN_256_Q16)));
+  private tableEpd(name: string, values: readonly number[]): VarImpl {
+    let epd = this.epds.get(name);
+    if (epd === undefined) {
+      epd = epdOfDb(new Db(payload(values)));
+      this.epds.set(name, epd);
+    }
+    return epd;
+  }
+
+  get atanEpd(): VarImpl {
+    return this.tableEpd("atan", ATAN256_Q16);
+  }
+
+  get cosEpd(): VarImpl {
+    return this.tableEpd("cos", COS_DEG_Q16);
+  }
+
+  get sinEpd(): VarImpl {
+    return this.tableEpd("sin", SIN_DEG_Q16);
+  }
+
+  get cos256Epd(): VarImpl {
+    return this.tableEpd("cos256", COS_256_Q16);
+  }
+
+  get sin256Epd(): VarImpl {
+    return this.tableEpd("sin256", SIN_256_Q16);
   }
 }
 
@@ -561,6 +541,26 @@ function readTable(baseEpd: VarImpl, index: VarImpl): VarImpl {
   cursor.set(baseEpd);
   cursor.iadd(index);
   return withEpd(cursor, () => readEpd(CURRENT_PLAYER, 32, 0));
+}
+
+/** Read two table rows inside one ambient CurrentPlayer save/restore. */
+function readTablePair(
+  firstEpd: VarImpl,
+  secondEpd: VarImpl,
+  index: VarImpl,
+): [VarImpl, VarImpl] {
+  const firstCursor = Var(0);
+  firstCursor.set(firstEpd);
+  firstCursor.iadd(index);
+  const secondCursor = Var(0);
+  secondCursor.set(secondEpd);
+  secondCursor.iadd(index);
+  return withEpd(firstCursor, () => {
+    const first = readEpd(CURRENT_PLAYER, 32, 0);
+    _setCpFromVar(secondCursor);
+    const second = readEpd(CURRENT_PLAYER, 32, 0);
+    return [first, second] as [VarImpl, VarImpl];
+  });
 }
 
 /** Shared octant reduction returning a 1/256-turn angle (0..255). */
@@ -661,8 +661,7 @@ function lengthdirKernel(
   const cache = tables();
   const cosEpd = turn256 ? cache.cos256Epd : cache.cosEpd;
   const sinEpd = turn256 ? cache.sin256Epd : cache.sinEpd;
-  const cosine = readTable(cosEpd, remainder);
-  const sine = readTable(sinEpd, remainder);
+  const [cosine, sine] = readTablePair(cosEpd, sinEpd, remainder);
 
   const odd = Var(0);
   odd.set(quadrant);
@@ -854,4 +853,3 @@ export function binaryMax(
 
 export const binary_min = binaryMin;
 export const binary_max = binaryMax;
-

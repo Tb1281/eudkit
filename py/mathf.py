@@ -17,8 +17,7 @@ import math as _py_math
 import weakref
 from typing import Any, Callable
 
-from .array import ConstFixedArrayImpl, FixedArray
-from .cp import with_epd
+from .cp import _set_cp_from_var, with_epd
 from .hir import Add, AtLeast, Db, DeathsX, SetDeathsX, epd_of_db
 from .temporal import when
 from .trigger import Trigger, _get_active_module_builder
@@ -32,10 +31,7 @@ from .var import (
 )
 from .view import CURRENT_PLAYER, EudslError, _require_plain_int, read_epd
 
-#: Full operand domain for `isqrt`'s `value`: the same set `to_var` accepts.
-IsqrtOperand = int | Var | ReadonlyVar | Expr
-
-#: Full operand domain for the signed-math helpers.
+#: Full operand domain for `isqrt` and the signed-math helpers.
 MathOperand = int | Var | ReadonlyVar | Expr
 
 
@@ -50,29 +46,7 @@ def _plain_int(name: str, value: Any, minimum: int, maximum: int) -> int:
     return value
 
 
-def _as_var(value: Any) -> Var:
-    """Materialize the full operand domain through the canonical `to_var`.
-
-    `bool` is checked explicitly because `to_var` would reject it with the
-    generic "Unsupported Var operand" text, and `isqrt` owns its diagnostic.
-    """
-    if isinstance(value, bool):
-        raise EudslError(
-            "EUDSL-TYPE",
-            "isqrt() value must be a Var, ReadonlyVar, Expr, or integer "
-            f"constant, got {value!r}",
-        )
-    try:
-        return to_var(value)
-    except EudslError as exc:
-        raise EudslError(
-            "EUDSL-TYPE",
-            "isqrt() value must be a Var, ReadonlyVar, Expr, or integer "
-            f"constant, got {value!r}",
-        ) from exc
-
-
-def isqrt(value: IsqrtOperand, value_bits: int = 32, fixed_bits: int = 0) -> Var:
+def isqrt(value: MathOperand, value_bits: int = 32, fixed_bits: int = 0) -> Var:
     """Emit ``floor(sqrt(value) * 2**fixed_bits)`` for a runtime value.
 
     ``value`` must satisfy ``0 <= value < 2**value_bits`` at game time; the
@@ -119,7 +93,7 @@ def isqrt(value: IsqrtOperand, value_bits: int = 32, fixed_bits: int = 0) -> Var
         out.set(root)
         return out
 
-    source = _as_var(value)
+    source = _math_operand("isqrt", "value", value)
     rem = Var(0)
     root = Var(0)
     u = Var(0)
@@ -435,19 +409,37 @@ def _payload(values: tuple[int, ...]) -> bytes:
 
 
 class _TrigTables:
-    """One build's shared trig payloads and their runtime base EPDs."""
+    """One build's lazily materialized trig payloads and runtime base EPDs."""
 
     def __init__(self) -> None:
-        self.atan: ConstFixedArrayImpl = FixedArray.const(_ATAN256_Q16)
-        self.cos: ConstFixedArrayImpl = FixedArray.const(_COS_DEG_Q16)
-        self.sin: ConstFixedArrayImpl = FixedArray.const(_SIN_DEG_Q16)
-        self.cos256: ConstFixedArrayImpl = FixedArray.const(_COS_256_Q16)
-        self.sin256: ConstFixedArrayImpl = FixedArray.const(_SIN_256_Q16)
-        self.atan_epd = epd_of_db(Db(_payload(_ATAN256_Q16)))
-        self.cos_epd = epd_of_db(Db(_payload(_COS_DEG_Q16)))
-        self.sin_epd = epd_of_db(Db(_payload(_SIN_DEG_Q16)))
-        self.cos256_epd = epd_of_db(Db(_payload(_COS_256_Q16)))
-        self.sin256_epd = epd_of_db(Db(_payload(_SIN_256_Q16)))
+        self._epds: dict[str, Var] = {}
+
+    def _table_epd(self, name: str, values: tuple[int, ...]) -> Var:
+        epd = self._epds.get(name)
+        if epd is None:
+            epd = epd_of_db(Db(_payload(values)))
+            self._epds[name] = epd
+        return epd
+
+    @property
+    def atan_epd(self) -> Var:
+        return self._table_epd("atan", _ATAN256_Q16)
+
+    @property
+    def cos_epd(self) -> Var:
+        return self._table_epd("cos", _COS_DEG_Q16)
+
+    @property
+    def sin_epd(self) -> Var:
+        return self._table_epd("sin", _SIN_DEG_Q16)
+
+    @property
+    def cos256_epd(self) -> Var:
+        return self._table_epd("cos256", _COS_256_Q16)
+
+    @property
+    def sin256_epd(self) -> Var:
+        return self._table_epd("sin256", _SIN_256_Q16)
 
 
 _TABLE_CACHE: "weakref.WeakKeyDictionary[Any, _TrigTables]" = weakref.WeakKeyDictionary()
@@ -473,6 +465,26 @@ def _read_table(base_epd: Var, index: Var) -> Var:
     cursor.set(base_epd)
     cursor.iadd(index)
     return with_epd(cursor, lambda cp: read_epd(CURRENT_PLAYER, 32, 0))
+
+
+def _read_table_pair(
+    first_epd: Var, second_epd: Var, index: Var
+) -> tuple[Var, Var]:
+    """Read two table rows inside one ambient CurrentPlayer save/restore."""
+    first_cursor = Var(0)
+    first_cursor.set(first_epd)
+    first_cursor.iadd(index)
+    second_cursor = Var(0)
+    second_cursor.set(second_epd)
+    second_cursor.iadd(index)
+
+    def body(_cp: Any) -> tuple[Var, Var]:
+        first = read_epd(CURRENT_PLAYER, 32, 0)
+        _set_cp_from_var(second_cursor)
+        second = read_epd(CURRENT_PLAYER, 32, 0)
+        return first, second
+
+    return with_epd(first_cursor, body)
 
 
 def _atan256_core(y: Any, x: Any, name: str) -> Var:
@@ -576,8 +588,7 @@ def _lengthdir(
         cos_epd, sin_epd = tables.cos256_epd, tables.sin256_epd
     else:
         cos_epd, sin_epd = tables.cos_epd, tables.sin_epd
-    cosine = _read_table(cos_epd, remainder)
-    sine = _read_table(sin_epd, remainder)
+    cosine, sine = _read_table_pair(cos_epd, sin_epd, remainder)
 
     odd = Var(0)
     odd.set(quadrant)
@@ -763,7 +774,7 @@ binaryMax = binary_max
 
 
 __all__ = [
-    "MathOperand", "TRIG_TABLE_Q", "TRIG_TABLE_SCALE",
+    "isqrt", "MathOperand", "TRIG_TABLE_Q", "TRIG_TABLE_SCALE",
     "div_towards_zero", "divTowardsZero", "div_floor", "divFloor",
     "div_euclid", "divEuclid", "mod_towards_zero", "modTowardsZero",
     "mod_floor", "modFloor", "mod_euclid", "modEuclid",
