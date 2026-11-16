@@ -2,7 +2,7 @@
 
 > **한국어 안내:** [examples/quickstart/README.ko.md](./README.ko.md) (English document is the SSOT).
 
-Four small, progressive, **runnable** programs. Every `py/` and `ts/` pair is
+Five small, progressive, **runnable** programs. Every `py/` and `ts/` pair is
 checked to synthesize with zero warnings, produce byte-identical compact HIR,
 keep the simulator's self-target invariant, and compile to byte-identical
 `.scx` bytes.
@@ -10,7 +10,7 @@ keep the simulator's self-target invariant, and compile to byte-identical
 If you have never built an eudkit map, start with the step-by-step walkthrough in
 [`docs/quickstart.md`](../../docs/quickstart.md), then come back here.
 
-## The four examples
+## The five examples
 
 | # | Python | TypeScript | Concepts |
 |---|---|---|---|
@@ -18,6 +18,7 @@ If you have never built an eudkit map, start with the step-by-step walkthrough i
 | 02 | [`py/02_variables_and_strings.py`](./py/02_variables_and_strings.py) | [`ts/02_variables_and_strings.ts`](./ts/02_variables_and_strings.ts) | `Var`, runtime arithmetic, `FixedString` formatting, `display_at` / `displayAt` |
 | 03 | [`py/03_control_flow_and_temporal.py`](./py/03_control_flow_and_temporal.py) | [`ts/03_control_flow_and_temporal.ts`](./ts/03_control_flow_and_temporal.ts) | `when`/`otherwise`, `once`, `every`, `after`, `dispatch`, why `if`/`while` cannot branch on runtime conditions |
 | 04 | [`py/04_units_and_triggers.py`](./py/04_units_and_triggers.py) | [`ts/04_units_and_triggers.ts`](./ts/04_units_and_triggers.ts) | stock `Trigger`/`Bring`/`CreateUnit`, `CUnit` field read/set, `FixedArray` basics |
+| 05 | [`py/05_combinators_and_players.py`](./py/05_combinators_and_players.py) | [`ts/05_combinators_and_players.ts`](./ts/05_combinators_and_players.ts) | `cond_all`/`cond_any`/`cond_not`, `Player`, `PVariable`, `for_each_player` / `forEachPlayer`, `display_text_all` / `displayTextAll` |
 
 Each file starts with the exact `synth` and `compile` commands for that file.
 
@@ -57,7 +58,7 @@ From the repository root:
   -o /tmp/01_hello_world-py.scx
 ```
 
-Swap the `01_hello_world` slug for any of the other three.
+Swap the `01_hello_world` slug for any of the other four.
 
 ## Run the quickstart checks
 
@@ -98,8 +99,9 @@ package when the repository root is not first on `sys.path`.
 - [`docs/quickstart.md`](../../docs/quickstart.md) — zero-to-playable map
   walkthrough, including `synth` → `dump-ir` → `compile` and in-game testing.
 - [`examples/README.md`](../README.md) — migration examples for memory access,
-  CP cursors, `CUnit` groups, DAT tables, arrays/structs, block I/O, and dynamic
-  EPD access.
+  CP cursors, `CUnit` groups/unit lists, DAT tables, arrays/structs, block I/O,
+  dynamic EPD access, player loops & local broadcasts, math/RNG/locations/tech,
+  and containers/camera/engine helpers.
 - [`GLOSSARY.md`](../../GLOSSARY.md) — canonical vocabulary and ADR decisions.
 - [`tests/outputmap/smoke/README.md`](../../tests/outputmap/smoke/README.md) —
   the in-game verification protocol and expected-line tables used by committed

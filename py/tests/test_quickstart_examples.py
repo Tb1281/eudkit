@@ -22,6 +22,7 @@ QUICKSTART_SLUGS = [
     "02_variables_and_strings",
     "03_control_flow_and_temporal",
     "04_units_and_triggers",
+    "05_combinators_and_players",
 ]
 
 

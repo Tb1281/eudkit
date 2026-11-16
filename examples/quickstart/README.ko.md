@@ -2,11 +2,11 @@
 
 > **SSOT**: 이 문서의 영문 정본(SSOT)은 [examples/quickstart/README.md](./README.md)입니다. 내용이 다를 경우 영문 정본을 우선합니다.
 
-작고 점진적인 **실행 가능 예제** 네 개입니다. 모든 `py/`와 `ts/` 쌍은 경고 0개로 합성되고, 바이트 단위로 동일한 compact HIR을 생성하며, 시뮬레이터의 자기 타깃 불변식을 유지하고, 바이트 단위로 동일한 `.scx` 파일을 생성하는지 검증됩니다.
+작고 점진적인 **실행 가능 예제** 다섯 개입니다. 모든 `py/`와 `ts/` 쌍은 경고 0개로 합성되고, 바이트 단위로 동일한 compact HIR을 생성하며, 시뮬레이터의 자기 타깃 불변식을 유지하고, 바이트 단위로 동일한 `.scx` 파일을 생성하는지 검증됩니다.
 
 eudkit이 처음이라면 먼저 [`docs/quickstart.ko.md`](../../docs/quickstart.ko.md)의 단계별 안내를 읽고 이 문서로 돌아오세요.
 
-## 네 가지 예제
+## 다섯 가지 예제
 
 | # | Python | TypeScript | 다루는 개념 |
 |---|---|---|---|
@@ -14,6 +14,7 @@ eudkit이 처음이라면 먼저 [`docs/quickstart.ko.md`](../../docs/quickstart
 | 02 | [`py/02_variables_and_strings.py`](./py/02_variables_and_strings.py) | [`ts/02_variables_and_strings.ts`](./ts/02_variables_and_strings.ts) | `Var`, 런타임 연산, `FixedString` 포매팅, `display_at` / `displayAt` |
 | 03 | [`py/03_control_flow_and_temporal.py`](./py/03_control_flow_and_temporal.py) | [`ts/03_control_flow_and_temporal.ts`](./ts/03_control_flow_and_temporal.ts) | `when`/`otherwise`, `once`, `every`, `after`, `dispatch`, 런타임 조건에 `if`/`while`을 쓸 수 없는 이유 |
 | 04 | [`py/04_units_and_triggers.py`](./py/04_units_and_triggers.py) | [`ts/04_units_and_triggers.ts`](./ts/04_units_and_triggers.ts) | 스톡 `Trigger`/`Bring`/`CreateUnit`, `CUnit` 필드 읽기/쓰기, `FixedArray` 기초 |
+| 05 | [`py/05_combinators_and_players.py`](./py/05_combinators_and_players.py) | [`ts/05_combinators_and_players.ts`](./ts/05_combinators_and_players.ts) | `cond_all`/`cond_any`/`cond_not`, `Player`, `PVariable`, `for_each_player` / `forEachPlayer`, `display_text_all` / `displayTextAll` |
 
 각 파일 상단에는 해당 예제를 바로 실행할 수 있는 `synth` 및 `compile` 명령이 적혀 있습니다.
 
@@ -50,7 +51,7 @@ cargo build --workspace
   -o /tmp/01_hello_world-py.scx
 ```
 
-`01_hello_world` 대신 나머지 세 예제 파일 이름을 넣어도 동일하게 동작합니다.
+`01_hello_world` 대신 나머지 네 예제 파일 이름을 넣어도 동일하게 동작합니다.
 
 ## 빠른 시작 검사 실행
 
@@ -77,6 +78,6 @@ PYTHONPATH=. python3 -m unittest py/tests/test_quickstart_examples.py
 ## 다음 단계
 
 - [`docs/quickstart.ko.md`](../../docs/quickstart.ko.md) — `synth` → `dump-ir` → `compile` 및 게임 내 테스트를 포함한 처음부터 끝까지 입문 안내
-- [`examples/README.ko.md`](../README.ko.md) — 메모리 접근, CP 커서, `CUnit` 그룹, DAT 테이블, 배열/구조체, 블록 I/O, 동적 EPD 접근 마이그레이션 예제
+- [`examples/README.ko.md`](../README.ko.md) — 메모리 접근, CP 커서, `CUnit` 그룹/유닛 목록, DAT 테이블, 배열/구조체, 블록 I/O, 동적 EPD 접근, 플레이어 루프 및 로컬 브로드캐스트, 수학/난수/로케이션/테크, 컨테이너/카메라/엔진 헬퍼 마이그레이션 예제
 - [`GLOSSARY.md`](../../GLOSSARY.md) — 정본 용어 및 ADR 결정 요약 (영문)
 - [`tests/outputmap/smoke/README.md`](../../tests/outputmap/smoke/README.md) — 스모크 맵에서 사용하는 게임 내 검증 절차 및 예상 출력 표 (영문)

@@ -4,7 +4,7 @@
 
 이 문서는 새로 체크아웃한 저장소에서 시작해 StarCraft: Remastered에서 바로
 열 수 있는 맵을 만드는 과정을 안내합니다. [`examples/quickstart/README.ko.md`](../examples/quickstart/README.ko.md)에
-있는 점진적인 예제 네 개를 사용합니다.
+있는 점진적인 예제 다섯 개를 사용합니다.
 
 용어가 낯설다면 정본 정의가 모여 있는 [`GLOSSARY.md`](../GLOSSARY.md)를 먼저
 펼쳐 보세요. 짧게 요약하면 이렇습니다. eudkit은 Python 또는 TypeScript
@@ -287,9 +287,11 @@ compiled examples/quickstart/py/01_hello_world.py -> /tmp/01_hello_world-py.scx 
 가리키는 줄을 보고 있는지 확인하세요. `DisplayText`는 줄을 덧붙이고,
 `displayAt(n)`은 채팅 줄 `n`(0–10)에 씁니다. 둘 다 `CurrentPlayer`
 (`0x6509B0`)를 대상으로 하며, 일반적인 솔로 시작에서는 페이로드 러너가 이 값을
-0(P1)으로 둡니다.
+0(P1)으로 둡니다. 반면 `displayTextAll(text)`는 `CurrentPlayer`를
+`userPlayer()`(`0x512684`, 옵저버 포함)로 잠시 바꿨다가 곧바로 복원하므로
+모든 로컬 플레이어 화면에 출력됩니다.
 
-## 7. 네 단계로 언어 익히기
+## 7. 다섯 단계로 언어 익히기
 
 각 예제를 위와 같이 `synth`와 `compile`로 실행한 뒤 주석을 읽어 보세요.
 
@@ -299,6 +301,7 @@ compiled examples/quickstart/py/01_hello_world.py -> /tmp/01_hello_world-py.scx 
 | 02 | [Variables and Strings](../examples/quickstart/py/02_variables_and_strings.py) | 게임 시간 `Var` 연산과 `FixedString`/`display_at` |
 | 03 | [Control Flow and Time](../examples/quickstart/py/03_control_flow_and_temporal.py) | `when`/`otherwise`, `once`, `every`, `after`, `dispatch` |
 | 04 | [Units and Triggers](../examples/quickstart/py/04_units_and_triggers.py) | 스톡 트리거, `CUnit` 필드, `FixedArray` |
+| 05 | [Combinators and Players](../examples/quickstart/py/05_combinators_and_players.py) | `cond_all`/`cond_any`/`cond_not`, `Player`, `PVariable`, `for_each_player`, `display_text_all` |
 
 ### Python/TypeScript 개발자를 놀라게 하는 한 가지 규칙
 
@@ -322,7 +325,7 @@ truthiness 표를 참고하세요.
 저장소 루트에서 실행합니다.
 
 ```sh
-# 네 개의 quickstart 쌍: slug 일치, 경고 0개, HIR 동등성,
+# 다섯 개의 quickstart 쌍: slug 일치, 경고 0개, HIR 동등성,
 # 시뮬레이터 불변식, .scx 동등성.
 PYTHONPATH=. python3 -m unittest py/tests/test_quickstart_examples.py
 
@@ -345,12 +348,14 @@ make test-examples
 
 ## 9. 다음 단계
 
-quickstart 예제 네 개가 이해되었다면 다음 순서로 진행하세요.
+quickstart 예제 다섯 개가 이해되었다면 다음 순서로 진행하세요.
 
 1. [`examples/README.md`](../examples/README.md)를 읽고 마이그레이션 예제를
    순서대로 풀어 보세요. 직접 메모리 접근, sub-dword 마스크, CP 커서, `CUnit`
-   그룹, DAT 테이블, 배열/구조체, 블록 I/O, 동적 EPD 접근을 다룹니다. 한국어
-   안내는 [`examples/README.ko.md`](../examples/README.ko.md)에서 볼 수 있습니다.
+   그룹과 전역 유닛 목록, DAT 테이블, 배열/구조체, 블록 I/O, 동적 EPD 접근,
+   플레이어 루프와 로컬 브로드캐스트, 수학/난수/로케이션/테크, 컨테이너/카메라/엔진
+   헬퍼를 다룹니다. 한국어 안내는 [`examples/README.ko.md`](../examples/README.ko.md)에서
+   볼 수 있습니다.
 2. 정본 용어를 확인할 수 있도록 [`GLOSSARY.md`](../GLOSSARY.md)를 곁에 두세요.
 3. 설계 선택이 의외로 보이면 [`docs/adr/README.md`](adr/README.md)의 결정 기록을
    읽어 보세요.

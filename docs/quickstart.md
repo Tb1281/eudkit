@@ -3,7 +3,7 @@
 > **한국어 안내:** [docs/quickstart.ko.md](./quickstart.ko.md) (English document is the SSOT).
 
 This guide takes you from a fresh checkout to a map you can open in
-StarCraft: Remastered. It uses the four progressive examples in
+StarCraft: Remastered. It uses the five progressive examples in
 [`examples/quickstart/`](../examples/quickstart/README.md).
 
 If a term is unfamiliar, the canonical definitions live in
@@ -295,9 +295,11 @@ A useful first debugging rule: if `synth` succeeds but the map shows nothing,
 check that the map is launched in **single-player** and that you are looking at
 the line `displayAt` targets. `DisplayText` appends; `displayAt(n)` writes chat
 line `n` (0–10). Both target `CurrentPlayer` (`0x6509B0`), which the payload
-runner leaves at 0 (P1) for a normal solo start.
+runner leaves at 0 (P1) for a normal solo start — whereas `displayTextAll(text)`
+temporarily switches `CurrentPlayer` to `userPlayer()` (`0x512684`, including
+observers) and restores it afterward so every local client sees the message.
 
-## 7. Learn the language in four steps
+## 7. Learn the language in five steps
 
 Run each example with `synth` and `compile` as above, then read the comments:
 
@@ -307,6 +309,7 @@ Run each example with `synth` and `compile` as above, then read the comments:
 | 02 | [Variables and Strings](../examples/quickstart/py/02_variables_and_strings.py) | game-time `Var` arithmetic and `FixedString`/`display_at` |
 | 03 | [Control Flow and Time](../examples/quickstart/py/03_control_flow_and_temporal.py) | `when`/`otherwise`, `once`, `every`, `after`, `dispatch` |
 | 04 | [Units and Triggers](../examples/quickstart/py/04_units_and_triggers.py) | stock triggers, `CUnit` fields, `FixedArray` |
+| 05 | [Combinators and Players](../examples/quickstart/py/05_combinators_and_players.py) | `cond_all`/`cond_any`/`cond_not`, `Player`, `PVariable`, `for_each_player`, `display_text_all` |
 
 ### The one rule that surprises Python/TypeScript developers
 
@@ -330,7 +333,7 @@ truthiness table in [`py/README.md`](../py/README.md) and
 From the repository root:
 
 ```sh
-# The four quickstart pairs: slug match, zero warnings, HIR parity,
+# The five quickstart pairs: slug match, zero warnings, HIR parity,
 # simulator invariant, and .scx parity.
 PYTHONPATH=. python3 -m unittest py/tests/test_quickstart_examples.py
 
@@ -353,12 +356,14 @@ named `py` collides with pytest's own `py` dependency from the repository root.
 
 ## 9. Where to go next
 
-Once the four quickstart examples make sense:
+Once the five quickstart examples make sense:
 
 1. Read [`examples/README.md`](../examples/README.md) and work through the
    migration examples in order. They cover direct memory access, sub-dword
-   masks, CP cursors, `CUnit` groups, DAT tables, arrays/structs, block I/O, and
-   dynamic EPD access.
+   masks, CP cursors, `CUnit` groups and global unit lists, DAT tables,
+   arrays/structs, block I/O, dynamic EPD access, player loops & local
+   broadcasts, math/random/locations/tech & upgrades, and containers,
+   camera follow & engine helpers.
 2. Keep [`GLOSSARY.md`](../GLOSSARY.md) open for canonical terms.
 3. Read the decision records in [`docs/adr/README.md`](adr/README.md) when a
    design choice looks surprising.
