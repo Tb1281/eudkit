@@ -242,6 +242,14 @@ Expected HUD lines (`displayAt(1..4)`):
 | 1 | `AAA` | `FixedString.displayAt(1)` owns chat line 1 |
 | 2 | `BBB` | `FixedString.display()` appends to the next line |
 
+Compile it to `/tmp`; the map is source-only and not committed:
+
+```sh
+eudkit compile tests/outputmap/smoke/displayat_owning_verify.ts \
+  --basemap tests/outputmap/basemap/basemap_silent.scx \
+  -o /tmp/displayat-owning.scx
+```
+
 ## Regenerating
 
 Compile a smoke map with the real implementation:
@@ -253,5 +261,6 @@ eudkit compile tests/outputmap/smoke/<name>.ts \
 ```
 
 Use `basemap.scx` for `classic-runner-order`, and compile the source-only
-`sample.*` and `displayat_owning_verify.ts` maps to `/tmp` as shown above.
-`--plan` reports the aligned-padding layout without touching the basemap.
+`sample.*` and `displayat_owning_verify.ts` maps to `/tmp` with the commands in
+their sections above. `--plan` reports the aligned-padding layout without
+touching the basemap.

@@ -367,6 +367,8 @@ Once the four quickstart examples make sense:
 5. Use the smoke maps and their expected-line tables in
    [`tests/outputmap/smoke/README.md`](../tests/outputmap/smoke/README.md) as a
    model for your own in-game tests.
+6. Look up error codes and fixes in [`docs/diagnostics.md`](./diagnostics.md)
+   and editor integration in [`docs/lsp.md`](./lsp.md).
 
 ## Troubleshooting
 
@@ -376,6 +378,7 @@ Once the four quickstart examples make sense:
 | `ERR_MODULE_NOT_FOUND: Cannot find package 'eudkit'` | In-checkout sources import `"../../../ts/index.ts"`. Installed consumers need `cd ts && npm run build` and an install/link. |
 | `ImportError: cannot import name ... from 'py'` when running a file directly | Run sources through `./target/debug/eudkit`, not `python3 file.py`; the PyPI package `py` may shadow the repository package. |
 | `EUDSL-COND-TRUTHIFY` | You used a runtime condition in `if`/`while`/`assert`. Use `when`, `once`, `while_loop`, `every`, `after`, or `dispatch`. |
+| `EUDSL-TS-TRUTHIFY` | You used a TypeScript runtime condition as a JS boolean. Raised when the opt-in lint is enabled; switch to a temporal form such as `when`/`once`. |
 | `missing compiled binary: .../target/debug/eudkit` in tests | Run `cargo build --workspace` first. |
 | Frontend warnings on stderr during `synth` | The source uses a discouraged idiom. Fix the source instead of adding `--no-warnings`; the quickstart tests require empty stderr. |
 | `compile: cannot infer frontend` / cannot find the DSL | Run from the checkout or set `EUDKIT_ROOT` to the checkout root. |

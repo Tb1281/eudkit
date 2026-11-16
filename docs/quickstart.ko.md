@@ -18,7 +18,7 @@
 |---|---|---|
 | Rust 1.85+ | `eudkit` CLI 빌드 | 워크스페이스가 edition 2024를 사용합니다 |
 | Python 3.11+ | Python DSL, 테스트 | 저장소 안 패키지 이름은 `py`입니다 |
-| Node.js 22.6+ | TypeScript DSL | 프런트엔드가 Node의 타입 스트리핑을 호출합니다 |
+| Node.js 22.6+ | TypeScript DSL | 프런트엔드가 Node의 타입 스트리핑(`--experimental-strip-types`, Node 22.6.0에서 추가)을 호출합니다 |
 | StarCraft: Remastered | 게임 안에서 검증 | synth/compile만 할 때는 선택 사항입니다 |
 
 **베이스맵(basemap)** 은 지형, 플레이어, 설정을 그대로 재사용하는 평범한

@@ -153,12 +153,14 @@ formatting local to the lines you edit.
 Use Conventional Commits with an imperative summary:
 
 ```text
-type(scope): imperative summary
+type(scope?): imperative summary
 ```
 
 - Keep the subject in the imperative mood (`fix(cli): reject a missing
   basemap`), lower-case after the colon, and without a trailing period.
-- Put the reason and any migration note in the body, wrapped at 72 columns.
+- The scope is optional: use `docs: ...` when a change spans the repository.
+- Wrap every commit message body line at 72 columns. The body carries the
+  reason and any migration note; the subject stays a single line.
 - Keep commit messages public-repo clean: no internal ticket, cycle, wave,
   worktree, or handoff tags. Describe the change itself.
 - Do not rewrite or force-push published `master`; add a follow-up commit

@@ -21,7 +21,7 @@ eudkit이 처음이라면 먼저 [`docs/quickstart.ko.md`](../../docs/quickstart
 
 - Rust 1.85+ (워크스페이스가 edition 2024 사용)
 - Python 3.11+ (Python DSL)
-- Node.js 22.6+ (TypeScript DSL 및 `ts/` 패키지 빌드)
+- Node.js 22.6+ (TypeScript DSL 및 `ts/` 패키지 빌드. 프런트엔드는 Node 22.6.0에서 추가된 `--experimental-strip-types`를 사용합니다)
 - StarCraft: Remastered (컴파일된 `.scx`를 게임에서 열어볼 때만 필요)
 
 저장소 루트에서 CLI를 한 번 빌드합니다:
@@ -70,7 +70,7 @@ PYTHONPATH=. python3 -m unittest py/tests/test_quickstart_examples.py
 
 ## 저장소 내부 임포트 vs 설치된 패키지 임포트
 
-예제는 이 체크아웃에서 임포트합니다(`from py import ...`, `from "../../../ts/index.ts"`). 설치형 소비자는 `pip install -e ./py` 후, 또는 `cd ts && npm install && npm run build` 후 `ts/`를 설치/링크하고 `from eudkit`을 사용합니다. CLI는 체크아웃의 `py/` 및 `ts/` 트리에서 소스를 로드하며, 바이너리가 체크아웃 외부에 있다면 `EUDKIT_ROOT=/path/to/eudkit`으로 저장소를 지정하세요. 전체 표기는 [docs/quickstart.ko.md](../../docs/quickstart.ko.md#import-표기-체크아웃-vs-설치된-패키지)를 참고하세요.
+예제는 이 체크아웃에서 임포트합니다(`from py import ...`, `from "../../../ts/index.ts"`). 설치형 소비자는 Python에서 `pip install -e ./py` 후 `from eudkit import ...`를, TypeScript에서 `cd ts && npm install && npm run build` 후 `ts/`를 설치/링크하고 `from "eudkit"`을 사용합니다. CLI는 체크아웃의 `py/` 및 `ts/` 트리에서 소스를 로드하며, 바이너리가 체크아웃 외부에 있다면 `EUDKIT_ROOT=/path/to/eudkit`으로 저장소를 지정하세요. 전체 표기는 [docs/quickstart.ko.md](../../docs/quickstart.ko.md#import-표기-체크아웃-vs-설치된-패키지)를 참고하세요.
 
 예제를 `python3 examples/quickstart/py/01_hello_world.py`나 일반 `node`로 직접 실행하지 마세요. 이들은 단독 실행 스크립트가 아니라 **`eudkit` 컴파일러의 소스**입니다. 또한 저장소 루트가 `sys.path` 맨 앞에 없으면 PyPI의 동명 패키지 `py`가 저장소의 `py/` 패키지를 가릴 수 있습니다.
 

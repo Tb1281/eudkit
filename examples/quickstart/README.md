@@ -79,8 +79,9 @@ That suite checks:
 ## In-repo imports vs installed packages
 
 The examples import from this checkout (`from py import ...`,
-`from "../../../ts/index.ts"`). Installed consumers use `from eudkit` after
-`pip install -e ./py`, or after `cd ts && npm install && npm run build` and an
+`from "../../../ts/index.ts"`). Installed consumers use Python
+`from eudkit import ...` after `pip install -e ./py`, and TypeScript
+`from "eudkit"` after `cd ts && npm install && npm run build` and an
 install/link of `ts/`. The CLI captures sources from the checkout's `py/` and
 `ts/` trees; if the binary lives outside the checkout, point it at the
 repository with `EUDKIT_ROOT=/path/to/eudkit`. See
