@@ -48,10 +48,10 @@ from dispatching.
   unchanged; authored triggers keep their native per-chain cadence.
 - **First-loop ordering divergence.** An authored classic trigger can
   execute (and `Wait`) before the payload on the first pass, whereas
-  eudplib temporarily suppresses it. Accepted within #40's restore-only
+  eudplib temporarily suppresses it. Accepted within the restore-only
   scope; the runner-boundary work owns payload/classic ordering and the
   `TrigTriggerBegin`/`TrigTriggerEnd` pair.
-- **#41's `Preserve` path** keeps authored flags untouched and still does
+- **The `Preserve` path** keeps authored flags untouched and still does
   not dispatch inline code. That is its contract, not a new regression.
 - **Follow-up (ADR 0010).** The first-loop ordering question is resolved:
   classic-first every loop, bracketed by `TrigTriggerBegin` /

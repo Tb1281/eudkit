@@ -5,7 +5,7 @@ Status: accepted (2026-11-11; amended 2026-11-14)
 > **Amendment (2026-11-14):** decision 7's `when` chain is a **deliberate
 > exception** to ADR 0025's `dispatch` preference, not an oversight. Dispatch
 > is cold here (evaluated only on a due pass), and the tree trades static
-> triggers for due-pass work. RT3 measured the crossover with
+> triggers for due-pass work. Benchmarks measured the crossover with
 > `scripts/bench_soundlooper_dispatch.py` and
 > `ts/scripts/bench_soundlooper_dispatch.ts` at N=16/64/256: the tree cuts the
 > due-pass condition path from `N + 1` to `log2(N) + 2` (17 → 6, 65 → 8,
@@ -20,10 +20,9 @@ Status: accepted (2026-11-11; amended 2026-11-14)
 
 ## Context
 
-Issue #116 asks for euddraft's `lib/soundlooper.py` to be ported the same way
-as the periodic BGM helper (issue #25): a plain build-time constructor on both
-frontends, no plugin system, no trigger-exec hook, byte-for-byte parity between
-`py/` and `ts/`.
+euddraft's `lib/soundlooper.py` is ported the same way as the periodic BGM
+helper: a plain build-time constructor on both frontends, no plugin system, no
+trigger-exec hook, byte-for-byte parity between `py/` and `ts/`.
 
 Soundlooper splits a song into `000`-`999` numbered `.ogg` segments, embeds
 them in the MPQ, and plays an intro once, a bar on a fixed period, and a bridge
@@ -37,8 +36,8 @@ BGM helper it adds three things that need decisions:
 3. **per-bar dispatch** — the source uses `EUDMethod`/`EUDSwitch` jump tables
    to play one of up to 1000 archive names.
 
-The merged #99 `Db`/`DbRef` seam stores a payload blob in the trigger
-payload. It cannot serve this helper: `PlayWAV` resolves an *archived name*
+The `Db`/`DbRef` seam stores a payload blob in the trigger payload. It cannot
+serve this helper: `PlayWAV` resolves an *archived name*
 from the MPQ, so the segments must be added to the archive. The applicable
 surface is ADR 0021's `embedFile`, which is exactly the source's
 `MPQAddFile`.
@@ -133,16 +132,16 @@ surface is ADR 0021's `embedFile`, which is exactly the source's
 - Idle cost is one probe trigger (two conditions: clock read and
   `current_loop != -1`) plus the `when` gate; the clock is not read until a
   pass is due. Segment bytes dominate output size.
-- `Db` / `DbRef` (#99) stays unused here by design; `embedFile` (ADR 0021) is
-  the only segment surface.
+- `Db` / `DbRef` stays unused here by design; `embedFile` (ADR 0021) is the
+  only segment surface.
 - Existing maps, dumps and cost goldens are unchanged: nothing is emitted
   unless a caller constructs a `SoundLoops` and calls `player()`.
 
 ## Rejected alternatives
 
-- **Ship segments through `Db` / `DbRef` (#99).** Rejected: the blob lives in
-  the trigger payload and `PlayWAV` looks up an MPQ archive name, so the
-  segments would be silent.
+- **Ship segments through `Db` / `DbRef`.** Rejected: the blob lives in the
+  trigger payload and `PlayWAV` looks up an MPQ archive name, so the segments
+  would be silent.
 - **Keep the source's random five-character ids.** Rejected: two builds of the
   same map would differ, which breaks reproducible dumps and diffing.
 - **Transcribe the source's `goto` write literally.** Rejected: it always

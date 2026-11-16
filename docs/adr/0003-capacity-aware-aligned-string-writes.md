@@ -55,7 +55,7 @@ marker or the next string.
 ## Amendment (2026-11-06)
 
 ADR 0011 decision 5 defines a single content-layout walk for one format run.
-Format runs do not insert mid-string `0x1A` padding (the final #73 resolution);
+Format runs do not insert mid-string `0x1A` padding;
 fixed-width placeholders fold at their compile-time byte lane instead. The walk
 is capacity-checked as content alongside the placeholders and following
 literals, and an overlong run fails with `EUDSL-BOUNDS`. This is not a

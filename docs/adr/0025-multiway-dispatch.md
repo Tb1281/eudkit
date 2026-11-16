@@ -5,20 +5,20 @@ Status: accepted (2026-11-14)
 ## Context
 
 Multi-way integer choices were hand-written `when` chains (`when(v.eq(0), …)`,
-`when(v.eq(1), …)`, …) with no fallthrough and no shared fallback. Ticket #51's
-runtime `else_body` arm (ADR 0020's branch surface, decided with `when`)
-removed the first limitation, but authors still wrote the chain by hand.
+`when(v.eq(1), …)`, …) with no fallthrough and no shared fallback. The runtime
+`else_body` arm (ADR 0020's branch surface, decided with `when`) removed the
+first limitation, but authors still wrote the chain by hand.
 
-Cycle 5 measured four strategies for the same one-of-N integer choice:
+Four strategies were measured for the same one-of-N integer choice:
 
 1. an else-chain of `when(v.eq(k), arm_k, next)` blocks;
 2. the same chain with a flag-gated shared fallback;
 3. a sparse balanced binary search tree of `HirWhen` nodes;
 4. a dense jump table built from `Db` relocations.
 
-Ticket #07 is the Phase B slice: expose the two existing-HIR strategies through
-one frontend construct. No Rust change, no new HIR node, and no HIR version
-bump are involved.
+`dispatch` exposes the two existing-HIR strategies through one frontend
+construct. No Rust change, no new HIR node, and no HIR version bump are
+involved.
 
 ## Decision
 
@@ -70,7 +70,7 @@ dispatch(value, cases, fallback?)
 - **Runtime `value`, `1 <= N <= 9`:** an else-chain built from the last case
   backwards. The last case's node carries the fallback as `else_body`; each
   earlier case wraps the following node as its sole `else_body` statement. An
-  empty fallback/else arm omits the `else_body` key, matching ticket #06's
+  empty fallback/else arm omits the `else_body` key, matching the
   then-only byte identity.
 - **Runtime `value`, `N >= 10`:** a balanced `HirWhen` tree. Internal nodes use
   `value.ge(mid)` (`AtLeast`); leaves use `value.eq(key)` (`Exactly`). The right
@@ -125,7 +125,7 @@ Its worst-case path is also `O(log N)` and beats the chain's `O(N)` from
 while at `N = 9` both worst cases are `9`. With a fallback duplicated at every
 leaf, the `N = 10` tree is `49/19/122/117,992` static.
 
-### 5. Dense jump table deferred (Q5)
+### 5. Dense jump table deferred
 
 A dense table is expressible with existing HIR (`Db` relocations,
 `SetDeaths(trigger.next, Add, …)`, and `DeathsX(x.value, AtLeast, 1, 0, 1 << i)`

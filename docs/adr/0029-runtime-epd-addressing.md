@@ -101,8 +101,7 @@ field = epd_u32(blob_payload_addr + target_offset)
 That is exactly `(payload_addr - EPD_BASE) / 4` for offset `0`, and one dword
 further per `DbRef` offset. Blob payload addresses are stable across map
 assembly because `lir2payload` aligns every item before it is emitted; the
-relocation therefore never goes stale (ticket `T-WP4` re-plan clause (a) does
-not fire).
+relocation therefore never goes stale.
 
 The Rust regression test `crates/eudkit-lower/tests/epd_of_db.rs` builds the
 same HIR directly and simulates one loop: the variable must equal the emitted
@@ -114,16 +113,16 @@ to the blob's first four bytes and not to the byte address (mode 4).
 
 `epd_of_db` yields a base **value**. It does not allocate memory beyond the
 `Var`, does not add an `EPD + runtime offset` addressing mode, and does not
-turn a blob into an array. Runtime bases remain rejected: `with_epd` (ticket
-`T-WP5`) is the sanctioned CP-relative body form, and the runtime-indexed
-shadow backing is recorded as deferred in ADR 0030.
+turn a blob into an array. Runtime bases remain rejected: `with_epd` is the
+sanctioned CP-relative body form, and the runtime-indexed shadow backing is
+recorded as deferred in ADR 0030.
 
 **CP-relative reader bodies.** A shared `func` body may read a runtime
 address only by binding CP before the call: a condition's `player` field must
 be a literal EPD, so the address cannot be passed as a runtime value. The body
 therefore reads `CURRENT_PLAYER` (`13`) and every call pays one CP store and
-one restore. This is the shape of the 20T CUnit pointer reader (`T-WP6`): 18
-bit tests against the dword CP currently holds, seeded `0x100002` with bias
+one restore. This is the shape of the 20T CUnit pointer reader: 18 bit tests
+against the dword CP currently holds, seeded `0x100002` with bias
 `0xFFE9D727`, and no per-address body cache because the target is always
 `CURRENT_PLAYER`.
 
@@ -172,21 +171,16 @@ exception. Nesting is LIFO because each call owns its own saved `Var` and
 scratch base: an inner call restores the outer binding, and the outer call
 restores the ambient value.
 
-The four restore policies, stated once:
-
-| surface | CP after the call |
-|---|---|
-| `with_cp` / `withCP` | cursor-only: re-anchored to the constant base when the cursor moved; a read at offset 0 can leave CP at 0 |
-| `with_epd` / `withEpd` | the ambient pre-call value, always |
-| `PageSlotEPD` read | 0 |
-| `memcpyEPD` / `memsetEPD` | the seed/advance end value (still clobbers) |
+The four CP restore policies — `with_cp`, `with_epd`, `PageSlotEPD`, and
+`memcpyEPD`/`memsetEPD` — are stated once in
+[GLOSSARY.md](../../GLOSSARY.md) under **CP (CurrentPlayer)**: `with_epd`
+restores the ambient pre-call value, always.
 
 Cost: one full-dword ambient read (the shared reader is a 33T body or a call),
 one bind store, one restore, plus the optional one-act pre-hop — at most 36T
-per non-shared site, the budget in ticket `T-WP5`. A private
-`_with_epd_saved(saved, ...)` form for callers that already hold the ambient CP
-is the loop contract (`T-WP6`) and stays private rather than widening the
-public signature.
+per non-shared site. A private `_with_epd_saved(saved, ...)` form for callers
+that already hold the ambient CP is the loop contract and stays private rather
+than widening the public signature.
 
 What remains rejected: a runtime **base** for `with_cp` (the int-only guard
 is a correctness requirement), a general `store(computed_addr, value)`, and a
@@ -197,9 +191,9 @@ public runtime-indexed container (ADR 0030).
 - Callers get a first-class EPD-bearing `Var` from a payload blob without
   duplicating the private `_seed_epd_cursor` trigger shape.
 - `blockio.py`/`blockio.ts` share the CP seed and mode-1 blob-reloc shapes
-  through `_set_cp_from_var` / `_emit_blob_epd_into` (TS: `emitBlobEpdInto`,
-  ticket `T-WP5`) without
-  changing a single HIR byte: `memcpyEPD`/`memsetEPD`/`connectDList` still
+  through `_set_cp_from_var` / `_emit_blob_epd_into` (TS: `emitBlobEpdInto`)
+  without changing a single HIR byte: `memcpyEPD`/`memsetEPD`/`connectDList`
+  still
   leave CP clobbered, so wrapping them in `with_epd` would be a behavior
   change, not a refactor.
 - `with_epd` adds the missing runtime CP binding without widening the

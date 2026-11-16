@@ -6,8 +6,8 @@ single-chain maps)
 
 ## Context
 
-Issue #40 restored authored basemap classic triggers by preserving their flag
-dwords (ADR 0008). That decision deliberately left one question open: the
+ADR 0008 restored authored basemap classic triggers by preserving their flag
+dwords. That decision deliberately left one question open: the
 order between the authored classic chain and the compiled payload. In the
 current chain, stage 1 links the payload after the synthetic blank terminator,
 so every trigger loop runs

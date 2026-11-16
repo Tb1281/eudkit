@@ -4,23 +4,21 @@ Status: accepted (2026-11-09)
 
 ## Context
 
-Field comparison correctness was decided in three passes. #20 made `read()`
+Field comparison correctness was settled in three steps. `read()` became
 mask-aware, so a masked read returns the value in field units
-(`(raw & bitMask) >> shift`) instead of the raw lane value. #21 gave `eq` and
-`ne` one representable-value rule for both field surfaces: `TriggerFieldRef`
+(`(raw & bitMask) >> shift`) instead of the raw lane value. `eq` and `ne` then
+got one representable-value rule for both field surfaces: `TriggerFieldRef`
 (a deferred `TriggerStruct`/`MemView` field) and `MemFieldHandle` (a bound
-address, with `DatFieldHandle` inheriting it). The ordering ticket finished
-`ge`, `le`, `gt`, and `lt` on both surfaces and removed the
-`mask == default_mask` shortcut that returned the nominal width for a
-*straddling* field.
+address, with `DatFieldHandle` inheriting it). The orderings finished `ge`,
+`le`, `gt`, and `lt` on both surfaces and removed the `mask == default_mask`
+shortcut that returned the nominal width for a *straddling* field.
 
-Before #21 the rule was whatever the shift happened to do. A word at byte 2
+Before that, the rule was whatever the shift happened to do. A word at byte 2
 compared its constant against the nominal 16-bit width, so `w.eq(0x10000)`
-silently became `w.eq(0)`; the cycle-9 review measured 15 of 48 probe rows
-wrong. The cycle-10 scan re-measured 120 rows and found 35 wrong for the
-orderings, because `ge`/`le`/`gt`/`lt` still consulted the nominal width for
-straddling fields. One formula is correct for both cases, and the shortcut was
-the source of the false positives.
+silently became `w.eq(0)`; 15 of 48 probe rows were wrong. A second scan of
+120 rows found 35 wrong for the orderings, because `ge`/`le`/`gt`/`lt` still
+consulted the nominal width for straddling fields. One formula is correct for
+both cases, and the shortcut was the source of the false positives.
 
 The corrected rule now lives in code: `_field_value_space` (Python) /
 `fieldValueSpace` (TypeScript) derives the space, and `_fold_ordering` /
@@ -143,11 +141,11 @@ the reproducible "no golden moves" guard for this rule.
   fields.** Rejected: one formula is correct for both, and the shortcut is
   what produced the false positives.
 - **Fold only in `MemFieldHandle` and let `TriggerFieldRef` mirror it by
-  hand.** Rejected: eight near-copies of the rule are what let it drift twice
-  (#21 and the ordering ticket).
+  hand.** Rejected: eight near-copies of the rule are what let the two rules
+  drift apart.
 - **Keep `DeathsX(target, AtLeast, 0)` for the always-true fold.** Rejected:
   it reads memory, needs a target, and materialises the sentinel CP hop for a
   condition that is unconditionally true.
 - **Compare negative constants as signed values.** Rejected: it contradicts
-  the 32-bit normalisation #21 pinned for `eq`/`ne`, and it would make
-  `eq(-1)` and `ge(-1)` disagree about what `-1` means.
+  the 32-bit normalisation pinned for `eq`/`ne`, and it would make `eq(-1)`
+  and `ge(-1)` disagree about what `-1` means.

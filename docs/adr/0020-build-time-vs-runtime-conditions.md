@@ -100,10 +100,10 @@ lives in `py/README.md`.
 ### 4. Residuals, recorded rather than hidden
 
 The guard is preventive for **truthiness**, not for **equality**. This
-section records both the equality items fixed by later tickets and the
-residuals that remain, each with its measured behaviour:
+section records both the equality items now fixed and the residuals that
+remain, each with its measured behaviour:
 
-- **Equality dunders on `Var` / `Expr` / `TriggerFieldRef` (fixed by #52).**
+- **Equality dunders on `Var` / `Expr` / `TriggerFieldRef` (fixed).**
   `==` / `!=` now raise `EUDSL-TYPE` for `float`, `str`, and `bool`, matching
   `v.eq(1.5)`, `v < 1.5`, and `u.hp == 1.5`. `None` and unrelated objects
   still return `NotImplemented`, so `v == None` stays `False`; plain `int`,
@@ -159,9 +159,8 @@ residuals that remain, each with its measured behaviour:
 - **(c) Override `HirCond.__eq__` to catch `cond == True`.** Rejected: it
   breaks `assertEqual` on whole HIR trees, which compare dicts recursively;
   the residual is recorded instead.
-- **(d) Guard TS with a compiler-API lint in this ticket.** Rejected: no JS
-  truthiness hook exists, the three TS outcomes are different bugs, and a
-  static rule needs its own measurement (separate issue). Implemented later
-  by #50 as the opt-in parser checker (`ts/scripts/check-truthiness.ts`,
-  `npm run typecheck:truthiness`); it is a static lint and does not run on
-  the real build path.
+- **(d) Guard TS with a compiler-API lint.** Rejected: no JS truthiness hook
+  exists, the three TS outcomes are different bugs, and a static rule needs
+  its own measurement. The shipped opt-in parser checker
+  (`ts/scripts/check-truthiness.ts`, `npm run typecheck:truthiness`) is that
+  static lint and does not run on the real build path.

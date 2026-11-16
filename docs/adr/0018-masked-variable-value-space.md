@@ -3,9 +3,9 @@
 Status: accepted (2026-11-09; amended 2026-11-14)
 
 > **Amendment (2026-11-14):** the shared-helper follow-up in Consequences is
-> actioned in Cycle 1 by FE1. `FieldValueSpace` in `py/view.py` / `ts/view.ts`
-> is now the single comparison kernel for `TriggerFieldRef`, `MemFieldHandle`,
-> and `Var(explicit_mask=...)`; writes, lane resolution, and the concrete HIR
+> implemented. `FieldValueSpace` in `py/view.py` / `ts/view.ts` is now the
+> single comparison kernel for `TriggerFieldRef`, `MemFieldHandle`, and
+> `Var(explicit_mask=...)`; writes, lane resolution, and the concrete HIR
 > record stay with the adapters. The mirrored matrix tests are
 > `test_field_surface_kernel.py` / `.ts`, and the ADR-0017/0018 HIR pins are
 > unchanged. No new ADR number and no semantic change to this decision.
@@ -136,7 +136,7 @@ The fold removes the 72-action deferred diff marker. An **in-space** constant
 moves one action — the read-side fix in §6 masks the diff temp — so
 `ne(0x80)` is 4T / 1C / **73A** / 9,640 B, down from 74A (the HIR gains one act
 per site while the lowered count drops one; the mechanism is in §6). Total
-bytes are unchanged, and this is the one golden row this cycle moves. The
+bytes are unchanged, and this is the one golden row that moves. The
 no-move rows: a **full-mask** `ne(middle)` stays 4T / 1C / 72A / 9,640 B, and
 the out-of-space fold stays 2T / 1C / 2A / 4,824 B.
 
@@ -149,24 +149,19 @@ ADR 0017 §5 pins the field rule.
 a plain `Var(0)` compared with `eq`/`ne`/`ge`/`le`/`gt`/`lt` against
 `0, 1, 0x7FFFFFFF, 0xFFFFFFFF, 0x100`, and a `Var(0,
 explicit_mask=0xFFFFFFFF)` compared the same six ways against `5`. It serialises
-to 17,531 characters in 45 statements with sha256
-`a23820c5cee6630262b92010a46cbeb7889249833c032d994be3bdd0eb5fd441`, computed on
-the **unmodified** baseline. A full-mask `Var` has no constant outside its
-space — `c & ~max` and `c > max` are both vacuous — so the fix adds no new fold
-and must leave this sha unchanged (the pre-existing `gt(max)` and `lt(0)` folds
-stay as they were).
+to 45 statements on the **unmodified** baseline. A full-mask `Var` has no
+constant outside its space — `c & ~max` and `c > max` are both vacuous — so the
+fix adds no new fold and must leave this HIR unchanged (the pre-existing
+`gt(max)` and `lt(0)` folds stay as they were).
 
 **Shared masked-fixture pin.** A fixture over `Var(0, explicit_mask=0xFF)` at
 `0x7F`, `Var(0, explicit_mask=0xFFFF)` at `0x1234`,
 `Var(0, explicit_mask=0x0F0F)` at `0x0F00`, and a full-mask `Var` at `5`, with
-21 comparisons spanning the fold classes and an `iadd` body,
-serialises to 22 statements (9,443 characters) with sha256
-`404d4ecbffd41a80b03f4a8be72e6669b33063ffdde5ee2a3ff1943b6f6c28f3`. The
-semantically identical fixture hashes to the **same** value in the py and ts
-suites after the fix, so the pair proves py↔ts byte-identical HIR while each
-suite runs standalone. On HEAD the same fixture is 10,533 characters /
-`sha256 5037cfaf…`: the pin is load-bearing new behaviour, not a re-pin of
-whatever the build prints.
+21 comparisons spanning the fold classes and an `iadd` body, serialises to 22
+statements. The semantically identical fixture produces **byte-identical** HIR
+in the py and ts suites after the fix, so the pair proves py↔ts parity while
+each suite runs standalone. On the pre-fix tree the fixture differs: the pin is
+load-bearing new behaviour, not a re-pin of whatever the build prints.
 
 ### 6. Comparisons read the left operand in its value space
 
@@ -210,18 +205,15 @@ comparisons only.
   The comparison guarantee covers **constant** right operands only; a variable
   right operand is compared against the raw lane by decision (§6).
 - Representative constants keep byte-identical HIR. The cost-gate fixture module
-  serialises byte-identically (`sha256
-  063e6941512b2840725e5e2cb70fc6e6bc2ca6c57cd9c3c0b5f75e51ad22a10f`),
-  `eudkit synth --compact` is 167,658 B on both frontends before and after, and
-  no cost golden moves: the gate stays at 355 triggers / 442 executed /
-  855,004 bytes.
+  serialises byte-identically, `eudkit synth --compact` is 167,658 B on both
+  frontends before and after, and no cost golden moves: the gate stays at 355
+  triggers / 442 executed / 855,004 bytes.
 - `MemCond` and raw escapes still do not fold. This decision covers the six
   comparison bodies `eq`/`ne`/`ge`/`le`/`gt`/`lt` in `py/var.py` and
   `ts/var.ts`, not the raw-condition surface.
 - The shared-helper extraction (one `ValueSpace` helper for all three surfaces)
-  was a later-cycle follow-up in the original decision; FE1 actioned it in
-  Cycle 1 as `FieldValueSpace` (see the amendment above). The rule itself is
-  unchanged.
+  is implemented as `FieldValueSpace` (see the amendment above). The rule
+  itself is unchanged.
 
 ## Rejected alternatives
 

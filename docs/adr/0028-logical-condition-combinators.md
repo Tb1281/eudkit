@@ -114,11 +114,10 @@ Both frontends now plan gates through one seam instead of ad-hoc markers:
   flag allocation, reset trigger, set-when) and maps each plan object to
   exactly one scratch flag. It also carries the cycle guard so a malformed or
   self-referential plan fails with `EUDSL-TYPE` instead of recursing forever.
-- The old `gateTerms` / `gate_terms` duck-typed markers on
-  `DeferredNe`/`DeferredCond` are removed. `ts/temporal.ts` and
-  `py/temporal.py` ask the planner for a `GatePlan` instead of probing a
-  condition object for a `gateTerms` method. This deletes the two divergent
-  marker protocols (ADR 0026) rather than adding a third.
+- `ts/temporal.ts` and `py/temporal.py` ask the planner for a `GatePlan`
+  instead of probing a condition object for a `gateTerms` method. This
+  replaces the earlier divergent marker protocols (ADR 0026) with one seam
+  rather than adding a third.
 - The TS `CompositeCond` interface in `ts/trigger.ts` replaces the throwing
   `materialize()` method on composites: composites expose `gatePlan()` and
   `complement()`, while `CondLike` remains the union of HIR leaves,

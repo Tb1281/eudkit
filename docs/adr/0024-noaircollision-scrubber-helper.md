@@ -4,9 +4,9 @@ Status: accepted (2026-11-12)
 
 ## Context
 
-Issue #119 asks for euddraft's `plugins/noAirCollision.py` to be ported the
-same way as the earlier plugin ports (cammove, bgmplayer, unlimiter,
-dataDumper, soundlooper): a plain build-time constructor on both frontends
+euddraft's `plugins/noAirCollision.py` is ported the same way as the earlier
+plugin ports (cammove, bgmplayer, unlimiter, dataDumper, soundlooper): a plain
+build-time constructor on both frontends
 (`py/noaircollision.py`, `ts/noaircollision.ts`), no plugin system, no
 lifecycle hook, byte-for-byte parity between the two frontends.
 

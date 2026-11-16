@@ -60,8 +60,8 @@ the dataDumper port to copy the plumbing.
 
 ## Consequences
 
-- `play_bgm` / `playBgm` (issue #25) and the future dataDumper port share one
-  surface. Adding a second embedded file is one call.
+- `play_bgm` / `playBgm` and the future dataDumper port share one surface.
+  Adding a second embedded file is one call.
 - Files are read once at assembly time and added with replace-existing
   semantics. A missing or unreadable file fails the build rather than
   producing a map with a dangling `PlayWAV`/data reference.

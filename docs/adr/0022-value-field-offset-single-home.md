@@ -4,14 +4,12 @@ Status: accepted (2026-11-11)
 
 ## Context
 
-Architecture review #3 (C5, "centralize the +20 action offset") asked for the
-raw value-field offset to be replaced by a named constant, spelled that
-constant with an `ACTION_` prefix, and traced the leak to `eudkit-hir`.
-Neither half describes the current tree. The verification behind this check
-found:
+The raw value-field offset (`+20`) needs one named home instead of scattered
+literals. The tree was checked for an `ACTION_`-prefixed constant and for a
+leak into `eudkit-hir`; neither describes the current tree. The check found:
 
-1. **The review's name does not exist, and the real constant does.**
-   The `ACTION_`-prefixed spelling has zero occurrences in the tree. The
+1. **The `ACTION_`-prefixed spelling does not exist, and the real constant
+   does.** That spelling has zero occurrences in the tree. The
    canonical spelling is `VALUE_FIELD_OFFSET = 20`
    (`crates/eudkit-lir/src/lib.rs:69`), beside `DEST_FIELD_OFFSET = 16`,
    `MASK_FIELD_OFFSET = 0` and `MODIFIER_DWORD_OFFSET = 24` — all byte offsets
@@ -29,12 +27,11 @@ found:
    kind would add a second synonym for a value HIR does not otherwise reason
    about. The relocation *records* are authored by the
    frontends, which emit HIR JSON carrying `"field_offset": 16|20`. Those
-   literals are the leak the review counted. The Rust side has two production
-   literals — `HirAct::set_var_const` (`crates/eudkit-hir/src/lib.rs:990`,
-   the builder the tests and lowering share) and
-   `opt::temporal::desugar_until` (`crates/eudkit-opt/src/temporal.rs:53`) —
-   not the eight files the review listed; that count describes the
-   pre-centralization tree, and the remaining Rust hits are test fixtures.
+   literals are the actual leak. The Rust side has two production literals —
+   `HirAct::set_var_const` (`crates/eudkit-hir/src/lib.rs:990`, the builder the
+   tests and lowering share) and `opt::temporal::desugar_until`
+   (`crates/eudkit-opt/src/temporal.rs:53`); the remaining Rust hits are test
+   fixtures.
 
 The frontends already name the record layout once: `ACT_FIELD_OFFSETS`
 (`py/stock_rows_built.py:74`, `ts/stock-spec.ts:133`) carries `dest: 16` and
@@ -73,12 +70,13 @@ layout directly:
 
 ## Consequences
 
-- Issue #59 is documentation-only: no behavior, cost, HIR version, or golden
-  change. The cost gates and the `dump-ir` fixtures must stay byte-identical.
+- This record is documentation-only: no behavior, cost, HIR version, or
+  golden change. The cost gates and the `dump-ir` fixtures must stay
+  byte-identical.
 - The residual frontend literals in the table above are recorded, not
   removed here. Migrating them to `ACT_FIELD_OFFSETS` is behavior-neutral and
   may be folded into any later frontend change that already touches the line;
   it is not a prerequisite for anything.
-- A future review that reports another name for this offset, or attributes
-  the literals to `eudkit-hir`, should be corrected against this ADR rather
-  than re-investigated.
+- A later report of another name for this offset, or one that attributes the
+  literals to `eudkit-hir`, should be corrected against this ADR rather than
+  re-investigated.

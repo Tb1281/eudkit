@@ -155,27 +155,22 @@ is the residue of counters that the spec does not yet derive:
    from the sections (`grep -n counts scripts/generate_stock_surfaces.py
    ts/scripts/generate-stock.ts` finds nothing), and the docs headings are
    exact test keys, so every site below changes with the row:
-   - `schema/stock-rows.json` `counts` (around :4798): the `conditions`,
-     `actions`, `extensions`, and `records` integers.
-   - `ts/tests/test_stock_rows.ts` (around :329-353): the section-length and
-     `spec.counts.*` literals `22`/`57`/`13` and the `79` stock-row count,
-     plus `goldens.rows.length === 92` (around :555-559).
-   - `py/tests/test_stock_rows.py` (around :171-209): the same literals, the
-     `len(stock) == 79` assertion, and the condition-type range expectation,
-     plus `len(self.goldens["rows"]) == 92` (around :334-338).
-   - `docs/stock-triggers.md` headings `## Conditions (22)` (:37) and
-     `## Actions (57)` (:69). They sit outside the generated markers and are
-     exact test keys: `py/tests/test_stock_rows.py:36` does
-     `lines.index(f"## {heading}")` and `ts/tests/test_stock_rows.ts:394-395`
-     passes the same literals, so a heading edit without the matching test
-     edit raises `ValueError` in Python and fails the TypeScript table test.
-   - `crates/eudkit-lsp/tests/stock_spec.rs` (around :35-39):
-     `symbols.len() == 92` and its message
-     `"22 conditions + 57 actions + 13 extensions"`.
-   - `ts/tests/test_stock_codegen.ts` (:86): `generatedRows().length === 88`
-     and its message `"88 of the 92 rows are data-driven"`.
-   - Prose that restates the counts: `GLOSSARY.md` (:59) and this ADR's
-     Decision intro (:38-42). Not test-enforced, but stale after a row add.
+   - `schema/stock-rows.json` `counts`: the `conditions`, `actions`,
+     `extensions`, and `records` integers.
+   - Both `test_stock_rows` suites: the section-length and `spec.counts.*`
+     literals `22`/`57`/`13`, the stock-row total `79`, the
+     `goldens.rows.length` total `92`, and the condition-type range
+     expectation.
+   - `docs/stock-triggers.md` headings `## Conditions (22)` and
+     `## Actions (57)`. They sit outside the generated markers and are exact
+     test keys, so a heading edit without the matching test edit raises
+     `ValueError` in Python and fails the TypeScript table test.
+   - `crates/eudkit-lsp/tests/stock_spec.rs`: the symbol count `92` and its
+     message `"22 conditions + 57 actions + 13 extensions"`.
+   - `ts/tests/test_stock_codegen.ts`: `generatedRows().length` `88` and its
+     message `"88 of the 92 rows are data-driven"`.
+   - Prose that restates the counts: `GLOSSARY.md` and this ADR's Decision
+     intro. Not test-enforced, but stale after a row add.
 
 Changing an existing row's emitted HIR is different: it requires an explicit
 golden update and an HIR version decision under
@@ -193,8 +188,8 @@ never auto-rewritten.
   agree on it.
 - The 88 generated rows share one emitter per frontend. A fix applies
   everywhere at once, and a regression can too; the emitter and its
-  validator order deserve the review attention that the hand-written bodies
-  used to take.
+  validator order deserve the scrutiny that the hand-written bodies used to
+  take.
 - The five special rows are the only per-row escape hatch, and the cap makes
   them auditable. A sixth row that genuinely cannot be expressed means
   changing the emitter or revisiting this ADR, not silently adding another

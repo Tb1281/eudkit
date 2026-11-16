@@ -11,20 +11,21 @@ It is **not** enough to index a payload by a runtime unit id: after the base is
 materialized, a runtime offset has to select a row of the blob, and that needs
 a backing allocation whose layout is known before lowering.
 
-The Stage-2 design work (WP11) sketched a shadow backing over the fixed CUnit
-slot pool so a unit EPD could select a row. This record preserves that design
-and its arithmetic so the rejection is documented and a future ticket does not
-re-derive it, but **the backing is not shipped here**. WP11 and WP12 are
-excluded from this ticket set; `T-WP4` only ships the base-value primitive.
+A deferred design sketched a shadow backing over the fixed CUnit slot pool so
+a unit EPD could select a row. This record preserves that design and its
+arithmetic so the rejection is documented and a future implementation does not
+re-derive it, but **the backing is not shipped here**. The deferred shadow
+backing and the five-list membership tracker it would need are out of scope;
+only the base-value primitive ships (ADR 0029).
 
 ## Decision
 
 ### 1. Status
 
 Deferred. Do not implement a runtime-indexed payload container, a public
-container type, or a new HIR/LIR node until a ticket explicitly revives WP11.
-`epd_of_db` returns a base **value**; it is not a container and does not
-allocate a shadow.
+container type, or a new HIR/LIR node until a later decision explicitly
+revives this design. `epd_of_db` returns a base **value**; it is not a
+container and does not allocate a shadow.
 
 ### 2. The deferred shadow design
 
@@ -60,7 +61,7 @@ never diverge.
 ### 4. Why it stays out
 
 - It is a container: a public surface would need allocation, bounds policy,
-  lifetime, and parity decisions that `T-WP4` does not own.
+  lifetime, and parity decisions that the base-value primitive does not own.
 - The cost is material (`571,200` B per shadow, before any access kernel), and
   the access kernel must be measured against the existing unit-iteration
   strategies (ADR 0015) before it is worth shipping.
@@ -69,7 +70,7 @@ never diverge.
 
 ### 5. Future work
 
-If WP11 is revived, the ticket must:
+If this design is revived, the work must:
 
 1. own the shadow allocation and document its `K` and bounds contract;
 2. decide whether the shadow is a module-level singleton or per-call;
@@ -82,7 +83,6 @@ Until then, this ADR is a design record only.
 
 - The rejection is documented with the exact arithmetic, so revisiting it
   starts from a known design rather than a blank page.
-- No public container, no array surface, and no new HIR/LIR node ships in this
-  ticket set.
+- No public container, no array surface, and no new HIR/LIR node ships.
 - ADR 0029's "base value, not runtime-indexed container" boundary has a
   concrete cross-reference.

@@ -43,7 +43,7 @@ the map blank. eudplib's finalizer resets it in `inj_finalizer.py`.
    separately so `tests/fixtures/stage1_trigs_py.bin` remains byte-identical to
    Python's 70-trigger list.
 6. **Bare `{}` borrows and resets `curpl`.** The variable-width decimal
-   byte-lane writer (ADR 0014, issue #87) is pointer-based: it seeds `curpl`
+   byte-lane writer (ADR 0014) is pointer-based: it seeds `curpl`
    with the dword holding the next content byte (`base + (pos >> 2)`), keeps
    `curpl = base + (pos >> 2)` after every emitted byte by advancing one dword
    on lane-3 wraps, and emits `SetDeaths(EPD_CURRENT_PLAYER, SetTo, 0, 0)` at
@@ -55,8 +55,8 @@ the map blank. eudplib's finalizer resets it in `inj_finalizer.py`.
    takes a constant int EPD and its `restore()` only re-anchors the cursor
    (a no-op at offset 0); `with_epd` takes a runtime EPD and restores the
    ambient CurrentPlayer value unconditionally
-   ([ADR 0029](./0029-runtime-epd-addressing.md) §7). The C7 writer and the
-   per-loop reset above keep their cursor-only/resting-0 behavior.
+   ([ADR 0029](./0029-runtime-epd-addressing.md) §7). The cursor-only writer
+   and the per-loop reset above keep their cursor-only/resting-0 behavior.
 
 ## Consequences
 

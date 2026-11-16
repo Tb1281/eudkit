@@ -1,6 +1,6 @@
-# displayAt relative-offset and cursor restore (supersedes owning semantics)
+# displayAt relative-offset and cursor restore
 
-Status: accepted (2026-11-05; supersedes owning experiment)
+Status: accepted (2026-11-05; supersedes the owning-cursor experiment)
 
 ## Context
 
@@ -29,15 +29,15 @@ Status: accepted (2026-11-05; supersedes owning experiment)
    Early `eudkit` ports mistakenly changed `Add, line` to `SetTo, line`.
    Writing to absolute slot `line` while restoring $P$ caused the rendered row $((line - P) \pmod{11})$ to shift whenever other messages scrolled ($P$ advanced).
 
-3. **The flawed ADR 0007 owning experiment**:
-   Believing the restore caused the drift, ADR 0007 removed the restore while keeping `SetTo, line`.
+3. **The flawed owning-cursor experiment**:
+   Believing the restore caused the drift, the first port removed the restore while keeping `SetTo, line`.
    Because each frame reset $P$ to 1 without restoring, $P$ never naturally advanced beyond 3 across frames:
    both `AAA` and `BBB` were frozen at the very bottom lines (Rows 9 and 10), and normal scrolling was broken.
 
 ## Decision
 
 1. **Parity with eudplib**:
-   Revert ADR 0007's owning semantics and restore `eudplib`'s exact relative-add and restore semantics:
+   Revert the owning semantics and restore `eudplib`'s exact relative-add and restore semantics:
    - Save current `0x640B58` (bits 8, 4, 2, 1) into `saved`.
    - If `line != 0`:
      - Add `line` to `0x640B58` (`Add, line`).
@@ -57,4 +57,4 @@ Status: accepted (2026-11-05; supersedes owning experiment)
 ## Consequences
 
 - `ts/string.ts` and `py/string.py` emit the save bit-tests, relative `Add`, modulo-11 `Subtract`, `DisplayText`, and the `saved` restore.
-- `ts/test_display_restore.ts`, `py/test_display_restore.py`, and `test_ticket9` assert transparency / restore-saved semantics.
+- `ts/test_display_restore.ts`, `py/test_display_restore.py`, and the `FixedString` restore test assert transparency / restore-saved semantics.
