@@ -1,11 +1,16 @@
 # Unit Iteration Strategies and Loop Primitives
 
-Status: accepted (2026-11-07; amended 2026-11-14)
+Status: accepted (2026-11-07; amended 2026-11-14, 2026-11-16)
 
 > **Amendment (2026-11-14):** corrected the `func()` note (implemented; backs the
 > shared field readers), the new-unit snapshot arithmetic (`4 + 336 × 1699 =
 > 570,868 B`), and the reader comparison: ~35–40T per live node is loop overhead,
 > `20T` the read alone; the §5 crossover is ~130–150 live units.
+
+> **Amendment (2026-11-16):** recorded the shipped `for_each_unit_list` /
+> `forEachUnitList` walk, its `UnitLoop` handle, and the `Break` sentinel, plus
+> `UnitGroup` compact mode; the remaining iteration primitives stay design
+> direction.
 
 ## Context
 
@@ -220,13 +225,14 @@ capacity. The default remains `compact=False`.
 
 ### 9. Upstream reader shape
 
-Eudkit lands first, using eudplib as reference; the upstream hand-off is two
-candidates, both **opt-in new functions with tests**, never in-place changes to
-`EUDLoopUnit2`:
+Eudkit lands first, using eudplib as reference; the upstream implementation
+has two candidates, both **opt-in new functions with tests**, never in-place
+changes to `EUDLoopUnit2`:
 
-1. **20T executed pointer reader — implemented in eudkit; upstream hand-off is
-   still a candidate.** The CUnit slot pool is `[0x59CCA8, 0x628297]`: 1699
-   slots of 336 bytes, slot starts 84 dwords apart. In shifted pointer space
+1. **20T executed pointer reader — implemented in eudkit; upstream
+   implementation is still a candidate.** The CUnit slot pool is
+   `[0x59CCA8, 0x628297]`: 1699 slots of 336 bytes, slot starts 84 dwords
+   apart. In shifted pointer space
    `S = A >> 2`, slot starts span `[0x16732A, 0x18A052]`
    (`142,632 = 84 × 1698` dwords). Pool base / last slot start:
    `0x59CCA8` / `0x628148`; `EPD_BASE >> 2 = 0x1628D9`; `EPD(A) = S - 0x1628D9`

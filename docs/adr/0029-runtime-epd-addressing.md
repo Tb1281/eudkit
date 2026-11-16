@@ -171,10 +171,17 @@ exception. Nesting is LIFO because each call owns its own saved `Var` and
 scratch base: an inner call restores the outer binding, and the outer call
 restores the ambient value.
 
-The four CP restore policies — `with_cp`, `with_epd`, `PageSlotEPD`, and
-`memcpyEPD`/`memsetEPD` — are stated once in
-[GLOSSARY.md](../../GLOSSARY.md) under **CP (CurrentPlayer)**: `with_epd`
-restores the ambient pre-call value, always.
+The four CP restore policies:
+
+| surface | CP after the call |
+|---|---|
+| `with_cp` / `withCP` | cursor-only: re-anchored to the constant base when the cursor moved; a read at offset 0 can leave CP at `0` |
+| `with_epd` / `withEpd` | the ambient pre-call value, always |
+| `PageSlotEPD` read | `0` |
+| `memcpyEPD` / `memsetEPD` | the seed/advance end value (still clobbers) |
+
+[GLOSSARY.md](../../GLOSSARY.md) under **CP (CurrentPlayer)** restates the
+`with_cp`/`with_epd` split and links here for the full set.
 
 Cost: one full-dword ambient read (the shared reader is a 33T body or a call),
 one bind store, one restore, plus the optional one-act pre-hop — at most 36T

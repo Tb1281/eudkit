@@ -7,8 +7,8 @@ Status: accepted (2026-11-09; revised 2026-11-10)
 euddraft plugins can add files to the output MPQ from a trigger-exec hook:
 `bgmplayer.py` calls `MPQAddFile("bgm", data)` in `beforeTriggerExec`, and the
 future dataDumper port needs the same ability to ship data files. eudkit has
-no trigger-exec hook and no plugin system (user decision 2026-11-09), so the
-file must be recorded at build time instead.
+no trigger-exec hook and no plugin system by design, so the file must be
+recorded at build time instead.
 
 The map assembler already accepts `AssemblyOptions.queued_files`
 (`eudkit_map::mpq::QueuedFile` / `QueuedContent`), and the map tail applies
@@ -87,12 +87,13 @@ the dataDumper port to copy the plumbing.
 - **Embed the bytes in HIR.** Rejected: HIR is a reviewable text artifact and
   a diff unit; base64 audio or data blobs would swamp it and make goldens
   machine-specific.
-- **Add files from a trigger-exec hook.** Rejected: eudkit has no such hook
-  and the user decision against a plugin system stands.
+- **Add files from a trigger-exec hook.** Rejected: eudkit has no such hook,
+  and keeping plugin registration out of the runtime surface is a deliberate
+  design constraint.
 - **Keep it private to the BGM helper.** Rejected: the dataDumper port would
   duplicate the plumbing, and the acceptance criteria require a general
   surface.
 - **Resolve relative paths at frontend time.** Rejected: it would bake
   absolute build-machine paths into HIR and break reproducible dumps.
-- **A plugin/settings registry.** Rejected by the same 2026-11-09 decision;
+- **A plugin/settings registry.** Rejected for the same reason;
   a helper is a plain function, not a registered extension.

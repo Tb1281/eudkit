@@ -55,7 +55,7 @@ because the constant is re-masked to `1 & 0xE0 == 0` and the condition becomes
 
 The emitted-constant half is visible in the simulator. When `eudx == EUDX_MAGIC`
 it computes `lhs = raw_val & mask` and compares it to `rhs = amount`
-**unmasked** (`crates/eudkit-lir/src/lib.rs:891-905`). The field path already
+**unmasked** (`crates/eudkit-lir/src/lib.rs`). The field path already
 emits `(c << shift) & 0xFFFFFFFF`; the `Var` path emitted `c & bitMask`, which is
 what breaks ordering thresholds on masks that are not a low-bit-aligned suffix.
 
@@ -68,12 +68,12 @@ Masked-`Var` comparisons are in **raw lane units**. The compared value is
 `max = bitMask & 0xFFFFFFFF`. `shift` is a **field-surface** concept and is
 **not** applied to struct-field `Var`s: `TriggerStruct.instantiate` turns a field
 into `Var(init, explicit_id=vid, explicit_mask=fmeta.mask, storage="page")`
-(`py/struct.py:295-298`; `ts/struct.ts:203` builds
+(`py/struct.py`; `ts/struct.ts` builds
 `new VarImpl(initConst, vid, fmeta.mask, "page")`) and **drops
 `FieldSpec.shift`**.
 
 This is consistent with how `set`, `iadd`, and struct init already mask — "the
-`bit(3,5)` init must already be shifted" (`py/tests/test_lazy_struct.py:155`).
+`bit(3,5)` init must already be shifted" (`py/tests/test_lazy_struct.py`).
 It differs from the field surfaces only because those compare in field units,
 `(raw & bitMask) >> shift`; that difference is the point of stating the
 convention.
@@ -110,7 +110,7 @@ Only constants outside the space fold, so well-formed HIR is unchanged.
 
 The condition carries `c = rhs & 0xFFFFFFFF`, **not** `c & bitMask`. The
 simulator compares `lhs = raw & mask` against `rhs = amount` unmasked
-(`crates/eudkit-lir/src/lib.rs:891-905`), exactly as the field path already
+(`crates/eudkit-lir/src/lib.rs`), exactly as the field path already
 emits. Re-masking the constant is what changes ordering thresholds on masks that
 are not a low-bit-aligned suffix — the 8 re-masking rows in the Context.
 

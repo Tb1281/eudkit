@@ -118,7 +118,7 @@ the trip is unconditional and fires in the same loop as the body gate. That
 made the body run once, while gated `until` forms stayed exclusive.
 
 `Always()` is reachable: it is condtype 22, not an empty cond list.
-`ConstFixedArrayValue._cmp` (`py/array.py:363`, TS mirror) and masked-`Var`
+`ConstFixedArrayValue._cmp` (`py/array.py`, TS mirror) and masked-`Var`
 folds return it, and `_normalize_conds` wraps it as `[Always]`. A narrow
 `conds.is_empty()` predicate would miss those paths, so the predicate includes
 all-`Always` lists.

@@ -88,7 +88,7 @@ An id above `0xFFFF` is a loud `EUDSL-BOUNDS` at assembly
 outside `0..=16` is rejected the same way (shift `24` would silently drop the
 top byte of a 16-bit id). This contrasts with
 `MemFieldHandle.act_set`, which masks a constant into its lane without a range
-check (the carve-out framed in ADR 0019 §5): here the value is not a
+check (the carve-out framed in ADR 0019 §4): here the value is not a
 user-written constant but a compiler-derived id, so exceeding the field's
 domain is a compiler bug or an impossible string table, and both deserve a
 build failure.

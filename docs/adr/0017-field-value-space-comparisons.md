@@ -24,10 +24,10 @@ The corrected rule now lives in code: `_field_value_space` (Python) /
 `fieldValueSpace` (TypeScript) derives the space, and `_fold_ordering` /
 `foldOrdering` folds constants outside it. The negative-constant decision had
 its only written explanation in a test docstring
-(`py/tests/test_deferred_cond.py:1633-1641`,
-`ts/tests/test_deferred_cond.ts:1458-1461`). Neither the term nor the decision
-was discoverable from the docs. `GLOSSARY.md` now defines **field value
-space**, and this ADR records the decision and its migration.
+(`py/tests/test_deferred_cond.py`, `ts/tests/test_deferred_cond.ts`). Neither
+the term nor the decision was discoverable from the docs. `GLOSSARY.md` now
+defines **field value space**, and this ADR records the decision and its
+migration.
 
 ## Decision
 
@@ -99,7 +99,8 @@ path, the change is 3T / 1C / 4A / 7,224 B → 2T / 1C / 2A / 4,816 B.
 ### 5. The HIR pin
 
 The rule is pinned by `test_ordering_representable_hir_sha_unchanged`
-(`py/tests/test_deferred_cond.py:1857-1886`). Its input is a 13-condition
+(`test_ordering_representable_hir_sha_unchanged` in
+`py/tests/test_deferred_cond.py`). Its input is a 13-condition
 fixture: `SetDeaths(3000, SetTo, 0x12345678, 0)`; `WordAt2.w`
 (`FieldSpec(2, 2)`) compared with `eq(3)`, `ne(5)`, `ge(6)`, `le(0xFFFF)`,
 `gt(2)`, `lt(9)`; `TriggerFieldRef(-1, 22, 2, 0, value.id, None)` with the same

@@ -61,9 +61,9 @@ names the full domain; folding, range checks, and `int`/`Var` HIR are unchanged.
 `code` plus a stable substring (`must be a plain integer` or `integer constant,
 a Var, or an Expr`), never the whole sentence; prefixes and examples vary. py
 names the type (`got a float`), ts the value (`got 1.5`), and the HIR-record
-shape uses a semicolon. py guards every non-plain-int struct init at
-`py/struct.py:295-301`; ts routes non-numbers through `fieldVars[k].set(v)`
-(`ts/struct.ts:250-256`), naming `Var.set`.
+shape uses a semicolon. py guards every non-plain-int struct init in
+`py/struct.py`; ts routes non-numbers through `fieldVars[k].set(v)`
+(`ts/struct.ts`), naming `Var.set`.
 
 **Absolute dword addresses must be 4-byte aligned.** A whole-dword access names
 `EPD_BASE + 4 * epd`, so an unaligned `addr` is rejected eagerly with
@@ -104,10 +104,10 @@ because `MemViewInstance.__setattr__` treated the returned handle as a value; it
 now builds one act, HIR-identical to `u.hp.act_add(1)`.
 
 **Const-array narrowing.** `ConstFixedArrayValue` is integer-convertible
-(`py/array.py:377,380`), so `FixedArray.const([arr.get(0), 5])` built `[3, 5]`
+(`py/array.py`), so `FixedArray.const([arr.get(0), 5])` built `[3, 5]`
 and `CUnit(1000).hp.eq(arr.get(0))` folded a runtime table read. Both now raise
 `EUDSL-TYPE`. The guard is not widened to `operator.index()` / `__index__`:
-`TriggerFieldRef` is `__index__`-able (`py/view.py:349-352`), so that would
+`TriggerFieldRef` is `__index__`-able (`py/view.py`), so that would
 re-admit field references as silent operands. The only check is
 `_require_plain_int`. **Migration: write an integer**; no existing test passes a
 bool, float, string, or `None` to these surfaces, so the suites do not move.
@@ -119,7 +119,7 @@ These are not tightened; each is an API-shape decision, not a coercion hole.
 - **Same-field assignment is a no-op, py**: `MemViewInstance.__setattr__`
   ignores a write-back of a handle for the *same* field (compared on
   `schema`/`spec`/`baseEpd`, since `__getattr__` allocates a fresh handle),
-  mirroring `TriggerStructInstance.__setattr__` (`py/struct.py:192-209`). This
+  mirroring `TriggerStructInstance.__setattr__` (`py/struct.py`). This
   makes `u.hp += 1` work; `u.hp = u.shield` and `u.hp = 1.5` still raise. The
   base check is identity plus plain-int equality, never `==` on a `Var` base
   (whose `__eq__` returns a `DeferredCond`).
@@ -196,6 +196,6 @@ These are not tightened; each is an API-shape decision, not a coercion hole.
   claim held only for truncating rows — TS builds `Exactly 0` for `"abc"` /
   `NaN` / `undefined` / `null` while py raises.
 - **(f) Widen the guard to `__index__` / `operator.index()`.** Rejected:
-  `TriggerFieldRef` is `__index__`-able (`py/view.py:349-352`), so
+  `TriggerFieldRef` is `__index__`-able (`py/view.py`), so
   `f += other_field` would silently read a build-time `initialValue` into a
   lane — the exact defect class this ADR removes.

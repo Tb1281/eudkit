@@ -4,12 +4,12 @@ Status: accepted (2026-11-16)
 
 ## Context
 
-The article this wave follows matches a player's StarCraft nickname by
-comparing the name field against candidate strings. eudkit could already read
-and write arbitrary EPDs, but it had no name-table helpers and no way to
-express "the first candidate that matches this player's name" without hand
--writing a chain. The article's own version also shipped a prefix bug: a
-record containing `"Armoha"` matched the candidate `"Armo"`.
+A player's StarCraft nickname is matched by comparing the name field against
+candidate strings. eudkit could already read and write arbitrary EPDs, but it
+had no name-table helpers and no way to express "the first candidate that
+matches this player's name" without hand-writing a chain. A matcher that
+compares only the leading bytes also has a prefix bug: a record containing
+`"Armoha"` matched the candidate `"Armo"`.
 
 This ADR records the table layout, the byte contract, the mask that makes the
 match exact, the build-time unroll (layout A), and why the runtime byte reader
@@ -42,7 +42,7 @@ and raise only `EUDSL-TYPE` (non-plain-int) or `EUDSL-RANGE` (outside `0..11`).
 
 A nickname is matched as the exact byte sequence that `encode_utf8(name,
 "nickname")` produces — the same encoding authority `FixedString` uses (ADR
-0003, T-UTF8). There is no second encoder in the matcher, and no locale or
+0003). There is no second encoder in the matcher, and no locale or
 code-page conversion. A consequence is that non-ASCII names compare byte for
 byte: `"마린"` is `EB A7 88 EB A6 B0`, so its first dword is `0xEB88A7EB` and
 the word holding the NUL is `0xB0A6` under a `0xFFFFFF` mask.
@@ -106,7 +106,7 @@ unique; a `set` is `EUDSL-TYPE` because its order is not deterministic), then
 
 ### 5. Layout C is deferred, not omitted
 
-Layout C is the article's runtime byte reader: one loop walking a
+Layout C is a runtime byte reader: one loop walking a
 NUL-separated name database, comparing bytes, with `O(bytes)` executed cost
 and `O(1)` static cost per name. Expressing it needs `SetNextPtr`-style
 trigger rewiring or a runtime pointer patch so the walk can resume at the next
@@ -150,10 +150,10 @@ messages, local state) or accept the desync.
 ## Rejected alternatives
 
 - **Matching a prefix or substring "for convenience."** The NUL-inclusive
-  mask is the correctness property; the article's own Armo/Armoha bug is the
+  mask is the correctness property; the Armo/Armoha prefix bug is the
   counter-example.
-- **Re-encoding nicknames locally.** T-UTF8 is the encoding authority; a local
-  encoder would drift from `FixedString`.
+- **Re-encoding nicknames locally.** `encode_utf8` remains the encoding
+  authority (ADR 0003); a local encoder would drift from `FixedString`.
 - **Comparing the full 36-byte record.** Bytes after the NUL are unspecified
   padding, so a match would fail on trailing garbage.
 - **Shipping layout C behind a flag.** It still needs rejected
