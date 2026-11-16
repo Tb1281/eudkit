@@ -43,6 +43,7 @@ import {
 } from "../location.ts";
 import { LOCATION_STRIDE_DWORDS, LOCATION_TABLE_ADDR } from "../camera.ts";
 import { EPD } from "../view.ts";
+import { readDword, runSim } from "./helpers.ts";
 
 // `tsc` pins §3.2 by assigning each export to its declared signature.
 const _locationAddr: (location: number) => number = locationAddr;
@@ -264,14 +265,26 @@ test("setRect checks order for constants", () => {
   );
 });
 
-test("add skips zero constants", () => {
-  const one = acts(moduleOf(() => new Location(7).add(0, 5)));
-  assert.equal(one.length, 1);
-  assert.deepEqual([one[0].dest, one[0].modifier, one[0].value], [
-    locationEpd(7) + 1,
-    Add,
-    5,
-  ]);
+test("add mirrors two coordinates into four dwords and skips zero constants", () => {
+  const mirrored = acts(moduleOf(() => new Location(7).add(0, 5)));
+  assert.deepEqual(
+    mirrored.map((act) => [act.dest, act.modifier, act.value]),
+    [
+      [locationEpd(7) + 1, Add, 5],
+      [locationEpd(7) + 3, Add, 5],
+    ],
+  );
+
+  const two = acts(moduleOf(() => new Location(7).add(5, 6)));
+  assert.deepEqual(
+    two.map((act) => [act.dest, act.modifier, act.value]),
+    [
+      [locationEpd(7), Add, 5],
+      [locationEpd(7) + 1, Add, 6],
+      [locationEpd(7) + 2, Add, 5],
+      [locationEpd(7) + 3, Add, 6],
+    ],
+  );
 
   const four = acts(moduleOf(() => new Location(7).add(1, 2, 3, 4)));
   assert.deepEqual(
@@ -377,6 +390,23 @@ test("runtime coordinates store values, not addresses", () => {
         act.dest < locationEpd(7) + 4,
     ),
   );
+});
+
+test("runtime id epd recomputes after the id var changes", () => {
+  const report = runSim(
+    buildModule(() => {
+      const ident = Var(3);
+      const loc = new Location(ident);
+      loc.set(10, 20);
+      ident.set(4);
+      loc.set(30, 40);
+    }).toJson(),
+    1,
+  );
+  const read = (id: number): number[] =>
+    [0, 1, 2, 3].map((offset) => readDword(report, locationEpd(id) + offset));
+  assert.deepEqual(read(3), [10, 20, 10, 20]);
+  assert.deepEqual(read(4), [30, 40, 30, 40]);
 });
 
 test("constant index protocols", () => {

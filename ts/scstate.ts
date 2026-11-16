@@ -45,30 +45,38 @@ export const UPGRADE_STATE_BW_STRIDE = 15;
 
 export const MAX_PLAYER_ID = 11;
 
-/** `[scCount, scBase, bwBase, scStride, bwStride]` for one id domain. */
-type Split = readonly [number, number, number, number, number];
+/** The SC/BW bases, counts, and strides for one id domain. */
+interface Split {
+  readonly scCount: number;
+  readonly scBase: number;
+  readonly bwBase: number;
+  readonly scStride: number;
+  readonly bwStride: number;
+}
 
-const TECH_SPLIT: Split = [
-  TECH_SC_COUNT,
-  TECH_STATE_SC_BASE,
-  TECH_STATE_BW_BASE,
-  TECH_STATE_SC_STRIDE,
-  TECH_STATE_BW_STRIDE,
-];
+const TECH_SPLIT: Split = {
+  scCount: TECH_SC_COUNT,
+  scBase: TECH_STATE_SC_BASE,
+  bwBase: TECH_STATE_BW_BASE,
+  scStride: TECH_STATE_SC_STRIDE,
+  bwStride: TECH_STATE_BW_STRIDE,
+};
 
-const UPGRADE_SPLIT: Split = [
-  UPGRADE_SC_COUNT,
-  UPGRADE_STATE_SC_BASE,
-  UPGRADE_STATE_BW_BASE,
-  UPGRADE_STATE_SC_STRIDE,
-  UPGRADE_STATE_BW_STRIDE,
-];
+const UPGRADE_SPLIT: Split = {
+  scCount: UPGRADE_SC_COUNT,
+  scBase: UPGRADE_STATE_SC_BASE,
+  bwBase: UPGRADE_STATE_BW_BASE,
+  scStride: UPGRADE_STATE_SC_STRIDE,
+  bwStride: UPGRADE_STATE_BW_STRIDE,
+};
 
 /** `[base + indexOffset, playerStride]` for one id in a split table. */
 function scBwSlot(index: number, split: Split): [number, number] {
-  const [scCount, scBase, bwBase, scStride, bwStride] = split;
-  if (index < scCount) return [scBase + index, scStride];
-  return [bwBase + (index - scCount), bwStride];
+  if (index < split.scCount) return [split.scBase + index, split.scStride];
+  return [
+    split.bwBase + (index - split.scCount),
+    split.bwStride,
+  ];
 }
 
 function requireCount(value: unknown, what: string, maximum: number): number {
@@ -161,29 +169,31 @@ function maskedWrite(epd: number | VarImpl, value: number, shift: number): void 
   });
 }
 
-/** Read the byte at `addr` through a four-arm lane dispatch. */
-function laneRead(addr: VarImpl): VarImpl {
+/** Bind the dword EPD of `addr` and dispatch to its byte lane. */
+function withLane(addr: VarImpl, body: (lane: number) => void): void {
   const epd = addrEpd(addr);
   const lane = new Var(0);
   lane.set(addr.bitAnd(3));
-  const out = new Var(0);
   withEpd(epd, () => {
     for (let k = 0; k < 4; k += 1) {
-      when(lane.eq(k), () => out.set(maskedRead(CURRENT_PLAYER, 8 * k)));
+      when(lane.eq(k), () => body(k));
     }
+  });
+}
+
+/** Read the byte at `addr` through a four-arm lane dispatch. */
+function laneRead(addr: VarImpl): VarImpl {
+  const out = new Var(0);
+  withLane(addr, (k) => {
+    out.set(maskedRead(CURRENT_PLAYER, 8 * k));
   });
   return out;
 }
 
 /** Write `level` to the byte at `addr` through four lane arms. */
 function laneWrite(addr: VarImpl, level: number): void {
-  const epd = addrEpd(addr);
-  const lane = new Var(0);
-  lane.set(addr.bitAnd(3));
-  withEpd(epd, () => {
-    for (let k = 0; k < 4; k += 1) {
-      when(lane.eq(k), () => maskedWrite(CURRENT_PLAYER, level, 8 * k));
-    }
+  withLane(addr, (k) => {
+    maskedWrite(CURRENT_PLAYER, level, 8 * k);
   });
 }
 

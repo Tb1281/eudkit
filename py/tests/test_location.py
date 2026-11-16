@@ -41,6 +41,7 @@ from py.location import (
     locationEpd,
     setRect,
 )
+from py.tests.helpers import read_dword, run_sim
 from py.view import EPD, EudslError
 
 #: §3.1 — the module-level camelCase aliases point at the same objects.
@@ -49,6 +50,8 @@ ALIASES: tuple[tuple[Any, Any], ...] = (
     (locationEpd, location_epd),
     (getlocTl, getloc_tl),
     (setRect, Location.set_rect),
+    (Location.setRect, Location.set_rect),
+    (Location.topLeft, Location.top_left),
     (drawCircle, draw_circle),
     (drawLine, draw_line),
     (drawPolygon, draw_polygon),
@@ -65,6 +68,7 @@ EXPECTED_ALL = [
     "location_epd",
     "locationEpd",
     "Location",
+    "setRect",
     "getloc_tl",
     "getlocTl",
     "draw_circle",
@@ -198,13 +202,26 @@ class SetTest(unittest.TestCase):
 
 class MutatorTest(unittest.TestCase):
     def test_add_skips_zero_constants(self) -> None:
-        one = _acts(_module(lambda: Location(7).add(0, 5)))
-        self.assertEqual(len(one), 1)
-        self.assertEqual((one[0]["dest"], one[0]["modifier"], one[0]["value"]), (
-            location_epd(7) + 1,
-            Add,
-            5,
-        ))
+        mirrored = _acts(_module(lambda: Location(7).add(0, 5)))
+        self.assertEqual(
+            [(act["dest"], act["modifier"], act["value"]) for act in mirrored],
+            [
+                (location_epd(7) + 1, Add, 5),
+                (location_epd(7) + 3, Add, 5),
+            ],
+        )
+
+    def test_two_coordinate_add_mirrors_into_four_dwords(self) -> None:
+        acts = _acts(_module(lambda: Location(7).add(5, 6)))
+        self.assertEqual(
+            [(act["dest"], act["modifier"], act["value"]) for act in acts],
+            [
+                (location_epd(7), Add, 5),
+                (location_epd(7) + 1, Add, 6),
+                (location_epd(7) + 2, Add, 5),
+                (location_epd(7) + 3, Add, 6),
+            ],
+        )
 
         four = _acts(_module(lambda: Location(7).add(1, 2, 3, 4)))
         self.assertEqual(
@@ -327,6 +344,24 @@ class RuntimeOperandTest(unittest.TestCase):
             )
         )
 
+    def test_runtime_id_epd_recomputes_after_the_id_var_changes(self) -> None:
+        def body() -> None:
+            ident = Var(3)
+            loc = Location(ident)
+            loc.set(10, 20)
+            ident.set(4)
+            loc.set(30, 40)
+
+        report = run_sim(build_module(body).to_json(), 1)
+        self.assertEqual(
+            [read_dword(report, location_epd(3) + offset) for offset in range(4)],
+            [10, 20, 10, 20],
+        )
+        self.assertEqual(
+            [read_dword(report, location_epd(4) + offset) for offset in range(4)],
+            [30, 40, 30, 40],
+        )
+
     def test_constant_index_protocols(self) -> None:
         loc = Location(7)
         self.assertEqual(int(loc), 7)
@@ -424,6 +459,11 @@ class SurfaceTest(unittest.TestCase):
     def test_every_camel_case_alias_is_the_snake_case_twin(self) -> None:
         for camel, snake in ALIASES:
             self.assertIs(camel, snake)
+
+    def test_class_camel_case_aliases_are_the_same_objects(self) -> None:
+        self.assertIs(Location.setRect, Location.set_rect)
+        self.assertIs(Location.topLeft, Location.top_left)
+        self.assertIn("setRect", location_module.__all__)
 
     def test_no_trigger_rewiring_primitives(self) -> None:
         source = location_module.__file__

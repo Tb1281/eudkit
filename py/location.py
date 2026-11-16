@@ -118,7 +118,6 @@ class Location:
 
     def __init__(self, location: LocationOperand) -> None:
         self._id = _require_id(location, "Location()")
-        self._epd: Var | None = None
 
     @property
     def id(self) -> int | Var:
@@ -126,20 +125,23 @@ class Location:
 
     @property
     def epd(self) -> int | Var:
+        """EPD of the record, recomputed for a runtime id on every access."""
         if _is_plain_int(self._id):
             return location_epd(self._id)
-        if self._epd is None:
-            epd = Var(0)
-            epd.set(self._id.mul(LOCATION_STRIDE_DWORDS))
-            epd.iadd(EPD(LOCATION_TABLE_ADDR))
-            self._epd = epd
-        return self._epd
+        epd = Var(0)
+        epd.set(self._id.mul(LOCATION_STRIDE_DWORDS))
+        epd.iadd(EPD(LOCATION_TABLE_ADDR))
+        return epd
 
     @property
     def addr(self) -> int | None:
         return location_addr(self._id) if _is_plain_int(self._id) else None
 
-    def _read_many(self, offsets: Sequence[int]) -> dict[int, Var]:
+    def _read_many(
+        self,
+        offsets: Sequence[int],
+        base_epd: Var | None = None,
+    ) -> dict[int, Var]:
         """Read several record dwords, binding CP once for a runtime id."""
         if _is_plain_int(self._id):
             base = self.epd
@@ -151,7 +153,7 @@ class Location:
             for offset in offsets:
                 out[offset] = cp.at(offset).read()  # type: ignore[attr-defined]
 
-        with_epd(self.epd, body)
+        with_epd(self.epd if base_epd is None else base_epd, body)
         return out
 
     def _apply(self, entries: Sequence[tuple[int, int | Var, int]]) -> None:
@@ -164,7 +166,17 @@ class Location:
             and not (_is_plain_int(value) and value == 0)
             and (runtime_id or not _is_plain_int(value))
         }
-        current = self._read_many(sorted(need_read)) if need_read else {}
+        runtime_epd: Var | None = None
+        if runtime_id:
+            for _offset, value, modifier in entries:
+                if modifier == _SET or not (
+                    _is_plain_int(value) and value == 0
+                ):
+                    runtime_epd = self.epd
+                    break
+        current = (
+            self._read_many(sorted(need_read), runtime_epd) if need_read else {}
+        )
         base_addr = None if runtime_id else location_addr(self._id)  # type: ignore[arg-type]
 
         for offset, value, modifier in entries:
@@ -184,7 +196,12 @@ class Location:
                 else:
                     total.isub(value)
                 stored = total
-            memsetEPD(self.epd + offset, stored, 1)  # type: ignore[operator]
+            dest = (
+                runtime_epd + offset
+                if runtime_epd is not None
+                else self.epd + offset  # type: ignore[operator]
+            )
+            memsetEPD(dest, stored, 1)
 
     @staticmethod
     def _coords(coords: Sequence[CoordOperand], what: str) -> tuple[int | Var, ...]:
@@ -224,12 +241,16 @@ class Location:
     def add(self, *coords: CoordOperand) -> None:
         """Add to the record, skipping zero constants.
 
-        ``add(x, y)`` adjusts the top-left corner; ``add(l, t, r, b)`` adjusts
-        all four dwords.
+        ``add(x, y)`` mirrors the point across all four dwords as
+        ``(x, y, x, y)``; ``add(l, t, r, b)`` adjusts each dword.
         """
         values = self._coords(coords, "Location.add()")
-        offsets = (0, 1) if len(values) == 2 else (0, 1, 2, 3)
-        self._apply([(offset, values[offset], _ADD) for offset in offsets])
+        if len(values) == 2:
+            x, y = values
+            values = (x, y, x, y)
+        self._apply(
+            [(offset, value, _ADD) for offset, value in enumerate(values)]
+        )
 
     def dilate(self, *coords: CoordOperand) -> None:
         """Grow the record by ``(-l, -t, +r, +b)``; ``dilate(x, y)`` mirrors."""
@@ -285,6 +306,9 @@ class Location:
         """Return ``(left, top)`` -- the code's order, not eudplib's docstring."""
         values = self._read_many((0, 1))
         return values[0], values[1]
+
+    setRect = set_rect
+    topLeft = top_left
 
     def __int__(self) -> int:
         if not _is_plain_int(self._id):
@@ -597,6 +621,7 @@ __all__ = [
     "location_epd",
     "locationEpd",
     "Location",
+    "setRect",
     "getloc_tl",
     "getlocTl",
     "draw_circle",

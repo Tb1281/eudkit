@@ -221,6 +221,18 @@ class CUnitViewConstantTests(unittest.TestCase):
         self.assertEqual(out["owner"].epd, BASE + 19)
         self.assertEqual(out["status"].epd, BASE + 55)
 
+    def test_read_by_name_matches_the_field_handle(self) -> None:
+        for name in ("hp", "owner", "statusFlags"):
+            with self.subTest(name=name):
+                self.assertEqual(
+                    build_module(
+                        lambda name=name: CUnitView(BASE).read(name)
+                    ).to_json(),
+                    build_module(
+                        lambda name=name: CUnitView(BASE).field(name).read()
+                    ).to_json(),
+                )
+
     def test_unknown_field(self) -> None:
         def prog() -> None:
             CUnitView(BASE).field("nope")
@@ -311,6 +323,34 @@ class CUnitViewConstantTests(unittest.TestCase):
 
 
 class CUnitViewRuntimeTests(unittest.TestCase):
+    def test_read_at_runtime_epd_uses_cp_with_the_field_window(self) -> None:
+        module = _module(lambda: CUnitView(Var(BASE)).read("owner"))
+        conditions = [
+            cond
+            for stmt in flatten_stmts(module["stmts"])
+            for cond in stmt.get("conds", [])
+        ]
+        self.assertEqual(
+            {
+                cond["locid"]
+                for cond in conditions
+                if cond["player"] == 13 and cond["locid"]
+            },
+            {1 << bit for bit in range(8)},
+        )
+
+        full = _module(lambda: CUnitView(Var(BASE)).read("hp"))
+        full_conditions = [
+            cond
+            for func in full.get("funcs", [])
+            for stmt in flatten_stmts(func["body"])
+            for cond in stmt.get("conds", [])
+        ]
+        self.assertTrue(
+            any(cond["player"] == 13 for cond in full_conditions),
+            "the full-dword read must gate on the CP-bound dword",
+        )
+
     def test_runtime_masked_write_uses_a_pointer_and_varstore(self) -> None:
         module = _module(lambda: CUnitView(Var(BASE)).give_to(2))
         statements = flatten_stmts(module["stmts"])
@@ -375,6 +415,24 @@ class CUnitViewRuntimeTests(unittest.TestCase):
         self.assertEqual(len(_module(lambda: CUnitView(BASE).prev_unit())["stmts"]), 20)
         self.assertEqual(len(_module(lambda: CUnitView(BASE).sprite_epd())["stmts"]), 32)
         self.assertEqual(len(_module(lambda: CUnitView(BASE).is_burrowed())["stmts"]), 2)
+
+
+class CUnitViewAliasTests(unittest.TestCase):
+    def test_camel_case_methods_are_the_snake_case_twins(self) -> None:
+        for camel, snake in (
+            ("nextUnit", "next_unit"),
+            ("prevUnit", "prev_unit"),
+            ("spriteEpd", "sprite_epd"),
+            ("isBurrowed", "is_burrowed"),
+            ("setInvincible", "set_invincible"),
+            ("giveTo", "give_to"),
+            ("setColor", "set_color"),
+            ("setLocation", "set_location"),
+        ):
+            with self.subTest(camel=camel):
+                self.assertIs(
+                    getattr(CUnitView, camel), getattr(CUnitView, snake)
+                )
 
 
 class PoolNullTests(unittest.TestCase):
