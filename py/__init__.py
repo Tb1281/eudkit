@@ -42,6 +42,7 @@ from .view import (
     EudslError,
     EudslWarning,
     FieldSpec,
+    GROUP_FLAGS_TARGET,
     GroupFlags,
     MemCond,
     MemFieldHandle,
@@ -126,6 +127,7 @@ from .camera import (
     camera_follow,
 )
 from .mathf import (
+    MathOperand,
     TRIG_TABLE_Q,
     TRIG_TABLE_SCALE,
     atan2,
@@ -156,6 +158,7 @@ from .mathf import (
     pow_int,
 )
 from .random import (
+    RandSeed,
     LCG_INC,
     LCG_MULT,
     dwRand,
@@ -386,6 +389,8 @@ from .player import (
     user_player,
 )
 from .location import (
+    CoordOperand,
+    LocationOperand,
     LOCATION_COUNT,
     LOCATION_RECORD_DWORDS,
     Location,
@@ -405,6 +410,7 @@ from .location import (
     location_epd,
 )
 from .scstate import (
+    PlayerOperand,
     MAX_PLAYER_ID,
     TECH_COUNT,
     TECH_SC_COUNT,
@@ -616,6 +622,7 @@ __all__ = [
     "camera_follow",
     "TRIG_TABLE_Q",
     "TRIG_TABLE_SCALE",
+    "MathOperand",
     "atan2",
     "atan2Fixed8",
     "atan2_256",
@@ -644,6 +651,7 @@ __all__ = [
     "pow_int",
     "LCG_INC",
     "LCG_MULT",
+    "RandSeed",
     "dwRand",
     "dwrand",
     "getSeed",
@@ -1000,7 +1008,9 @@ __all__ = [
     "userPlayer",
     "user_player",
     "AvailabilityFlags",
+    "CURRENT_PLAYER",
     "CUnitView",
+    "GROUP_FLAGS_TARGET",
     "GroupFlags",
     "ObjectPool",
     "POOL_NULL",
@@ -1020,6 +1030,8 @@ __all__ = [
     "write_mask",
     "LOCATION_COUNT",
     "LOCATION_RECORD_DWORDS",
+    "CoordOperand",
+    "LocationOperand",
     "Location",
     "drawCircle",
     "drawLine",
@@ -1036,6 +1048,7 @@ __all__ = [
     "location_addr",
     "location_epd",
     "MAX_PLAYER_ID",
+    "PlayerOperand",
     "TECH_COUNT",
     "TECH_SC_COUNT",
     "TECH_STATE_BW_BASE",
