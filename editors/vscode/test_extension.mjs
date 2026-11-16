@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 import Module, { createRequire } from "node:module";
 import os from "node:os";
@@ -151,7 +152,55 @@ test("untrusted workspace ignores workspace settings and binaries", (t) => {
   });
   state.vscode = vscode;
   const extension = loadExtension();
-  assert.equal(extension.resolveServerCommand(), "eudkit-lsp");
+  const options = extension.resolveServerOptions({ wasmPath: path.join(directory, "missing.wasm") });
+  assert.equal(options.command, process.platform === "win32" ? "eudkit-lsp.exe" : "eudkit-lsp");
+});
+
+test("resolves executable on PATH before bundled wasm fallback", (t) => {
+  const directory = tempWorkspace(t);
+  const binDir = path.join(directory, "bin");
+  fs.mkdirSync(binDir, { recursive: true });
+  const binaryName = process.platform === "win32" ? "eudkit-lsp.exe" : "eudkit-lsp";
+  const onPath = path.join(binDir, binaryName);
+  fs.writeFileSync(onPath, "");
+  fs.chmodSync(onPath, 0o755);
+
+  const prevPath = process.env.PATH;
+  process.env.PATH = binDir;
+  t.after(() => {
+    process.env.PATH = prevPath;
+  });
+
+  const { vscode } = makeVscode({ trusted: true, folders: [] });
+  state.vscode = vscode;
+  const extension = loadExtension();
+  const options = extension.resolveServerOptions({
+    wasmPath: path.join(directory, "eudkit-lsp.wasm"),
+    runnerPath: path.join(directory, "wasm-server.js"),
+  });
+  assert.equal(options.command, onPath);
+});
+
+test("falls back to bundled wasm server when no native binary is found", (t) => {
+  const directory = tempWorkspace(t);
+  const wasmPath = path.join(directory, "eudkit-lsp.wasm");
+  const runnerPath = path.join(directory, "wasm-server.js");
+  fs.writeFileSync(wasmPath, "stub");
+  fs.writeFileSync(runnerPath, "stub");
+
+  const prevPath = process.env.PATH;
+  process.env.PATH = "";
+  t.after(() => {
+    process.env.PATH = prevPath;
+  });
+
+  const { vscode } = makeVscode({ trusted: true, folders: fileWorkspace(directory) });
+  state.vscode = vscode;
+  const extension = loadExtension();
+  const options = extension.resolveServerOptions({ wasmPath, runnerPath });
+  assert.equal(options.module, runnerPath);
+  assert.equal(options.transport, "stdio");
+  assert.deepEqual(options.options, { execArgv: ["--no-warnings"] });
 });
 
 test("untrusted workspace falls back to the global setting", (t) => {
@@ -236,4 +285,62 @@ test("concurrent restart requests are coalesced", async () => {
   await extension.deactivate();
 
   assert.equal(StubLanguageClient.instances.length, 2);
+});
+
+test("bundled wasm-server speaks JSON-RPC LSP over stdio when built", async (t) => {
+  const extDir = path.dirname(extensionPath);
+  const wasmPath = path.join(extDir, "eudkit-lsp.wasm");
+  const runnerPath = path.join(extDir, "wasm-server.js");
+  if (!fs.existsSync(wasmPath)) {
+    t.skip("eudkit-lsp.wasm not built (run `npm run build:wasm`)");
+    return;
+  }
+
+  function frame(message) {
+    const body = Buffer.from(JSON.stringify(message), "utf8");
+    return Buffer.concat([
+      Buffer.from(`Content-Length: ${body.length}\r\n\r\n`, "utf8"),
+      body,
+    ]);
+  }
+
+  const child = spawn(process.execPath, ["--no-warnings", runnerPath], {
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+
+  const stdoutChunks = [];
+  const stderrChunks = [];
+  child.stdout.on("data", (chunk) => stdoutChunks.push(chunk));
+  child.stderr.on("data", (chunk) => stderrChunks.push(chunk));
+
+  child.stdin.write(frame({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }));
+  child.stdin.write(frame({ jsonrpc: "2.0", method: "initialized", params: {} }));
+  child.stdin.write(
+    frame({
+      jsonrpc: "2.0",
+      method: "textDocument/didOpen",
+      params: {
+        textDocument: {
+          uri: "file:///test.ts",
+          languageId: "typescript",
+          version: 1,
+          text: "const s = FixedString(0);\n",
+        },
+      },
+    }),
+  );
+  child.stdin.write(frame({ jsonrpc: "2.0", id: 2, method: "shutdown", params: null }));
+  child.stdin.write(frame({ jsonrpc: "2.0", method: "exit", params: null }));
+  child.stdin.end();
+
+  const exitCode = await new Promise((resolve, reject) => {
+    child.on("error", reject);
+    child.on("close", resolve);
+  });
+
+  const stderr = Buffer.concat(stderrChunks).toString("utf8");
+  const stdout = Buffer.concat(stdoutChunks).toString("utf8");
+  assert.equal(exitCode, 0, `unexpected stderr: ${stderr}`);
+  assert.ok(stdout.includes('"serverInfo"'), `missing serverInfo: ${stdout}`);
+  assert.ok(stdout.includes("EUDSL-BOUNDS"), `missing diagnostics: ${stdout}`);
 });

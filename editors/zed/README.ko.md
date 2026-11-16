@@ -6,19 +6,24 @@ eudkit TypeScript 및 Python DSL용 언어 서버 [`eudkit-lsp`](../../crates/eu
 
 ## 사전 요구 사항
 
-- Zed 확장이 사용하는 WebAssembly 타깃이 포함된 Rust 툴체인:
+- 소스에서 **개발 확장(Install Dev Extension)** 으로 설치할 때는 Windows에서
+  WSL2 원격 프로젝트를 연 경우라도 **Zed UI가 실행되는 호스트 OS**에서 `rustc`와
+  `cargo`(및 `wasm32-wasip2` 타깃)를 실행합니다:
 
   ```sh
   rustup target add wasm32-wasip2
   ```
 
-- `eudkit-lsp` 바이너리. 저장소 루트에서 빌드합니다:
+- `eudkit-lsp` 바이너리는 다음 순서로 자동 탐색됩니다:
+  1. Zed 설정의 `lsp.eudkit-lsp.binary.path`.
+  2. `PATH` 상의 `eudkit-lsp`.
+  3. `Tb1281/eudkit` GitHub Releases에서 플랫폼에 맞는 릴리스 번들을 자동 다운로드.
+
+  로컬에서 `eudkit-lsp`를 직접 빌드하려면 저장소 루트에서 실행합니다:
 
   ```sh
   cargo build -p eudkit-lsp --release
   ```
-
-  생성된 `target/release/eudkit-lsp`를 `PATH`에 넣거나 아래 안내처럼 Zed 설정에 절대 경로를 지정하세요.
 
 ## 개발 확장으로 설치
 
@@ -27,7 +32,9 @@ eudkit TypeScript 및 Python DSL용 언어 서버 [`eudkit-lsp`](../../crates/eu
 3. 이 저장소의 `editors/zed` 디렉터리를 선택합니다.
 4. 확장이나 설정을 변경한 뒤에는 언어 서버를 재시작하거나 프로젝트를 다시 여세요.
 
-Zed는 `editors/zed`를 `wasm32-wasip2` 타깃의 독립 Cargo 패키지로 컴파일하며, 이 패키지는 저장소 루트 워크스페이스에 포함되지 않습니다.
+Zed는 미리 빌드된 `extension.wasm`이 있더라도 무시하고 호스트 OS에서 `editors/zed`를
+`wasm32-wasip2` 타깃의 독립 Cargo 패키지로 컴파일합니다(이 패키지는 저장소 루트
+워크스페이스에 포함되지 않습니다).
 
 ## Zed 설정
 
@@ -64,7 +71,9 @@ Zed는 `editors/zed`를 `wasm32-wasip2` 타깃의 독립 Cargo 패키지로 컴�
 }
 ```
 
-`arguments`와 `env`는 선택 사항이며, `binary.path`를 생략하면 `which("eudkit-lsp")`로 폴백합니다. 둘 다 찾지 못하면 Zed가 바이너리 설치 또는 `lsp.eudkit-lsp.binary.path` 설정을 안내하는 오류를 표시합니다.
+`arguments`와 `env`는 선택 사항이며, `binary.path`를 생략하면 `which("eudkit-lsp")`를
+확인한 뒤 없을 경우 `Tb1281/eudkit` GitHub Releases에서 플랫폼에 맞는 번들을
+자동으로 내려받습니다.
 
 ## 동작 방식
 

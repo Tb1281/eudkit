@@ -112,9 +112,10 @@ code --install-extension Tb1281.eudkit-lsp
 ```
 
 The extension source lives in [`editors/vscode/`](../editors/vscode/) and is
-packaged as `eudkit-vscode.vsix` on GitHub Releases. It auto-detects a
-workspace `target/{release,debug}/eudkit-lsp`, falls back to `PATH`, and honors
-the `eudkit.lsp.path` setting (global value only in untrusted workspaces).
+packaged as `eudkit-vscode.vsix` on GitHub Releases. It honors
+`eudkit.lsp.path` (global value only in untrusted workspaces), auto-detects a
+workspace `target/{release,debug}/eudkit-lsp` or `PATH` binary, and falls back
+to the bundled `eudkit-lsp.wasm` server when no native binary is present.
 
 The minimal local client below is a development fallback if you do not want to
 install the extension. VS Code has no built-in generic LSP client, so this

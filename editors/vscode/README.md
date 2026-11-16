@@ -4,21 +4,14 @@
 
 Completion, hover documentation, and capacity diagnostics for
 [eudkit](https://github.com/Tb1281/eudkit) TypeScript and Python DSL
-files. This extension is a thin client for the `eudkit-lsp` language server in
-the eudkit repository; it contains no DSL logic of its own.
+files. The extension bundles `eudkit-lsp` compiled to WebAssembly
+(`eudkit-lsp.wasm`), so installing the extension works out of the box with no
+separate binary download; it can also launch a local native `eudkit-lsp`
+binary when configured or available.
 
 ## Install
 
-1. Build the language server from an eudkit checkout:
-
-   ```sh
-   cargo build -p eudkit-lsp --release
-   ```
-
-   This produces `target/release/eudkit-lsp` (`eudkit-lsp.exe` on Windows). The
-   debug binary from `cargo build -p eudkit-lsp` works too.
-
-2. Install the extension from the VS Code Marketplace or Open VSX:
+1. Install the extension from the VS Code Marketplace or Open VSX:
 
    ```sh
    code --install-extension Tb1281.eudkit-lsp
@@ -32,11 +25,13 @@ the eudkit repository; it contains no DSL logic of its own.
    code --install-extension eudkit-vscode.vsix
    ```
 
-   To build it yourself from the checkout:
+2. (Optional) To build it yourself from the checkout (requires
+   `rustup target add wasm32-wasip1` to bundle `eudkit-lsp.wasm`):
 
    ```sh
    cd editors/vscode
    npm install
+   npm run build:wasm
    npx --yes @vscode/vsce@4.1.1 package --out eudkit-vscode.vsix
    code --install-extension eudkit-vscode.vsix
    ```
@@ -49,7 +44,7 @@ the eudkit repository; it contains no DSL logic of its own.
 
 ## Locating the server
 
-The extension resolves the `eudkit-lsp` binary in this order:
+The extension resolves `eudkit-lsp` in this order:
 
 1. The `eudkit.lsp.path` setting, if non-empty. In an untrusted workspace only
    the user-level value is honored; workspace-provided values are ignored.
@@ -57,6 +52,8 @@ The extension resolves the `eudkit-lsp` binary in this order:
    folder (`.exe` on Windows). This workspace lookup requires a trusted
    workspace.
 3. `eudkit-lsp` on `PATH`.
+4. The bundled `eudkit-lsp.wasm` server (executed via Node's built-in WASI
+   runtime inside VS Code's extension host).
 
 Set the path explicitly when the server lives outside the workspace:
 
@@ -89,6 +86,7 @@ limitations live in
 
 ```sh
 npm install
+npm run build:wasm
 npm test
 npx --yes @vscode/vsce@4.1.1 package --out eudkit-vscode.vsix
 ```

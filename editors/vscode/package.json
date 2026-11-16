@@ -2,7 +2,7 @@
   "name": "eudkit-lsp",
   "displayName": "eudkit LSP",
   "description": "Completion, hover docs, and capacity diagnostics for eudkit TypeScript and Python DSL files",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "Tb1281",
   "license": "MIT",
   "repository": {
@@ -34,7 +34,7 @@
         "eudkit.lsp.path": {
           "type": "string",
           "default": "",
-          "description": "Path to the eudkit-lsp binary (auto-detects workspace target/{release,debug}/eudkit-lsp or PATH when empty)"
+          "description": "Path to the eudkit-lsp binary (auto-detects workspace target/{release,debug}/eudkit-lsp, PATH, or the bundled WebAssembly server when empty)"
         }
       }
     }
@@ -43,7 +43,8 @@
     "vscode-languageclient": "^9.0.1"
   },
   "scripts": {
-    "package": "npx @vscode/vsce package",
+    "build:wasm": "node build-wasm.mjs",
+    "package": "npm run build:wasm && npx @vscode/vsce package",
     "test": "node --test test_extension.mjs"
   }
 }

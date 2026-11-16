@@ -60,17 +60,19 @@ The workflow extracts each bundle and runs `eudkit doctor`, `eudkit init`,
 
 ### 2. VS Code extension
 
-`build-vscode` runs the stubbed-`vscode` unit tests, then packages
-`editors/vscode/` with `@vscode/vsce@4.1.1`. It always uploads
-`eudkit-vscode.vsix` as a release artifact. On a publishing run it publishes to
-the VS Code Marketplace (`VSCE_PAT`) and Open VSX (`OVSX_PAT`) when the
-corresponding secret is configured; a missing secret logs a notice and skips
-that registry instead of failing the release.
+`build-vscode` compiles `crates/eudkit-lsp` for `wasm32-wasip1`, copies
+`eudkit-lsp.wasm` into `editors/vscode/`, runs the extension tests (including
+the bundled Wasm stdio handshake), and packages `editors/vscode/` with
+`@vscode/vsce@4.1.1`. It always uploads `eudkit-vscode.vsix` as a release
+artifact. On a publishing run it publishes to the VS Code Marketplace
+(`VSCE_PAT`) and Open VSX (`OVSX_PAT`) when the corresponding secret is
+configured; a missing secret logs a notice and skips that registry instead of
+failing the release.
 
 ### 3. Zed extension
 
-`build-zed` compiles `editors/zed/` for `wasm32-wasip2` and builds
-`eudkit-zed-<ver>.tar.gz` with a top-level `eudkit-zed-<ver>/` folder:
+`build-zed` compiles `editors/zed/` with `--locked` for `wasm32-wasip2` and
+builds `eudkit-zed-<ver>.tar.gz` with a top-level `eudkit-zed-<ver>/` folder:
 
 ```text
 eudkit-zed-<ver>/
@@ -85,8 +87,11 @@ eudkit-zed-<ver>/
 
 `LICENSE` and `README.md` come from `editors/zed/`, not the repository root, so
 the archive is a self-contained extension payload. CI builds and packages the
-same archive. It is the reproducible release record and a local installation
-input; Zed itself installs the extension from the registry source tree.
+same archive. It is the reproducible release record; Zed itself installs the
+extension from the registry source tree (or via **Install Dev Extension** on a
+host with `rustc` and the `wasm32-wasip2` target), and at runtime the extension
+automatically downloads the matching `eudkit-<ver>-<target>` release bundle from
+GitHub Releases when `eudkit-lsp` is not configured or on `PATH`.
 
 ### 4. Python package
 

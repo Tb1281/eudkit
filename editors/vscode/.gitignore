@@ -1,0 +1,3 @@
+eudkit-lsp.wasm
+*.vsix
+node_modules/

@@ -9,6 +9,8 @@ const CLIENT_ID = "eudkit-lsp";
 const CLIENT_NAME = "eudkit LSP";
 const CONFIG_SECTION = "eudkit";
 const PATH_SETTING = "lsp.path";
+const BUNDLED_WASM_PATH = path.join(__dirname, "eudkit-lsp.wasm");
+const BUNDLED_RUNNER_PATH = path.join(__dirname, "wasm-server.js");
 
 /** @type {import("vscode-languageclient/node").LanguageClient | undefined} */
 let client;
@@ -51,11 +53,52 @@ function configuredServerPath(resourceUri) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function isExecutableFile(candidate) {
+  try {
+    if (!fs.statSync(candidate).isFile()) {
+      return false;
+    }
+    if (process.platform !== "win32") {
+      fs.accessSync(candidate, fs.constants.X_OK);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Resolve the eudkit-lsp command: explicit setting, then (trusted workspaces
- * only) a workspace target/{release,debug} build, then whatever is on PATH.
+ * Search `PATH` for an executable matching `binaryName`.
  */
-function resolveServerCommand() {
+function findExecutableOnPath(
+  binaryName,
+  envPath = process.env.PATH ?? "",
+  pathExt = process.env.PATHEXT ?? ".EXE;.CMD;.BAT",
+) {
+  if (!envPath) {
+    return undefined;
+  }
+  const dirs = envPath.split(path.delimiter).filter(Boolean);
+  const suffixes =
+    process.platform === "win32" && !path.extname(binaryName)
+      ? ["", ...pathExt.split(";").filter(Boolean)]
+      : [""];
+  for (const dir of dirs) {
+    for (const suffix of suffixes) {
+      const candidate = path.join(dir, `${binaryName}${suffix}`);
+      if (isExecutableFile(candidate)) {
+        return candidate;
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Resolve the eudkit-lsp binary path when configured explicitly, built in a
+ * trusted workspace target/{release,debug}, or present on PATH.
+ */
+function resolveServerBinaryPath() {
   const folders = vscode.workspace.workspaceFolders ?? [];
 
   for (const folder of folders) {
@@ -86,8 +129,55 @@ function resolveServerCommand() {
     }
   }
 
-  // Fall back to PATH. On Windows this must keep the .exe suffix.
-  return binary;
+  return findExecutableOnPath(binary);
+}
+
+/**
+ * Resolve the LanguageClient ServerOptions: explicit setting, trusted workspace
+ * target/{release,debug} binary, binary on PATH, bundled WebAssembly server, or
+ * bare binary fallback.
+ */
+function resolveServerOptions({
+  wasmPath = BUNDLED_WASM_PATH,
+  runnerPath = BUNDLED_RUNNER_PATH,
+} = {}) {
+  const binaryPath = resolveServerBinaryPath();
+  if (binaryPath) {
+    return {
+      command: binaryPath,
+      args: [],
+      transport: TransportKind.stdio,
+    };
+  }
+
+  if (fs.existsSync(wasmPath) && fs.existsSync(runnerPath)) {
+    return {
+      module: runnerPath,
+      transport: TransportKind.stdio,
+      options: {
+        execArgv: ["--no-warnings"],
+      },
+    };
+  }
+
+  // Fall back to bare binary name so LanguageClient logs a clear spawn error.
+  return {
+    command: serverBinaryName(),
+    args: [],
+    transport: TransportKind.stdio,
+  };
+}
+
+function resolveServerCommand() {
+  const options = resolveServerOptions();
+  return options.command ?? options.module;
+}
+
+function describeServerOptions(serverOptions) {
+  if (serverOptions.command) {
+    return serverOptions.command;
+  }
+  return `bundled wasm (${path.basename(serverOptions.module)})`;
 }
 
 function log(message) {
@@ -126,19 +216,16 @@ async function startClient(token) {
     return;
   }
 
-  const command = resolveServerCommand();
-  log(`Starting ${CLIENT_NAME}: ${command}`);
+  const serverOptions = resolveServerOptions();
+  const label = describeServerOptions(serverOptions);
+  log(`Starting ${CLIENT_NAME}: ${label}`);
 
   let next;
   try {
     next = new LanguageClient(
       CLIENT_ID,
       CLIENT_NAME,
-      {
-        command,
-        args: [],
-        transport: TransportKind.stdio,
-      },
+      serverOptions,
       {
         documentSelector: [
           { scheme: "file", language: "typescript" },
@@ -168,7 +255,7 @@ async function startClient(token) {
     if (!warningLogged) {
       warningLogged = true;
       log(
-        `Failed to start ${CLIENT_NAME} (${command}): ${errorMessage(error)}. ` +
+        `Failed to start ${CLIENT_NAME} (${label}): ${errorMessage(error)}. ` +
           'Build it with "cargo build -p eudkit-lsp" or set "eudkit.lsp.path" ' +
           "to the binary. This warning is reported once per session.",
       );
@@ -226,4 +313,10 @@ async function deactivate() {
   output = undefined;
 }
 
-module.exports = { activate, deactivate, resolveServerCommand };
+module.exports = {
+  activate,
+  deactivate,
+  findExecutableOnPath,
+  resolveServerCommand,
+  resolveServerOptions,
+};

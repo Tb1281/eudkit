@@ -9,20 +9,25 @@ never compiles scripts and never changes map bytes.
 
 ## Prerequisites
 
-- A Rust toolchain with the WebAssembly target used by Zed extensions:
+- To install as a **Dev Extension** from source, Zed invokes `rustc` and `cargo`
+  on the **host OS where the Zed UI runs** with the `wasm32-wasip2` target
+  (even when opening a WSL2 remote project on Windows):
 
   ```sh
   rustup target add wasm32-wasip2
   ```
 
-- The `eudkit-lsp` binary. From the repository root:
+- The `eudkit-lsp` binary is resolved automatically in this order:
+  1. `lsp.eudkit-lsp.binary.path` in Zed settings.
+  2. `eudkit-lsp` on `PATH`.
+  3. Automatic download of the matching release bundle from `Tb1281/eudkit`
+     GitHub Releases into the extension's working directory.
+
+  To build `eudkit-lsp` locally instead, run from the repository root:
 
   ```sh
   cargo build -p eudkit-lsp --release
   ```
-
-  Either put `target/release/eudkit-lsp` on your `PATH`, or configure its
-  absolute path in Zed (see below).
 
 ## Install as a dev extension
 
@@ -32,8 +37,9 @@ never compiles scripts and never changes map bytes.
 4. Restart the language server or reopen the project after changing the
    extension or its settings.
 
-Zed compiles `editors/zed` as a standalone Cargo package targeting
-`wasm32-wasip2`; it is not part of the repository's root workspace.
+Zed compiles `editors/zed` from source as a standalone Cargo package targeting
+`wasm32-wasip2` on the host OS (ignoring any prebuilt `extension.wasm`); it is
+not part of the repository's root workspace.
 
 ## Configure Zed
 
@@ -76,10 +82,9 @@ environment explicitly:
 }
 ```
 
-`arguments` and `env` are optional; the extension falls back to
-`which("eudkit-lsp")` when `binary.path` is omitted. When neither resolves, Zed
-shows an error asking you to install the binary or set
-`lsp.eudkit-lsp.binary.path`.
+`arguments` and `env` are optional. When `binary.path` is omitted, the
+extension checks `which("eudkit-lsp")` and otherwise downloads the matching
+release bundle from `Tb1281/eudkit` GitHub Releases automatically.
 
 ## Behaviour
 

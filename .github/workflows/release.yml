@@ -182,6 +182,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -190,12 +193,18 @@ jobs:
       - name: Install dependencies
         working-directory: editors/vscode
         run: npm ci
+      - name: Build bundled Wasm LSP
+        working-directory: editors/vscode
+        run: npm run build:wasm
       - name: Test extension
         working-directory: editors/vscode
         run: node --test test_extension.mjs
       - name: Package extension
         working-directory: editors/vscode
-        run: npx --yes @vscode/vsce@4.1.1 package --out eudkit-vscode.vsix
+        run: |
+          npx --yes @vscode/vsce@4.1.1 package --out eudkit-vscode.vsix
+          unzip -l eudkit-vscode.vsix | grep -q "extension/eudkit-lsp.wasm"
+          unzip -l eudkit-vscode.vsix | grep -q "extension/wasm-server.js"
       - name: Upload extension
         uses: actions/upload-artifact@v4
         with:
@@ -240,7 +249,7 @@ jobs:
         run: rustup target add wasm32-wasip2
       - name: Build extension
         working-directory: editors/zed
-        run: cargo build --release --target wasm32-wasip2
+        run: cargo build --release --locked --target wasm32-wasip2
       - name: Package extension
         shell: bash
         run: |

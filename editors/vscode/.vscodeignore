@@ -4,4 +4,5 @@
 .gitignore
 **/.gitignore
 package-lock.json
+build-wasm.mjs
 test_extension.mjs
