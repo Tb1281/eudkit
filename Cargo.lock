@@ -103,7 +103,7 @@ dependencies = [
 
 [[package]]
 name = "eudkit"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "eudkit-hir",
  "eudkit-lir",
@@ -120,7 +120,7 @@ dependencies = [
 
 [[package]]
 name = "eudkit-hir"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "eudkit-lir",
  "serde",
@@ -130,7 +130,7 @@ dependencies = [
 
 [[package]]
 name = "eudkit-lir"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -139,7 +139,7 @@ dependencies = [
 
 [[package]]
 name = "eudkit-lower"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "eudkit-hir",
  "eudkit-lir",
@@ -154,7 +154,7 @@ dependencies = [
 
 [[package]]
 name = "eudkit-lsp"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -162,7 +162,7 @@ dependencies = [
 
 [[package]]
 name = "eudkit-map"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "encoding_rs",
  "eudkit-lir",
@@ -174,7 +174,7 @@ dependencies = [
 
 [[package]]
 name = "eudkit-opt"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "eudkit-hir",
  "eudkit-lir",
