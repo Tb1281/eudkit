@@ -3,7 +3,7 @@
 `eudkit` is a compiler toolchain and unified TypeScript/Python DSL for authoring StarCraft: Remastered EUD maps around the native `Trigger (16C, 64A)` execution and storage model.
 
 > Canonical domain definitions only: one to three sentences each plus _Avoid_ synonyms and anti-patterns.
-> Design rationale, algorithms, and cost measurements live in the linked ADRs and module docs.
+> Design rationale and detailed algorithms live in the linked ADRs and module docs.
 
 ## Execution & Trigger Model
 
@@ -180,7 +180,7 @@ An imperative method (`v.set`, `v.iadd`, `v.isub`, `v.imul`, `v.idiv`, `v.imod`)
 _Avoid_: chaining on imperative mutations.
 
 **payload**:
-The read-only backing that stores constant tables (`FixedArray.const`) as packed data rather than in `TriggerPage` action slots; `lir2payload` starts each item on a dword boundary, and the 0–3 byte inter-item pad counts toward static total bytes but not blob bytes ([ADR 0030](./docs/adr/0030-runtime-indexed-payload-backing.md)).
+The read-only backing that stores constant tables (`FixedArray.const`) as packed data rather than in `TriggerPage` action slots; `lir2payload` starts each item on a dword boundary (`align4`), and the 0–3 byte inter-item pad counts toward `total_bytes` but not `blob_bytes` (`StaticCost` in `eudkit-lir`; [ADR 0019](./docs/adr/0019-operand-domain-validation.md) §1).
 _Avoid_: legacy writable `EUDArray`, `Db`.
 
 **UTF-8 string bytes**:
@@ -234,7 +234,7 @@ _Avoid_: dataDumper plugin, `require`/`stat_txt` injection mode, unpatch bookkee
 ## Temporal & Memory Primitives
 
 **when / once / until / temporal form**:
-Loop-cadence control blocks: `when` runs every trigger loop its condition holds, `once` runs on the first loop it holds and permanently self-disables, and `until` runs every loop while false and permanently disables when true. Together with `while`, `edge`, `every`, and `after` they form the seven temporal forms; all are HIR nodes, and the last four desugar in opt ([ADR 0006](./docs/adr/0006-hir-nodes-for-until-edge-and-counted-forms.md)). An unconditional `until` gate emits only the reset trip-when, so the body never runs.
+Loop-cadence control blocks: `when` runs every trigger loop its condition holds, `once` runs on the first loop it holds and permanently self-disables, and `until` runs every loop while false and permanently disables when true. Together with `while`, `edge`, `every`, and `after` they form the seven temporal forms; all are HIR nodes, and `until`, `edge`, `every`, and `after` desugar in opt ([ADR 0006](./docs/adr/0006-hir-nodes-for-until-edge-and-counted-forms.md)). An unconditional `until` gate emits only the reset trip-when, so the body never runs.
 _Avoid_: `if`/`while` for in-game cadence, timing helper, scheduler.
 
 **dispatch**:
@@ -314,7 +314,7 @@ A slot scan walks all 1699 fixed CUnit slots and checks liveness per slot, with 
 _Avoid_: unit array scan, `EUDLoopUnit2` (when naming the strategy), "1700 static triggers", break-even threshold, magic unit count.
 
 **list walk**:
-A unit-iteration strategy that follows `nextUnit` pointers from a list head; the reference loop costs roughly 35–40T executed per live node, which is per-node loop overhead rather than the pointer read alone. The implemented bits-0–19 CUnit pointer reader costs 20T executed per read ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) §8), and `for_each_unit_list` / `forEachUnitList` covers `U`/`T`/`S`/`D`; slot-scan and new-unit siblings remain planned.
+A unit-iteration strategy that follows `nextUnit` pointers from a list head; the reference loop costs roughly 35–40T executed per live node, which is per-node loop overhead rather than the pointer read alone. The implemented bits-0–19 CUnit pointer reader costs 20T executed per read ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) §9), and `for_each_unit_list` / `forEachUnitList` covers `U`/`T`/`S`/`D`; slot-scan and new-unit siblings remain planned.
 _Avoid_: pointer chase, linked-list loop.
 
 **new-unit snapshot**:
@@ -338,11 +338,11 @@ The 1-condition, 0-read capacity predicate `Memory(0x628438, Exactly, 0)`: the f
 _Avoid_: free-slot count, `1700 - 0x6283F0`, inserting a gate silently.
 
 **capacity tier (1/2/3)**:
-The three ways to answer "is there room for another unit": tier 1 is the exact 1-condition free-list head test, tier 2 is a deferred tracker-derived upper bound `1700 - (|U|+|T|+|S|+|D|)` that over-reports, and tier 3 is the exact one-shot free-list walk at roughly 37T per free node, once at map start or on author request, never per tick ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) §9).
+The three ways to answer "is there room for another unit": tier 1 is the exact 1-condition free-list head test, tier 2 is a deferred tracker-derived upper bound `1700 - (|U|+|T|+|S|+|D|)` that over-reports, and tier 3 is the exact one-shot free-list walk at roughly 37T per free node, once at map start or on author request, never per tick ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) §10).
 _Avoid_: calling the counter form tier 1, an exact count without the walk.
 
 **free-slot count / one-shot scan**:
-`free_slot_count()` / `freeSlotCount()` returns the exact number of free CUnit nodes as a `Var`, sharing one call-site budget with `free_list_walk` per module; a second call is `EUDSL-BOUNDS`, while `free_list_empty()` does not count. `1699 - free_slot_count()` is the walk-derived upper bound and deliberately has no API name ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) §9).
+`free_slot_count()` / `freeSlotCount()` returns the exact number of free CUnit nodes as a `Var`, sharing one call-site budget with `free_list_walk` per module; a second call is `EUDSL-BOUNDS`, while `free_list_empty()` does not count. `1699 - free_slot_count()` is the walk-derived upper bound and deliberately has no API name ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) §10).
 _Avoid_: per-frame free count, `1700 - 0x6283F0`, `slotsUpperBound` (not shipped), advisory once, automatic runtime gating.
 
 **cycle guard**:
@@ -354,7 +354,7 @@ A capacity signal that answers exactly the question it reads and no more: `free_
 _Avoid_: capacity guarantee, authoritative free count.
 
 **CUnit pool / shifted pointer space `S`**:
-The CUnit pool is the game's fixed array of 1699 CUnit slots starting at `0x59CCA8`, 336 bytes (84 dwords) apart, with slot starts in `S` over `[0x16732A, 0x18A052]` and EPDs over `[19025, 161657]`. The shifted pointer space `S = A >> 2` divides the dword-aligned byte address by four; for a slot start, bits 0 and 1 are invariant and bit 20 is always 1, so bits 2–19 recover the slot index ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) §8).
+The CUnit pool is the game's fixed array of 1699 CUnit slots starting at `0x59CCA8`, 336 bytes (84 dwords) apart, with slot starts in `S` over `[0x16732A, 0x18A052]` and EPDs over `[19025, 161657]`. The shifted pointer space `S = A >> 2` divides the dword-aligned byte address by four; for a slot start, bits 0 and 1 are invariant and bit 20 is always 1, so bits 2–19 recover the slot index ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) §9).
 _Avoid_: unit array, CUnit heap, slot table, byte address, EPD for `S`, unqualified pointer space.
 
 **CP-relative read**:
@@ -362,7 +362,7 @@ A dword read whose condition target is `CURRENT_PLAYER`, so the engine reads the
 _Avoid_: indirect read, dynamic address read, CP hop.
 
 **null-pointer sentinel / `in_cunit_pool`**:
-The null-pointer sentinel is the value the CUnit pointer reader yields for a null pointer, `0xFFF9D729`, which is above `CUNIT_LAST_EPD` and therefore rejected by the pool check's upper bound rather than its lower bound ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) §8). `in_cunit_pool(epd)` / `inCunitPool(epd)` returns `[epd.ge(CUNIT_BASE_EPD), epd.le(CUNIT_LAST_EPD)]` as two conditions that splice into a loop gate, and it never raises, so a hijacked list stays diagnosable.
+The null-pointer sentinel is the value the CUnit pointer reader yields for a null pointer, `0xFFF9D729`, which is above `CUNIT_LAST_EPD` and therefore rejected by the pool check's upper bound rather than its lower bound ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) §9). `in_cunit_pool(epd)` / `inCunitPool(epd)` returns `[epd.ge(CUNIT_BASE_EPD), epd.le(CUNIT_LAST_EPD)]` as two conditions that splice into a loop gate, and it never raises, so a hijacked list stays diagnosable.
 _Avoid_: null EPD, end-of-list marker, assert-in-pool, `EUDSL-BOUNDS` for a dead list, wrapping the check in a trigger.
 
 **unit list (U/T/S/D)**:
@@ -404,7 +404,7 @@ _Avoid_: "declaration order" as the allocation order, relying on declaration ord
 ## Build & Packaging
 
 **embedded file**:
-A build-time file recorded on the compiled module by `embedFile` / `embed_file` and added to the output MPQ under its archived name, the `MPQAddFile` equivalent. HIR stores only `{name, path}`, and the CLI resolves a relative path against the directory of the compiling source; the same surface serves the periodic-BGM helper and the shipped dataDumper helper ([ADR 0021](./docs/adr/0021-mpq-embedded-file-surface.md)).
+A build-time file recorded on the compiled module by `embedFile` / `embed_file` and added to the output MPQ under its archived name, the `MPQAddFile` equivalent. HIR stores only `{name, path}`, and the CLI resolves a relative path against the directory of the compiling source; the same surface serves the periodic-BGM helper ([ADR 0021](./docs/adr/0021-mpq-embedded-file-surface.md)).
 _Avoid_: MPQ asset, plugin file, resource, bundled blob.
 
 **periodic BGM helper**:
