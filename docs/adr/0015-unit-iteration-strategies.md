@@ -1,6 +1,13 @@
 # Unit Iteration Strategies and Loop Primitives
 
-Status: accepted (2026-11-07; amended 2026-11-14, 2026-11-16)
+Status: accepted (2026-11-07; amended 2026-11-14, 2026-11-16, 2026-11-17)
+
+> **Amendment (2026-11-17):** corrected the CUnit pool size from 1699 to 1700
+> slots (BWAPI: unit indices `0 <= i < 1700`; euddraft wiki: 1700 units spanning
+> `0x59CCA8`–`0x6283E7`). Last slot starts `0x628298`, pool end `0x6283E7`,
+> snapshot table `4 + 336 × 1700 = 571,204 B`. Example 07 no longer uses slot
+> 1699 as scratch — it is the last valid unit — and uses a payload `Db` blob
+> instead.
 
 > **Amendment (2026-11-14):** corrected the `func()` note (implemented; backs the
 > shared field readers), the new-unit snapshot arithmetic (`4 + 336 × 1699 =
@@ -23,11 +30,11 @@ surface, and `UnitGroup.for_each` is a compile-time unroll. Per
 **executed cost > static cost > byte footprint**.
 
 `EUDLoopUnit2` emits ~**4T static plus the body once** and patches its
-death-check EPD and two `SetNumber` values at runtime: 1699 slots at ~3T
+death-check EPD and two `SetNumber` values at runtime: 1700 slots at ~3T
 executed each (bound, death, advance) ≈ **5.1kT executed per invocation**, plus
 body × live units. The list strategies share a ~35T-per-site pointer reader and
 cost ~35–40T executed per live node (liveness/advance plus the read); `20T` is
-the pointer read **alone**. The new-unit scan instead allocates a 570,868 B
+the pointer read **alone**. The new-unit scan instead allocates a 571,204 B
 snapshot per site. Eudkit already has the primitive to share a reader: `func()`
 is implemented (`py/temporal.py`, `ts/temporal.ts`) and backs the shared
 full-dword field reader, so a CUnit reader can be one shared body, not a per-site
@@ -54,7 +61,7 @@ list. Eudkit ports the **semantics**, not the eudplib implementation.
 | Surface | Status |
 |---|---|
 | `for_each_unit_list` / `forEachUnitList` | **implemented** — walk one global CUnit list |
-| `for_each_unit_slots` | not implemented — scan the fixed 1699 slots; the documented default for all-units iteration |
+| `for_each_unit_slots` | not implemented — scan the fixed 1700 slots; the documented default for all-units iteration |
 | `for_each_player_unit` | not implemented — walk one player's unit list |
 | `for_each_new_unit` | not implemented — detect new units; ships only if the §6 two-call-site test passes |
 | `for_each_tracked` | not implemented — iterate a `UnitGroup` at its capacity; static size follows §8, advisory warning above ~512 static triggers (≈1.2 MB) |
@@ -137,9 +144,9 @@ the estimate as a contract; a simulator benchmark replaces it with a table.
 
 ### 6. New-unit detection and the snapshot gate
 
-`EUDLoopNewUnit` allocates a per-call-site 1699-entry table aligned with the
-CUnit free-list slots. `_UniqueIdentifier.GetDataSize` is `4 + 336 × 1699` =
-**570,868 B (~558 KiB) per call site**, acceptable only with **exactly one** call
+`EUDLoopNewUnit` allocates a per-call-site 1700-entry table aligned with the
+CUnit free-list slots. `_UniqueIdentifier.GetDataSize` is `4 + 336 × 1700` =
+**571,204 B (~558 KiB) per call site**, acceptable only with **exactly one** call
 site. With more, a single shared table is required if the state proves read-only
 after init, or `for_each_new_unit` is deferred; sharing ships only if two call
 sites use different allowances, a unit is created between them, and neither
@@ -231,20 +238,20 @@ changes to `EUDLoopUnit2`:
 
 1. **20T executed pointer reader — implemented in eudkit; upstream
    implementation is still a candidate.** The CUnit slot pool is
-   `[0x59CCA8, 0x628297]`: 1699 slots of 336 bytes, slot starts 84 dwords
+   `[0x59CCA8, 0x6283E7]`: 1700 slots of 336 bytes, slot starts 84 dwords
    apart. In shifted pointer space
-   `S = A >> 2`, slot starts span `[0x16732A, 0x18A052]`
-   (`142,632 = 84 × 1698` dwords). Pool base / last slot start:
-   `0x59CCA8` / `0x628148`; `EPD_BASE >> 2 = 0x1628D9`; `EPD(A) = S - 0x1628D9`
-   gives base `19025` and last slot `161657`. The invariant is that `S` bits 0,
+   `S = A >> 2`, slot starts span `[0x16732A, 0x18A0A6]`
+   (`142,716 = 84 × 1699` dwords). Pool base / last slot start:
+   `0x59CCA8` / `0x628298`; `EPD_BASE >> 2 = 0x1628D9`; `EPD(A) = S - 0x1628D9`
+   gives base `19025` and last slot `161741`. The invariant is that `S` bits 0,
    1, and 20 are 0, 1, and 1; tested bits are `S` bits 2–19 = `A` bits 4–21,
    under mask `0x3FFFF0` and shift `2`, seeded `0x100002`. One-shot bias is
    `-0x1628D9` = `0xFFE9D727`; a null pointer reads `0xFFF9D729`.
 
    The reader is 1 seeded reset + 18 bit tests + 1 bias = **20T executed**, down
    from 32T (37.5% fewer tests), and applies to all three list loops. A null
-   pointer reads `0xFFF9D729`, **above** `CUNIT_LAST_EPD` (161,657), so
-   end-of-list is an EPD outside `[19025, 161657]` — the upper bound, not `S <
+   pointer reads `0xFFF9D729`, **above** `CUNIT_LAST_EPD` (161,741), so
+   end-of-list is an EPD outside `[19025, 161741]` — the upper bound, not `S <
    0x167F2A`, rejects it. `in_cunit_pool` returns the two bound conditions and
    never raises: a hijacked list must stay observable. Forms: inline literal 20T;
    shared body + ~5T call; `read_cunit_pointer(Var)` ≈ 60T (33T ambient read +
@@ -269,7 +276,7 @@ Three tiers; this series ships tiers 1 and 3 and defers tier 2.
    16-condition budget untouched and lets `when`/`once`/`until` fuse it;
    `CUNIT_FREE_TAIL = 0x62843C` documents the other end, but no helper uses it.
 2. **Tier 2 — tracker-derived upper bound (`slotsUpperBound`, deferred).** Not
-   coded. The cheap form is `1699 − (|U|+|T|+|S|+|D|)` from the four list
+   coded. The cheap form is `1700 − (|U|+|T|+|S|+|D|)` from the four list
    counters, which needs the five-list membership tracker (excluded here,
    awaiting seven Remastered measurements). It is an upper bound contaminated by
    subunits, not a free-slot count. `0x6283F0` is **not** a substitute: it is
@@ -286,12 +293,12 @@ Three tiers; this series ships tiers 1 and 3 and defers tier 2.
    |---|---|---|
    | walk | `free_list_walk(body, *, max_nodes=CUNIT_FREE_SCAN_MAX)` | `freeListWalk(body, { maxNodes = CUNIT_FREE_SCAN_MAX } = {})` |
    | count | `free_slot_count() -> Var` | `freeSlotCount(): VarImpl` |
-   | bound | `CUNIT_FREE_SCAN_MAX = CUNIT_SLOT_COUNT = 1699` | same |
+   | bound | `CUNIT_FREE_SCAN_MAX = CUNIT_SLOT_COUNT = 1700` | same |
 
    `body` takes no arguments (a free node has no meaningful identity, and
    exposing a raw slot EPD invites writes into an unallocated CUnit), and may
    return `BREAK` to stop after the current node (identity, so every other
-   return continues). `max_nodes` must be a plain int in `1..1699`: a bool or
+   return continues). `max_nodes` must be a plain int in `1..1700`: a bool or
    non-integer is `EUDSL-TYPE`, out of range `EUDSL-BOUNDS`.
 
    **One call site per module.** A module-level counter keyed by the active
@@ -309,8 +316,8 @@ Three tiers; this series ships tiers 1 and 3 and defers tier 2.
    whose reader result `0xFFF9D729` is above `CUNIT_LAST_EPD` and rejected by
    the **upper** pool bound; (b) any pointer outside `[CUNIT_BASE_EPD,
    CUNIT_LAST_EPD]`; or (c) `remaining == 0` after exactly `max_nodes` nodes.
-   Every pass decrements, so a cycle cannot outlast 1699 iterations: a corrupted
-   list costs at most `1699 × 37T ≈ 62.9kT` and can never hang the game. The
+   Every pass decrements, so a cycle cannot outlast 1700 iterations: a corrupted
+   list costs at most `1700 × 37T ≈ 62.9kT` and can never hang the game. The
    2T/node guard beats a sentinel node, which would mutate game memory.
 
 ## Consequences

@@ -1511,6 +1511,26 @@ export class VarImpl {
 
   // -------------------------------------------------------------------------
   // Declarative Action Constructors
+  //
+  // Contract (dual channel — read before changing): every `act_*` call does
+  // TWO things. It RETURNS the HIR action (so callers can inspect it or pass
+  // it to `new Trigger({ acts: [...] })`), AND it queues that same action
+  // into the active builder (`buildAct` in `hir.ts`), so a bare statement
+  // such as `v.act_add(1)` still emits — via an anonymous trigger — without
+  // being passed anywhere. `Trigger` removes the queued copy of any action
+  // it receives explicitly (`consumeQueuedActs`), so the same action is never
+  // emitted twice.
+  //
+  // Two consequences follow. First, a bare `act_*` call OUTSIDE `buildModule`
+  // queues nowhere: the returned action is the only record and the action
+  // never runs. That is intentional — tests inspect actions outside a builder
+  // (see `ts/tests/test_dat.ts`) — so no error is raised for it; do not
+  // "fix" this by raising here. Second, the imperative forms (`set`/`iadd`/
+  // `isub` with a plain number) work by calling `act_*` and DISCARDING the
+  // return value, relying on the queue side effect alone. Removing the queue
+  // would silently break every statement-form site in the codebase
+  // (`blockio.ts`, `string.ts`, `var.ts` itself); splitting the channels is
+  // a migration, not a cleanup.
   // -------------------------------------------------------------------------
 
   act_set(rhs: number): HirAct {

@@ -72,7 +72,7 @@ class LoopShapeTest(unittest.TestCase):
         while_stmt = walk_while(module)
         self.assertEqual(
             [c["amount"] for c in while_stmt["conds"]],
-            [19025, 161657, 0],
+            [19025, 161741, 0],
         )
         self.assertEqual(
             [c["comparison"] for c in while_stmt["conds"]],

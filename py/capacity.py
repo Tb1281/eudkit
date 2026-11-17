@@ -55,7 +55,7 @@ __all__ = [
 CUNIT_FREE_HEAD = 0x628438
 #: Dword holding the tail of the CUnit free list (documented, no helper).
 CUNIT_FREE_TAIL = 0x62843C
-#: Hard stop for the tier-3 walk: the pool has 1699 slots, so a cycle can
+#: Hard stop for the tier-3 walk: the pool has 1700 slots, so a cycle can
 #: never legitimately outlast it.
 CUNIT_FREE_SCAN_MAX = CUNIT_SLOT_COUNT
 
@@ -110,10 +110,10 @@ def free_list_walk(
     ~37T executed per free node. Use it once per module (map start or on
     author request); a per-frame capacity check is ``free_list_empty()``.
 
-    ``max_nodes`` is a plain int in ``1..1699`` and is also the cycle guard:
+    ``max_nodes`` is a plain int in ``1..1700`` and is also the cycle guard:
     the walk stops on a null pointer, a pointer outside the CUnit pool, or
     ``max_nodes`` iterations — whichever comes first — so a corrupted list
-    costs at most ``1699 × 37T`` and never hangs the game. Return
+    costs at most ``1700 × 37T`` and never hangs the game. Return
     :data:`py.units.BREAK` from ``body`` to stop after the current node.
     """
     if not callable(body):

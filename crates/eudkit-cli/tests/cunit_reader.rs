@@ -4,7 +4,7 @@
 //! the reader's arithmetic is exercised against seeded memory:
 //!
 //! * a pool-base pointer (`0x59CCA8`) reads back as `19025`;
-//! * a last-slot pointer (`0x628148`) reads back as `161657`;
+//! * a last-slot pointer (`0x628298`) reads back as `161741`;
 //! * a null pointer reads back as `0xFFF9D729`, which `in_cunit_pool` rejects
 //!   through its **upper** bound;
 //! * the Python and TypeScript frontends emit byte-identical HIR.
@@ -121,7 +121,7 @@ fn simulator_reads_pool_base_last_slot_and_null_sentinel() {
         // Seed the three head dwords before the first trigger-loop pass.
         sim.external_epds.insert(HEAD_EPD, 0x59CCA8);
         sim.external_epds.insert(NULL_EPD, 0);
-        sim.external_epds.insert(LAST_EPD, 0x628148);
+        sim.external_epds.insert(LAST_EPD, 0x628298);
         sim.step_loop();
 
         let ids: Vec<usize> = prepared.doc.module.vars.iter().map(|v| v.id).collect();
@@ -137,7 +137,7 @@ fn simulator_reads_pool_base_last_slot_and_null_sentinel() {
         );
         assert_eq!(
             common::read_var(&prepared, &sim, ids[4]),
-            161657,
+            161741,
             "{label}: last slot"
         );
         assert_eq!(

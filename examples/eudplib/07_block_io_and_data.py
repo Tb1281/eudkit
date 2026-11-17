@@ -16,13 +16,15 @@ eudplib / euddraft 패턴 요약:
   * ``"unpatchable"`` 플래그: ``f_dwpatch_epd`` 로 패치 스택(``dwstack`` /
     ``patchstack``)에 이전 값을 기록해, 종료 시 ``f_unpatchall()`` 로 복원 가능.
 
-WARNING — 스크래치 슬롯 1699는 안전한 스크래치가 아닙니다. 이 예제는 저장소의
-1699슬롯 CUnit 모델(슬롯 0..1698)을 전제하지만, BWAPI는 유닛 인덱스
-``0 <= unitIndex < 1700``을 허용하고 euddraft 위키는 1700개 유닛(0~1699번)이
-``0x59CCA8``–``0x6283E7``을 차지한다고 합니다. 그 기준에서는 슬롯 1699가 마지막
-유효 CUnit이므로, 아래 84-dword 복사는 해당 슬롯이 사용 중일 때 유닛 데이터를
-덮어씁니다. 1699-vs-1700이 코드 차원에서 정리될 때까지 실제 맵에 이 스크래치
-선택을 복사하지 마세요.
+WARNING — the pool has 1700 CUnit slots (BWAPI: unit indices
+``0 <= unitIndex < 1700``; euddraft wiki: 1700 units spanning
+``0x59CCA8``–``0x6283E7``), so slot 1699 is the last VALID CUnit and must
+never be used as scratch. The 84-dword snapshot target below is therefore a
+336-byte payload ``Db`` blob, not a CUnit slot: ``EPD(blob)`` is a
+compile-time EPD usable as both source and destination of
+``f_repmovsd_epd`` (see ``eudplib/string/tblprint.py``, which copies into
+``EPD(stattext_db)`` the same way). The blob is compiler-owned payload
+memory, so the copy can never overwrite a live unit.
 """
 
 from eudplib import *
@@ -33,12 +35,8 @@ CUNIT_SIZE = 336
 CUNIT_DWORDS = 84
 
 SLOT0_ADDR = CUNIT_POOL_ADDR
-# WARNING: slot 1699 is the last VALID CUnit under BWAPI (1700 slots) — see
-# the module docstring. Kept only as the baseline address; not safe scratch.
-SCRATCH_SLOT_ADDR = CUNIT_POOL_ADDR + 1699 * CUNIT_SIZE
 
 SRC_EPD = EPD(SLOT0_ADDR)
-SCRATCH_EPD = EPD(SCRATCH_SLOT_ADDR)
 
 BLOB_DST_ADDR = 0x58E100
 BLOB_DST_EPD = EPD(BLOB_DST_ADDR)
@@ -62,25 +60,29 @@ def epd_memset_loop(dst_epd, value, count):
 def run():
     verified = EUDVariable(0)
     runtime_count = EUDVariable(4)
+    # 336-byte payload scratch (see module docstring); EPD(Db) is a
+    # compile-time EPD, usable as copy destination and CUnit base alike.
+    scratch = Db(bytes(CUNIT_DWORDS * 4))
+    scratch_epd = EPD(scratch)
 
     # 1. 데모용으로 CUnit slot 0 의 HP(40 HP = 10240 in 8.8 fixed point)를 시드한다.
     src_unit = CUnit(SRC_EPD)
     src_unit.hp = 10240
 
-    # 2. CUnit slot 0 (84 dwords)을 스크래치 슬롯 1699 로 스냅샷 복사한다.
+    # 2. CUnit slot 0 (84 dwords)을 페이로드 스크래치 블롭으로 스냅샷 복사한다.
     #    인자 순서: (dst_epd, src_epd, dword_count)
-    f_repmovsd_epd(SCRATCH_EPD, SRC_EPD, CUNIT_DWORDS)
+    f_repmovsd_epd(scratch_epd, SRC_EPD, CUNIT_DWORDS)
 
     # 3. 스냅샷된 CUnit 사본의 hp 필드를 검증한다.
-    snap_unit = CUnit(SCRATCH_EPD)
+    snap_unit = CUnit(scratch_epd)
     snapshot_hp = snap_unit.hp
     if EUDIf()(snapshot_hp == 10240):
         verified << 1
     EUDEndIf()
 
     # 4. 스크래치 영역 84 dwords 를 0 으로 초기화한 뒤, 런타임 횟수(4 dwords)만 0x11223344 로 채운다.
-    epd_memset_loop(SCRATCH_EPD, 0, CUNIT_DWORDS)
-    epd_memset_loop(SCRATCH_EPD, 0x11223344, runtime_count)
+    epd_memset_loop(scratch_epd, 0, CUNIT_DWORDS)
+    epd_memset_loop(scratch_epd, 0x11223344, runtime_count)
 
     # 5. Db 페이로드 생성 및 복사:
     #    - f_repmovsd_epd 는 EPD 단위로 3 dwords(12바이트)를 직접 복사한다.

@@ -33,10 +33,14 @@ epd = EPD
 # CUnit slot pool
 # ---------------------------------------------------------------------------
 #
-# The engine's CUnit array is 1699 slots of 336 bytes each. Slots are packed
+# The engine's CUnit array is 1700 slots of 336 bytes each. Slots are packed
 # back-to-back, so consecutive CUnits start 84 dwords apart. In the shifted
 # pointer space ``S = A >> 2`` the slot starts therefore span
-# ``[0x16732A, 0x18A052]`` and the last slot starts at byte ``0x628148``.
+# ``[0x16732A, 0x18A0A6]`` and the last slot starts at byte ``0x628298``.
+#
+# Pool size per BWAPI (unit indices ``0 <= i < 1700``) and the euddraft wiki
+# (1700 units spanning ``0x59CCA8``-``0x6283E7``); the previous 1699-slot
+# model was wrong by one (it excluded the last valid unit).
 #
 #: Byte address of the first CUnit slot.
 CUNIT_POOL_BASE = 0x59CCA8
@@ -45,17 +49,17 @@ CUNIT_SLOT_SIZE = 336
 #: Dwords per CUnit slot: **the stride that matters** for the EPD bound.
 CUNIT_SLOT_EPDS = 84
 #: Number of CUnit slots in the engine pool.
-CUNIT_SLOT_COUNT = 1699
+CUNIT_SLOT_COUNT = 1700
 #: EPD of the first CUnit slot (``EPD(0x59CCA8)``).
 CUNIT_BASE_EPD = EPD(CUNIT_POOL_BASE)
-#: EPD of the last CUnit slot's first dword (``EPD(0x628148)``).
+#: EPD of the last CUnit slot's first dword (``EPD(0x628298)``).
 #:
 #: Derived, not ``CUNIT_BASE_EPD + CUNIT_SLOT_COUNT - 1``: each slot is 84
-#: dwords, so a naive ``+1698`` lands at EPD 20723 and rejects every real unit
+#: dwords, so a naive ``+1699`` lands at EPD 20724 and rejects every real unit
 #: after the 21st slot.
 CUNIT_LAST_EPD = CUNIT_BASE_EPD + CUNIT_SLOT_EPDS * (CUNIT_SLOT_COUNT - 1)
 #: Last byte of the CUnit pool, inclusive.
-CUNIT_POOL_END = 0x628297
+CUNIT_POOL_END = 0x6283E7
 
 #: Seed restoring the invariant low bits of the shifted pointer space.
 _CUNIT_POINTER_SEED = 0x100002
@@ -1011,6 +1015,10 @@ class MemFieldHandle:
         """This field's comparison kernel (the one source of comparison truth)."""
         return FieldValueSpace(self.bitMask, self.shift, self.size)
 
+    # ``act_*`` here shares the dual-channel contract documented on
+    # ``Var`` (``var.py``): the returned dict is ALSO queued into the active
+    # builder by ``SetDeathsX`` (``_build_act``), and a bare call outside
+    # ``build_module`` queues nowhere (see ``py/tests/test_dat.py``).
     def act_set(self, rhs: int) -> Any:
         from .hir import SetDeathsX, SetTo
         val = ((_require_plain_int(rhs, "field write") & 0xFFFFFFFF) << self.shift) & 0xFFFFFFFF

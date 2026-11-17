@@ -9,7 +9,7 @@
  * never reads the ambient CurrentPlayer value.
  *
  * These tests pin the corrected constants (`CUNIT_LAST_EPD` is
- * `19025 + 84 * 1698 = 161657`, **not** `20723`), the exact HIR shape and
+ * `19025 + 84 * 1699 = 161741`, **not** `20724`), the exact HIR shape and
  * executed costs of all three forms, the null sentinel rejected by the
  * *upper* bound of `inCunitPool`, and the two `EUDSL-TYPE` guards.
  */
@@ -70,8 +70,8 @@ test("CUnit pool constants and derived EPD bound", () => {
   assert.equal(CUNIT_POOL_BASE, 0x59cca8);
   assert.equal(CUNIT_SLOT_SIZE, 336);
   assert.equal(CUNIT_SLOT_EPDS, CUNIT_SLOT_SIZE / 4);
-  assert.equal(CUNIT_SLOT_COUNT, 1699);
-  assert.equal(CUNIT_POOL_END, 0x628297);
+  assert.equal(CUNIT_SLOT_COUNT, 1700);
+  assert.equal(CUNIT_POOL_END, 0x6283e7);
   assert.equal(
     CUNIT_POOL_END,
     CUNIT_POOL_BASE + CUNIT_SLOT_SIZE * CUNIT_SLOT_COUNT - 1,
@@ -79,8 +79,8 @@ test("CUnit pool constants and derived EPD bound", () => {
 
   assert.equal(CUNIT_BASE_EPD, 19025);
   assert.equal(EPD(CUNIT_POOL_BASE), CUNIT_BASE_EPD);
-  assert.equal(CUNIT_LAST_EPD, 161657);
-  assert.equal(EPD(0x628148), CUNIT_LAST_EPD);
+  assert.equal(CUNIT_LAST_EPD, 161741);
+  assert.equal(EPD(0x628298), CUNIT_LAST_EPD);
   assert.equal(
     CUNIT_LAST_EPD,
     CUNIT_BASE_EPD + CUNIT_SLOT_EPDS * (CUNIT_SLOT_COUNT - 1),
@@ -273,7 +273,7 @@ function readSeeded(headEpd: number, pointer: number): number {
 
 test("simulator reads the pool base and last slot EPDs", () => {
   assert.equal(readSeeded(LIST_HEAD, CUNIT_POOL_BASE), 19025);
-  assert.equal(readSeeded(LIST_HEAD, 0x628148), 161657);
+  assert.equal(readSeeded(LIST_HEAD, 0x628298), 161741);
 });
 
 test("simulator reads the null pointer as the sentinel", () => {

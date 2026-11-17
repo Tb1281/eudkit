@@ -1387,6 +1387,27 @@ class Var:
 
     # -------------------------------------------------------------------------
     # Declarative Action Constructors
+    #
+    # Contract (dual channel — read before changing): every ``act_*`` call
+    # does TWO things. It RETURNS the HIR action dict (so callers can inspect
+    # it or pass it to ``Trigger(acts=[...])``), AND it queues that same dict
+    # into the active builder (``_build_act`` in ``hir.py``), so a bare
+    # statement such as ``v.act_add(1)`` still emits — via an anonymous
+    # trigger — without being passed anywhere. ``Trigger.__init__`` removes
+    # the queued copy of any action it receives explicitly
+    # (``consume_queued_acts``), so the same action is never emitted twice.
+    #
+    # Two consequences follow. First, a bare ``act_*`` call OUTSIDE
+    # ``build_module`` queues nowhere: the returned dict is the only record
+    # and the action never runs. That is intentional — tests inspect action
+    # dicts outside a builder (see ``py/tests/test_dat.py``) — so no error is
+    # raised for it; do not "fix" this by raising here. Second, the
+    # imperative forms (``set``/``iadd``/``isub`` with a plain int) work by
+    # calling ``act_*`` and DISCARDING the return value, relying on the queue
+    # side effect alone. Removing the queue would silently break every
+    # statement-form site in the codebase (``blockio.py``, ``string.py``,
+    # ``var.py`` itself); splitting the channels is a migration, not a
+    # cleanup.
     # -------------------------------------------------------------------------
 
     def act_set(self, rhs: int) -> dict[str, Any]:

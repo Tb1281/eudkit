@@ -76,7 +76,7 @@ test("one ambient read, one while, and one final restore", () => {
   const whileStmt = whileOf(module);
   assert.deepEqual(
     whileStmt.conds.map((c: Json) => c.amount),
-    [19025, 161657, 0],
+    [19025, 161741, 0],
   );
   assert.deepEqual(
     whileStmt.conds.map((c: Json) => c.comparison),

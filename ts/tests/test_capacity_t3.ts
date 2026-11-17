@@ -3,7 +3,7 @@
  *
  * Mirrors `py/tests/test_capacity_t3.py`. The free list is a plain forward
  * chain from `0x628438` through each node's `next` link (`ptr + 1`). A
- * `remaining` scan guard (1699) stops a cycle, and one call site per module is
+ * `remaining` scan guard (1700) stops a cycle, and one call site per module is
  * enforced before emission. `freeSlotCount()` delegates to `freeListWalk` and
  * shares its call site.
  */
@@ -67,7 +67,7 @@ function isEudsl(code: string): (err: unknown) => boolean {
 }
 
 test("scan max is the pool slot count", () => {
-  assert.equal(CUNIT_FREE_SCAN_MAX, 1699);
+  assert.equal(CUNIT_FREE_SCAN_MAX, 1700);
   assert.equal(CUNIT_FREE_SCAN_MAX, CUNIT_SLOT_COUNT);
 });
 
@@ -133,7 +133,7 @@ test("gate is the pool bound then done", () => {
     [AtLeast, AtMost, Exactly],
   );
   // The upper bound is what rejects the null sentinel; pin it explicitly.
-  assert.equal(whileStmt.conds[1].amount, 161657);
+  assert.equal(whileStmt.conds[1].amount, 161741);
 });
 
 test("forward link is ptr + 1", () => {
@@ -173,7 +173,7 @@ test("remaining starts at scan max and decrements per node", () => {
         (r) => r.target_var === remaining,
       ),
   );
-  assert.equal(initActs.length, 1, "the guard starts at 1699");
+  assert.equal(initActs.length, 1, "the guard starts at 1700");
   const acts = actsTargeting(body, remaining);
   assert.equal(acts.length, 1);
   // `Var.isub(1)` emits the two's-complement add; the value is wrapped -1.
@@ -303,7 +303,7 @@ test("body must be callable", () => {
 });
 
 test("maxNodes outside the pool is bounds", () => {
-  for (const value of [0, 1700]) {
+  for (const value of [0, 1701]) {
     assert.throws(
       () => buildModule(() => freeListWalk(() => undefined, { maxNodes: value })),
       isEudsl("EUDSL-BOUNDS"),
@@ -312,8 +312,15 @@ test("maxNodes outside the pool is bounds", () => {
   }
 });
 
+test("maxNodes equal to the pool is accepted", () => {
+  const module = moduleOf(() =>
+    freeListWalk(() => undefined, { maxNodes: 1700 }),
+  );
+  assert.equal(whiles(module).length, 1);
+});
+
 test("maxNodes non-number is a type error", () => {
-  for (const value of [true, "1699", null]) {
+  for (const value of [true, "1700", null]) {
     assert.throws(
       () =>
         buildModule(() =>

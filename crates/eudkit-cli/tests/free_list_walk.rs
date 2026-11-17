@@ -122,8 +122,8 @@ fn a_cycle_stops_at_the_scan_bound() {
         TS_FREE_SLOT_COUNT,
         &cyclic_chain(),
     );
-    assert_eq!(py.count, 1699, "a cycle must stop at CUNIT_FREE_SCAN_MAX");
-    assert_eq!(ts.count, 1699);
+    assert_eq!(py.count, 1700, "a cycle must stop at CUNIT_FREE_SCAN_MAX");
+    assert_eq!(ts.count, 1700);
 }
 
 #[test]

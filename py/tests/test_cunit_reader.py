@@ -8,7 +8,7 @@ shared CP-relative body is declared once per module; and the loop form never
 reads the ambient CurrentPlayer value.
 
 These tests pin the corrected constants (``CUNIT_LAST_EPD`` is
-``19025 + 84 * 1698 = 161657``, **not** ``20723``), the exact HIR shape of all
+``19025 + 84 * 1699 = 161741``, **not** ``20724``), the exact HIR shape of all
 three forms, the null sentinel rejected by the *upper* bound of
 ``in_cunit_pool``, and the two ``EUDSL-TYPE`` guards.
 """
@@ -64,8 +64,8 @@ class CunitConstantsTest(unittest.TestCase):
         self.assertEqual(CUNIT_POOL_BASE, 0x59CCA8)
         self.assertEqual(CUNIT_SLOT_SIZE, 336)
         self.assertEqual(CUNIT_SLOT_EPDS, CUNIT_SLOT_SIZE // 4)
-        self.assertEqual(CUNIT_SLOT_COUNT, 1699)
-        self.assertEqual(CUNIT_POOL_END, 0x628297)
+        self.assertEqual(CUNIT_SLOT_COUNT, 1700)
+        self.assertEqual(CUNIT_POOL_END, 0x6283E7)
         self.assertEqual(
             CUNIT_POOL_END,
             CUNIT_POOL_BASE + CUNIT_SLOT_SIZE * CUNIT_SLOT_COUNT - 1,
@@ -73,8 +73,8 @@ class CunitConstantsTest(unittest.TestCase):
 
         self.assertEqual(CUNIT_BASE_EPD, 19025)
         self.assertEqual(EPD(CUNIT_POOL_BASE), CUNIT_BASE_EPD)
-        self.assertEqual(CUNIT_LAST_EPD, 161657)
-        self.assertEqual(EPD(0x628148), CUNIT_LAST_EPD)
+        self.assertEqual(CUNIT_LAST_EPD, 161741)
+        self.assertEqual(EPD(0x628298), CUNIT_LAST_EPD)
         self.assertEqual(
             CUNIT_LAST_EPD,
             CUNIT_BASE_EPD + CUNIT_SLOT_EPDS * (CUNIT_SLOT_COUNT - 1),

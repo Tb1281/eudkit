@@ -4,7 +4,7 @@ The free list is a plain forward chain from ``0x628438`` through each node's
 ``next`` link (``ptr + 1``). The walk is the same shape as ``T-WP7``'s forward
 unit-list walk, with two extra pieces:
 
-* a ``remaining`` scan guard initialised to ``CUNIT_FREE_SCAN_MAX`` (1699) and
+* a ``remaining`` scan guard initialised to ``CUNIT_FREE_SCAN_MAX`` (1700) and
   decremented per node, so a cycle stops instead of hanging the game;
 * a one-call-site rule per module, enforced **before** emission.
 
@@ -86,7 +86,7 @@ def acts_targeting(stmts: list[dict[str, Any]], var_id: int) -> list[dict[str, A
 
 class ConstantsTest(unittest.TestCase):
     def test_scan_max_is_the_pool_slot_count(self) -> None:
-        self.assertEqual(CUNIT_FREE_SCAN_MAX, 1699)
+        self.assertEqual(CUNIT_FREE_SCAN_MAX, 1700)
         self.assertEqual(CUNIT_FREE_SCAN_MAX, CUNIT_SLOT_COUNT)
 
     def test_free_head_is_the_documented_dword(self) -> None:
@@ -139,7 +139,7 @@ class WalkShapeTest(unittest.TestCase):
             [AtLeast, AtMost, Exactly],
         )
         # The upper bound is what rejects the null sentinel; pin it explicitly.
-        self.assertEqual(while_stmt["conds"][1]["amount"], 161657)
+        self.assertEqual(while_stmt["conds"][1]["amount"], 161741)
 
     def test_link_is_read_from_ptr_plus_one_before_the_body(self) -> None:
         while_stmt = walk_while(hir_module(lambda: free_slot_count()))
@@ -179,7 +179,7 @@ class CycleGuardTest(unittest.TestCase):
                 r.get("target_var") == remaining for r in act.get("relocs", [])
             )
         ]
-        self.assertEqual(len(init_acts), 1, "the guard starts at 1699")
+        self.assertEqual(len(init_acts), 1, "the guard starts at 1700")
         acts = acts_targeting(body, remaining)
         self.assertEqual(len(acts), 1)
         # `Var.isub(1)` emits the two's-complement add; the value is the
@@ -303,7 +303,7 @@ class DiagnosticsTest(unittest.TestCase):
         self.assertEqual(ctx.exception.code, "EUDSL-TYPE")
 
     def test_max_nodes_outside_the_pool_is_bounds(self) -> None:
-        for value in (0, 1700):
+        for value in (0, 1701):
             with self.subTest(value=value):
                 with self.assertRaises(EudslError) as ctx:
                     build_module(
@@ -312,6 +312,12 @@ class DiagnosticsTest(unittest.TestCase):
                         )
                     )
                 self.assertEqual(ctx.exception.code, "EUDSL-BOUNDS")
+
+    def test_max_nodes_equal_to_the_pool_is_accepted(self) -> None:
+        module = hir_module(
+            lambda: free_list_walk(lambda: None, max_nodes=1700)
+        )
+        self.assertEqual(len(walk_whiles(module)), 1)
 
     def test_max_nodes_bool_is_type(self) -> None:
         with self.assertRaises(EudslError) as ctx:

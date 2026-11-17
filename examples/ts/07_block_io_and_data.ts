@@ -7,35 +7,35 @@
  *   `CurrentPlayer == srcEpd + count - 1`. `memcpyEPD` also accepts a `Db` blob
  *   directly as its source via a mode-1 relocation (`memcpyEPD(dstEpd, blob, dwords)`).
  * - `EUDWhile` + `f_dwwrite_epd` -> `memsetEPD(dstEpd, value, count)`:
- *   constant `(dstEpd, value, count)` fills with `ceil(count / 64) <= 512` chunks
- *   fold into packed `SetDeaths` triggers (84 dwords -> 2 triggers, no loop),
- *   while a runtime `Var` count lowers to a check-first `whileLoop`.
+ *   a constant `(dstEpd, value, count)` fill folds into packed `SetDeaths`
+ *   triggers (84 dwords -> 2 triggers, no loop) — but only when `dstEpd` is a
+ *   constant. This example's scratch EPD is a runtime `Var` (see below), so
+ *   its fills lower to the check-first `whileLoop` instead; the fold itself is
+ *   covered by unit tests (`ts/tests/test_memory_costs.ts`).
  * - euddraft `_add_datadumper` / `dataDumper` plugin -> `dataDumper(Uint8Array, [addr], ["copy"])`:
  *   eudkit has no plugin split or unpatch stack (`f_dwpatch_epd`/`f_unpatchall`);
  *   a single `dataDumper` call allocates a dword-padded `Db` blob and emits the
  *   `once`-gated copy routine (note TS takes `Uint8Array`, Py accepts `bytes`).
  *
+ * Scratch buffer:
+ *   The 84-dword snapshot target is a 336-byte payload `Db` blob, not a CUnit
+ *   slot. `epdOfDb(blob)` returns a `Var` holding the blob's assembly-time
+ *   EPD, which `memcpyEPD` / `memsetEPD` accept as a runtime destination and
+ *   `CUnitView` accepts as a runtime EPD. The blob is compiler-owned payload
+ *   memory, so the copy can never overwrite a live unit. Slot 1699 must never
+ *   be used as scratch: the pool has 1700 slots
+ *   (`ts/view.ts: CUNIT_SLOT_COUNT = 1700`), so slot 1699 is the last VALID
+ *   CUnit (BWAPI: unit indices `0 <= i < 1700`; euddraft wiki: 1700 units
+ *   spanning `0x59cca8`–`0x6283e7`).
+ *
  * Note on imports:
  *   In external npm packages using `"eudkit"`, import from `"eudkit"`:
  *   `import { CUnit, Db, DisplayText, EPD, ... } from "eudkit";`
- *
- * WARNING — scratch slot 1699 is NOT established safe scratch. This example
- * assumes the repo's 1699-slot CUnit model (`ts/view.ts: CUNIT_SLOT_COUNT =
- * 1699`, slots 0..1698, pool end `0x628297`), so slot 1699 looks like free
- * space past the pool. External sources contradict that model: BWAPI accepts
- * unit indices `0 <= unitIndex < 1700`
- * (https://bwapi.github.io/class_b_w_a_p_i_1_1_game.html), and the euddraft wiki
- * states 1700 units (0th–1699th) span `0x59CCA8`–`0x6283E7`
- * (https://github-wiki-see.page/m/phu54321/euddraft/wiki/05.-Selecting-a-pawn).
- * Under those sources slot 1699 (`0x628298`–`0x6283E7`) is the last VALID
- * CUnit, and the 84-dword copy below overwrites it when occupied. Do not copy
- * this scratch choice into a real map until the 1699-vs-1700 pool size is
- * settled at the code level; the address is kept here only so the shipped
- * example still matches its eudplib baseline.
  */
 
 import {
   CUnit,
+  CUnitView,
   Db,
   DisplayText,
   EPD,
@@ -46,6 +46,7 @@ import {
   Var,
   buildModule,
   dataDumper,
+  epdOfDb,
   memcpyEPD,
   memsetEPD,
   once,
@@ -57,13 +58,8 @@ const CUNIT_SIZE = 336;
 const CUNIT_DWORDS = 84;
 
 const SLOT0_ADDR = CUNIT_POOL_ADDR;
-// WARNING: slot 1699 is the last VALID CUnit under BWAPI (1700 slots) — see
-// the module docstring. This address is kept only to match the eudplib
-// baseline; do not treat it as safe scratch in a real map.
-const SCRATCH_SLOT_ADDR = CUNIT_POOL_ADDR + 1699 * CUNIT_SIZE;
 
 const SRC_EPD = EPD(SLOT0_ADDR);
-const SCRATCH_EPD = EPD(SCRATCH_SLOT_ADDR);
 
 const BLOB_DST_ADDR = 0x58e100;
 const BLOB_DST_EPD = EPD(BLOB_DST_ADDR);
@@ -76,26 +72,33 @@ export const module = buildModule(() => {
   const verified = Var(0);
   const runtimeCount = Var(4);
   const blob = new Db(new TextEncoder().encode("EUDKITV3DATA"));
+  // 336-byte payload scratch: compiler-owned memory, never a live unit.
+  // Its assembly-time EPD arrives as a runtime Var (see module docstring).
+  const scratch = new Db(CUNIT_DWORDS * 4);
+  const scratchEpd = epdOfDb(scratch);
 
   once(() => {
     // 1. Seed CUnit slot 0 HP (40 HP = 10240 in 8.8 fixed point) for the demo.
     const srcUnit = CUnit(SRC_EPD);
     srcUnit.hp.set(10240);
 
-    // 2. Snapshot CUnit slot 0 (84 dwords) into scratch slot 1699.
+    // 2. Snapshot CUnit slot 0 (84 dwords) into the payload scratch blob.
     //    (memcpyEPD advances CurrentPlayer to SRC_EPD + 84 - 1.)
-    memcpyEPD(SCRATCH_EPD, SRC_EPD, CUNIT_DWORDS);
+    memcpyEPD(scratchEpd, SRC_EPD, CUNIT_DWORDS);
 
-    // 3. Verify the snapshotted CUnit's hp field equals 10240.
-    const snapUnit = CUnit(SCRATCH_EPD);
-    snapshotHp.set(snapUnit.hp.read());
+    // 3. Verify the snapshotted CUnit's hp field equals 10240. The field
+    //    handle (`.hp.read()`) only accepts a constant EPD, so a runtime EPD
+    //    uses the `CUnitView` `read("hp")` (via `withEpd`) instead.
+    const snapUnit = new CUnitView(scratchEpd);
+    snapshotHp.set(snapUnit.read("hp"));
     when([snapshotHp.eq(10240)], () => verified.set(1));
 
-    // 4. Constant-count memsetEPD (84 dwords -> folds to 2 packed SetDeaths triggers).
-    memsetEPD(SCRATCH_EPD, 0, CUNIT_DWORDS);
+    // 4. Constant-count memsetEPD at a runtime EPD (84 dwords -> check-first
+    //    whileLoop, not the packed SetDeaths fold, which needs a constant dst).
+    memsetEPD(scratchEpd, 0, CUNIT_DWORDS);
 
     // 5. Runtime-count memsetEPD (Var count -> lowers to a check-first whileLoop).
-    memsetEPD(SCRATCH_EPD, 0x11223344, runtimeCount);
+    memsetEPD(scratchEpd, 0x11223344, runtimeCount);
 
     // 6. Copy a Db blob directly via memcpyEPD (3 dwords = 12 bytes).
     memcpyEPD(BLOB_DST_EPD, blob, 3);

@@ -310,7 +310,7 @@ _Avoid_: camera lock, view lerp, "paused-game no-op" (the gate is multiplayer mo
 **Status:** `list walk`, **tracked group** (`UnitGroup.for_each`, unrolled default), **compact mode**, and the **runtime-loop API** are current ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) decision 7); `slot scan`, `density crossover`, and `new-unit snapshot` are planned, not implemented.
 
 **slot scan / density crossover**:
-A slot scan walks all 1699 fixed CUnit slots and checks liveness per slot, with roughly 4T static plus the body and roughly 3T × 1699 executed per invocation regardless of live count. The density crossover is the live-unit count (roughly 130–150) at which a list walk's linear cost overtakes that fixed cost; both are planned, not implemented ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md)).
+A slot scan walks all 1700 fixed CUnit slots and checks liveness per slot, with roughly 4T static plus the body and roughly 3T × 1700 executed per invocation regardless of live count. The density crossover is the live-unit count (roughly 130–150) at which a list walk's linear cost overtakes that fixed cost; both are planned, not implemented ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md)).
 _Avoid_: unit array scan, `EUDLoopUnit2` (when naming the strategy), "1700 static triggers", break-even threshold, magic unit count.
 
 **list walk**:
@@ -318,7 +318,7 @@ A unit-iteration strategy that follows `nextUnit` pointers from a list head; the
 _Avoid_: pointer chase, linked-list loop.
 
 **new-unit snapshot**:
-A one-time startup table aligned with the 1699 CUnit free-list slots, used to detect units created after initialization; it costs about 558 KiB per call site unless shared. Planned, not implemented ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md)).
+A one-time startup table aligned with the 1700 CUnit free-list slots, used to detect units created after initialization; it costs about 558 KiB per call site unless shared. Planned, not implemented ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md)).
 _Avoid_: shadow array, seen bitmap.
 
 **tracked group / compact mode**:
@@ -342,11 +342,11 @@ The three ways to answer "is there room for another unit": tier 1 is the exact 1
 _Avoid_: calling the counter form tier 1, an exact count without the walk.
 
 **free-slot count / one-shot scan**:
-`free_slot_count()` / `freeSlotCount()` returns the exact number of free CUnit nodes as a `Var`, sharing one call-site budget with `free_list_walk` per module; a second call is `EUDSL-BOUNDS`, while `free_list_empty()` does not count. `1699 - free_slot_count()` is the walk-derived upper bound and deliberately has no API name ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) §10).
+`free_slot_count()` / `freeSlotCount()` returns the exact number of free CUnit nodes as a `Var`, sharing one call-site budget with `free_list_walk` per module; a second call is `EUDSL-BOUNDS`, while `free_list_empty()` does not count. `1700 - free_slot_count()` is the walk-derived upper bound and deliberately has no API name ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) §10).
 _Avoid_: per-frame free count, `1700 - 0x6283F0`, `slotsUpperBound` (not shipped), advisory once, automatic runtime gating.
 
 **cycle guard**:
-The `remaining` counter in the tier-3 walk, set to `CUNIT_FREE_SCAN_MAX` (1699) and decremented once per node; at zero the walk sets `done` and stops, so a cycle in a corrupted free list costs at most 1699 nodes instead of hanging the game. It is the third termination condition, beside a null pointer and an out-of-pool pointer, and never mutates game memory.
+The `remaining` counter in the tier-3 walk, set to `CUNIT_FREE_SCAN_MAX` (1700) and decremented once per node; at zero the walk sets `done` and stops, so a cycle in a corrupted free list costs at most 1700 nodes instead of hanging the game. It is the third termination condition, beside a null pointer and an out-of-pool pointer, and never mutates game memory.
 _Avoid_: sentinel node, list rewrite, infinite-loop watchdog.
 
 **advisory capacity check**:
@@ -354,7 +354,7 @@ A capacity signal that answers exactly the question it reads and no more: `free_
 _Avoid_: capacity guarantee, authoritative free count.
 
 **CUnit pool / shifted pointer space `S`**:
-The CUnit pool is the game's fixed array of 1699 CUnit slots starting at `0x59CCA8`, 336 bytes (84 dwords) apart, with slot starts in `S` over `[0x16732A, 0x18A052]` and EPDs over `[19025, 161657]`. The shifted pointer space `S = A >> 2` divides the dword-aligned byte address by four; for a slot start, bits 0 and 1 are invariant and bit 20 is always 1, so bits 2–19 recover the slot index ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) §9). Note: this 1699-slot count is the repo's model (`py/view.py`, `ts/view.ts`); BWAPI accepts unit indices `0 <= unitIndex < 1700` ([BWAPI `Game`](https://bwapi.github.io/class_b_w_a_p_i_1_1_game.html)) and the euddraft wiki states 1700 units spanning `0x59CCA8`–`0x6283E7` ([euddraft wiki](https://github-wiki-see.page/m/phu54321/euddraft/wiki/05.-Selecting-a-pawn)), so slot 1699 must not be treated as free scratch (see `examples/py/07_block_io_and_data.py`).
+The CUnit pool is the game's fixed array of 1700 CUnit slots starting at `0x59CCA8`, 336 bytes (84 dwords) apart, with slot starts in `S` over `[0x16732A, 0x18A0A6]` and EPDs over `[19025, 161741]`. The shifted pointer space `S = A >> 2` divides the dword-aligned byte address by four; for a slot start, bits 0 and 1 are invariant and bit 20 is always 1, so bits 2–19 recover the slot index ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) §9). Slot count per BWAPI (unit indices `0 <= unitIndex < 1700`, [BWAPI `Game`](https://bwapi.github.io/class_b_w_a_p_i_1_1_game.html)) and the euddraft wiki (1700 units spanning `0x59CCA8`–`0x6283E7`, [euddraft wiki](https://github-wiki-see.page/m/phu54321/euddraft/wiki/05.-Selecting-a-pawn)); slot 1699 is the last valid unit, never free scratch.
 _Avoid_: unit array, CUnit heap, slot table, byte address, EPD for `S`, unqualified pointer space.
 
 **CP-relative read**:

@@ -58,10 +58,14 @@ export const epd = EPD;
 // CUnit slot pool
 // ---------------------------------------------------------------------------
 //
-// The engine's CUnit array is 1699 slots of 336 bytes each. Slots are packed
+// The engine's CUnit array is 1700 slots of 336 bytes each. Slots are packed
 // back-to-back, so consecutive CUnits start 84 dwords apart. In the shifted
 // pointer space `S = A >>> 2` the slot starts therefore span
-// `[0x16732a, 0x18a052]` and the last slot starts at byte `0x628148`.
+// `[0x16732a, 0x18a0a6]` and the last slot starts at byte `0x628298`.
+//
+// Pool size per BWAPI (unit indices `0 <= i < 1700`) and the euddraft wiki
+// (1700 units spanning `0x59cca8`-`0x6283e7`); the previous 1699-slot
+// model was wrong by one (it excluded the last valid unit).
 
 /** Byte address of the first CUnit slot. */
 export const CUNIT_POOL_BASE = 0x59cca8;
@@ -70,20 +74,20 @@ export const CUNIT_SLOT_SIZE = 336;
 /** Dwords per CUnit slot: **the stride that matters** for the EPD bound. */
 export const CUNIT_SLOT_EPDS = 84;
 /** Number of CUnit slots in the engine pool. */
-export const CUNIT_SLOT_COUNT = 1699;
+export const CUNIT_SLOT_COUNT = 1700;
 /** EPD of the first CUnit slot (`EPD(0x59cca8)`). */
 export const CUNIT_BASE_EPD = EPD(CUNIT_POOL_BASE);
 /**
- * EPD of the last CUnit slot's first dword (`EPD(0x628148)`).
+ * EPD of the last CUnit slot's first dword (`EPD(0x628298)`).
  *
  * Derived, not `CUNIT_BASE_EPD + CUNIT_SLOT_COUNT - 1`: each slot is 84
- * dwords, so a naive `+1698` lands at EPD 20723 and rejects every real unit
+ * dwords, so a naive `+1699` lands at EPD 20724 and rejects every real unit
  * after the 21st slot.
  */
 export const CUNIT_LAST_EPD =
   CUNIT_BASE_EPD + CUNIT_SLOT_EPDS * (CUNIT_SLOT_COUNT - 1);
 /** Last byte of the CUnit pool, inclusive. */
-export const CUNIT_POOL_END = 0x628297;
+export const CUNIT_POOL_END = 0x6283e7;
 
 /** Seed restoring the invariant low bits of the shifted pointer space. */
 const CUNIT_POINTER_SEED = 0x100002;
@@ -332,6 +336,12 @@ export class TriggerFieldRef {
     return new FieldValueSpace(this.bitMask, this.shift, this.size);
   }
 
+  /**
+   * `act_*` here shares the dual-channel contract documented on `Var`
+   * (`var.ts`): the returned action is ALSO queued into the active builder
+   * by `SetDeathsX` (`buildAct`), and a bare call outside `buildModule`
+   * queues nowhere (see `ts/tests/test_dat.ts`).
+   */
   act_set(rhs: number): HirAct {
     const val = (requirePlainInt(rhs, "field write") << this.shift) >>> 0;
     return SetDeathsX(this, SetTo, val, 0, this.bitMask);
@@ -1151,6 +1161,10 @@ export class MemFieldHandle {
 
   // Validate the operand *before* `prepareTarget()`: on a CP base the target
   // step queues a move act, and a rejected write must leave no stray act.
+  // `act_*` here shares the dual-channel contract documented on `Var`
+  // (`var.ts`): the returned action is ALSO queued into the active builder
+  // by `SetDeathsX` (`buildAct`), and a bare call outside `buildModule`
+  // queues nowhere (see `ts/tests/test_dat.ts`).
   act_set(rhs: number): HirAct {
     const val = (requirePlainInt(rhs, "field write") << this.shift) >>> 0;
     const target = this.prepareTarget();

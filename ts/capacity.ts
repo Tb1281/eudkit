@@ -47,7 +47,7 @@ export const CUNIT_FREE_HEAD = 0x628438;
 /** Dword holding the tail of the CUnit free list (documented, no helper). */
 export const CUNIT_FREE_TAIL = 0x62843c;
 /**
- * Hard stop for the tier-3 walk: the pool has 1699 slots, so a cycle can
+ * Hard stop for the tier-3 walk: the pool has 1700 slots, so a cycle can
  * never legitimately outlast it.
  */
 export const CUNIT_FREE_SCAN_MAX = CUNIT_SLOT_COUNT;
@@ -102,10 +102,10 @@ function requireScanLimit(value: unknown): number {
  * executed per free node. Use it once per module (map start or on author
  * request); a per-frame capacity check is `freeListEmpty()`.
  *
- * `maxNodes` is a plain integer in `1..1699` and is also the cycle guard: the
+ * `maxNodes` is a plain integer in `1..1700` and is also the cycle guard: the
  * walk stops on a null pointer, a pointer outside the CUnit pool, or
  * `maxNodes` iterations — whichever comes first — so a corrupted list costs
- * at most `1699 × 37T` and never hangs the game. Return `BREAK` from `body`
+ * at most `1700 × 37T` and never hangs the game. Return `BREAK` from `body`
  * to stop after the current node.
  */
 export function freeListWalk(
