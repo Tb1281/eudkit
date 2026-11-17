@@ -15,7 +15,8 @@
  *     - `turbo()` writes `0x6509A0` (`eudTurbo`), and `freeListEmpty()` is a
  *       1-condition CUnit-pool exhaustion check (`0x628438 == 0`).
  *     - Heavyweight init-loop helpers `noAirCollision()` and `unlimiter()`
- *       follow the same zero-plugin pattern (note: `unlimiter()` emits ~8.4 MiB
+ *       are available as ordinary DSL calls in the same zero-plugin style,
+ *       but are not demonstrated here (note: `unlimiter()` emits ~8.4 MiB
  *       payload and runs 679k init steps, so pass `eudkit dump-ir --no-exec`
  *       when inspecting it).
  *
@@ -29,7 +30,7 @@
  *     - `cameraFollow(...)`: euddraft `cammove` 플러그인 대체.
  *     - `turbo()` (`eudTurbo`), `freeListEmpty()` (CUnit 여유 슬롯 고갈
  *       검사), 그리고 대용량 초기화 패치인 `noAirCollision()` /
- *       `unlimiter()`도 동일하게 모듈 안에서 직접 호출합니다.
+ *       `unlimiter()`도 동일하게 모듈 안에서 직접 호출할 수 있습니다(여기서는 시연하지 않음).
  *
  * External package note: in standalone npm projects using `"eudkit"`, import
  * from `"eudkit"` instead of `"../../ts/index.ts"`.

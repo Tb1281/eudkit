@@ -258,6 +258,9 @@ trigger cost, for example:
 compiled examples/quickstart/py/01_hello_world.py -> /tmp/01_hello_world-py.scx (36T static)
 ```
 
+(1 program trigger + 35 once-per-tick gate triggers; `dump-ir` reports the
+pre-assembly 1T, because the gate triggers are added during map assembly.)
+
 `T` is triggers. To inspect static cost without writing a map, use
 `eudkit dump-ir <source> --json --no-exec` (see §4). `--check-cost` is a
 deprecated no-op accepted for compatibility; `--plan-out <plan.json>` writes a
@@ -293,11 +296,13 @@ when you add more examples:
 
 A useful first debugging rule: if `synth` succeeds but the map shows nothing,
 check that the map is launched in **single-player** and that you are looking at
-the line `displayAt` targets. `DisplayText` appends; `displayAt(n)` writes chat
-line `n` (0–10). Both target `CurrentPlayer` (`0x6509B0`), which the payload
+the line `displayAt` targets. `DisplayText` appends; `displayAt(n)` shifts the
+display cursor forward by `n` lines (mod 11) from its current position and then
+restores it. Both target `CurrentPlayer` (`0x6509B0`), which the payload
 runner leaves at 0 (P1) for a normal solo start — whereas `displayTextAll(text)`
-temporarily switches `CurrentPlayer` to `userPlayer()` (`0x512684`, including
-observers) and restores it afterward so every local client sees the message.
+temporarily switches `CurrentPlayer` to the local-player id read from
+`dwUserPlayerId` (`0x512684`, including observers) and restores it afterward so
+every local client sees the message.
 
 ## 7. Learn the language in five steps
 
@@ -363,12 +368,15 @@ Once the five quickstart examples make sense:
    masks, CP cursors, `CUnit` groups and global unit lists, DAT tables,
    arrays/structs, block I/O, dynamic EPD access, player loops & local
    broadcasts, math/random/locations/tech & upgrades, and containers,
-   camera follow & engine helpers.
+   camera follow & engine helpers. Korean guidance is in
+   [`examples/README.ko.md`](../examples/README.ko.md).
 2. Keep [`GLOSSARY.md`](../GLOSSARY.md) open for canonical terms.
 3. Read the decision records in [`docs/adr/README.md`](adr/README.md) when a
    design choice looks surprising.
 4. Use [`py/README.md`](../py/README.md) and [`ts/README.md`](../ts/README.md)
-   for the full API surface and stock trigger catalog.
+   for the full API surface and stock trigger catalog (Korean:
+   [`py/README.ko.md`](../py/README.ko.md),
+   [`ts/README.ko.md`](../ts/README.ko.md)).
 5. Use the smoke maps and their expected-line tables in
    [`tests/outputmap/smoke/README.md`](../tests/outputmap/smoke/README.md) as a
    model for your own in-game tests.

@@ -9,7 +9,9 @@ Migration Guide (eudplib -> eudkit):
   - eudkit: unified core exports:
     - `div_floor` (plus `div_towards_zero`/`div_euclid`), `isqrt`, `pow`,
       `atan2`/`lengthdir` (backed by lazy shared trig tables per builder),
-      and `binary_min`/`binary_max`.
+      and `binary_min`/`binary_max`. Note the argument order flips from
+      eudplib: `binary_min(lo, hi, predicate)`, not
+      `EUDBinaryMin(predicate, lo, hi)`.
     - `srand`, `randomize`, `rand`, `dwrand`, `rand_range` with builder-local
       LCG state (no global seed collisions across modules).
     - `Location(0)` OOP wrapper (`set_rect`, `move`, `center`, `top_left`),
@@ -86,9 +88,11 @@ def prog() -> None:
     out = Var(0)
     when([found.ge(10)], lambda: out.set(q.add(root).add(p).add(dx).add(dy).add(roll).add(lx).add(ly)))
 
-    # Tech / upgrade state (0 = Stim Packs, 0 = Terran Infantry Armor/Weapons slot).
-    once(lambda: (set_upgrade_level(0, 0, 2), set_tech_researched(0, 0, True)))
-    up_lvl = upgrade_level(0, 0)
+    # Tech / upgrade state (tech=0 Stim Packs, player=0; upgrade=7 Terran
+    # Infantry Weapons, player=0, level 2) — matches the eudplib baseline,
+    # which uses EncodeUpgrade("Terran Infantry Weapons") (id 7).
+    once(lambda: (set_upgrade_level(7, 0, 2), set_tech_researched(0, 0, True)))
+    up_lvl = upgrade_level(7, 0)
     when([tech_researched(0, 0), up_lvl.ge(2)], lambda: out.iadd(1))
 
 

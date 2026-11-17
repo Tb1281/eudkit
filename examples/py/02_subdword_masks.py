@@ -37,7 +37,7 @@ from py import (
     TriggerStruct,
     Var,
     bit,
-    buildModule,
+    build_module,
     byte,
     defineMemView,
     when,
@@ -162,4 +162,4 @@ def prog() -> None:
     )  # +1
 
 
-module = buildModule(prog)
+module = build_module(prog)

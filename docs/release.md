@@ -8,7 +8,7 @@ packaged and released. The workflows live in
 ## The five release deliverables
 
 Each tagged release publishes five deliverables that share one unified version
-(`0.1.0`). The CI `packaging` job builds and smoke-tests all five on every pull
+(`0.1.1`). The CI `packaging` job builds and smoke-tests all five on every pull
 request and push; the release workflow repeats them with optional registry
 publishing.
 
@@ -63,8 +63,9 @@ The workflow extracts each bundle and runs `eudkit doctor`, `eudkit init`,
 `build-vscode` compiles `crates/eudkit-lsp` for `wasm32-wasip1`, copies
 `eudkit-lsp.wasm` into `editors/vscode/`, runs the extension tests (including
 the bundled Wasm stdio handshake), and packages `editors/vscode/` with
-`@vscode/vsce@4.1.1`. It always uploads `eudkit-vscode.vsix` as a release
-artifact. On a publishing run it publishes to the VS Code Marketplace
+`@vscode/vsce@4.1.1`. It always uploads `eudkit-vscode.vsix` as a workflow
+artifact; on tag pushes the `publish-release` job attaches it to the GitHub
+release. On a publishing run it publishes to the VS Code Marketplace
 (`VSCE_PAT`) and Open VSX (`OVSX_PAT`) when the corresponding secret is
 configured; a missing secret logs a notice and skips that registry instead of
 failing the release.
@@ -121,8 +122,9 @@ The release workflow runs on:
   when credentials are configured, and create the GitHub release.
 - **Manual `workflow_dispatch`**. With `publish_registries=true`, it publishes
   to the enabled registries. Without it, it builds and uploads workflow
-  artifacts only. A manual run never creates a GitHub release; the
-  `publish-release` job only runs for tag pushes.
+  artifacts only. A manual run on a branch never creates a GitHub release;
+  the `publish-release` job is gated on the ref being a `v*` tag, so a manual
+  run targeted at a `v*` tag ref would still satisfy that gate.
 
 `concurrency: { group: release-${{ github.ref }}, cancel-in-progress: false }`
 serializes runs for the same ref instead of cancelling a release midway.
@@ -134,25 +136,25 @@ artifact is built.
 
 ## Version conventions
 
-All eight manifests share one unified version (`0.1.0`):
+All eight manifests share one unified version (`0.1.1`):
 
 | Manifest | Value |
 | --- | --- |
-| [`Cargo.toml`](../Cargo.toml) `[workspace.package] version` | `0.1.0` (source of truth) |
+| [`Cargo.toml`](../Cargo.toml) `[workspace.package] version` | `0.1.1` (source of truth) |
 | [`crates/eudkit-cli/Cargo.toml`](../crates/eudkit-cli/Cargo.toml) | `version.workspace = true` |
 | [`crates/eudkit-lsp/Cargo.toml`](../crates/eudkit-lsp/Cargo.toml) | `version.workspace = true` |
-| [`editors/vscode/package.json`](../editors/vscode/package.json) | `0.1.0` |
-| [`editors/zed/Cargo.toml`](../editors/zed/Cargo.toml) | `0.1.0` |
-| [`editors/zed/extension.toml`](../editors/zed/extension.toml) | `0.1.0` |
-| [`py/pyproject.toml`](../py/pyproject.toml) | `0.1.0` |
-| [`ts/package.json`](../ts/package.json) | `0.1.0` |
+| [`editors/vscode/package.json`](../editors/vscode/package.json) | `0.1.1` |
+| [`editors/zed/Cargo.toml`](../editors/zed/Cargo.toml) | `0.1.1` |
+| [`editors/zed/extension.toml`](../editors/zed/extension.toml) | `0.1.1` |
+| [`py/pyproject.toml`](../py/pyproject.toml) | `0.1.1` |
+| [`ts/package.json`](../ts/package.json) | `0.1.1` |
 
-Tags use the form `v<MAJOR.MINOR.PATCH>`, for example `v0.1.0`. A prerelease
+Tags use the form `v<MAJOR.MINOR.PATCH>`, for example `v0.1.1`. A prerelease
 tag such as `v0.2.0-rc.1` is accepted only when every manifest
 also says `0.2.0-rc.1`. Validate the whole checklist before tagging:
 
 ```sh
-python3 scripts/check_versions.py --tag v0.1.0
+python3 scripts/check_versions.py --tag v0.1.1
 ```
 
 All release bundles, editor extensions, and Python/npm artifacts carry this
@@ -206,7 +208,7 @@ For each release:
    [eudkit]
    submodule = "extensions/eudkit"
    path = "editors/zed"
-   version = "0.1.0"
+   version = "0.1.1"
    ```
 
 4. Sort the index and run the repository's checks:
@@ -230,7 +232,7 @@ cargo build --release -p eudkit -p eudkit-lsp
 (cd ts && npm run build)
 
 python3 scripts/package_bundle.py \
-  --version 0.1.0 \
+  --version 0.1.1 \
   --target x86_64-unknown-linux-gnu \
   --bin-dir target/release \
   --repo-root . \
@@ -245,7 +247,7 @@ and confirms the `.sha256` checksum. Unpack and exercise both binaries:
 
 ```sh
 mkdir -p /tmp/eudkit-bundle
-tar -xzf dist/eudkit-0.1.0-x86_64-unknown-linux-gnu.tar.gz -C /tmp/eudkit-bundle
+tar -xzf dist/eudkit-0.1.1-x86_64-unknown-linux-gnu.tar.gz -C /tmp/eudkit-bundle
 BUNDLE=$(find /tmp/eudkit-bundle -mindepth 1 -maxdepth 1 -type d | head -n 1)
 cd "$BUNDLE"
 ./bin/eudkit doctor

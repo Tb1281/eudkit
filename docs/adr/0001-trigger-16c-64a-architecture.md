@@ -41,7 +41,7 @@ In earlier trigger-slot designs, every mutable variable, writable array element,
 
 ## Decision
 
-`eudkit` makes the full StarCraft **`Trigger` (`16C, 64A`)** (`2,408` bytes = `602 EPDs`; 16 conditions at `20B = 5 EPDs` each; 64 actions at `32B = 8 EPDs` each) both the primary execution-packing unit and the canonical mutable storage backing:
+`eudkit` makes the full StarCraft **`Trigger` (`16C, 64A`)** (`2,408` bytes = `602 EPDs`; 16 conditions at `20B = 5 EPDs` each; 64 actions at `32B = 8 EPDs` each; plus 8 B prev/next pointers, 4 B flags, 27 B player bytes, and 1 B current-action) both the primary execution-packing unit and the canonical mutable storage backing:
 
 1. **Self-Targeted `64A` `TriggerPage` Backing**:
    - Mutable `TriggerStruct`s, writable `FixedArray`s, and VProc-capable scalar variables are stored in the 64 `SetDeathsX` action slots (`0..63`) of `TriggerPage`s, retiring 72-byte `VarBuffer`/`XVarBuffer` slots.

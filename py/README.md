@@ -8,9 +8,10 @@ see [ADR 0026](../docs/adr/0026-builder-seam-divergence.md).
 
 ## Install
 
-```sh
-pip install eudkit
-```
+The package is not published to PyPI yet, so install it from the
+[v0.1.1 release wheel](https://github.com/Tb1281/eudkit/releases/tag/v0.1.1)
+(`eudkit-0.1.1-py3-none-any.whl`) or from a checkout (see Develop below);
+`pip install eudkit` will not find it on PyPI today.
 
 The package contains the Python DSL only. For the `eudkit` compiler CLI and
 `eudkit-lsp`, download a prebuilt standalone bundle from
@@ -22,10 +23,10 @@ from the repository root (see the [main README](../README.md)).
 Editable install using `uv` (recommended) or `pip`:
 
 ```sh
-# From consumer project:
+# From a consumer project that contains an `eudkit` checkout:
 uv add --editable ./eudkit/py
 
-# Or in an existing virtualenv:
+# Or, from the repository root, in an existing virtualenv:
 pip install -e ./py
 ```
 
@@ -269,7 +270,8 @@ from `schema/stock-rows.json` in `py/stock_rows_built.py`. The generated Python
 artifact that *is* checked in is `py/stock_rows_generated.py`, the ordered
 export name list; regenerate it with
 `python3 scripts/generate_stock_surfaces.py` (the script's `--check` mode fails
-on drift). ADR 0009 records the deliberate TypeScript/Python asymmetry: TS
+on drift). ADR 0009 records the deliberate TypeScript/Python asymmetry, and
+ADR 0016 records the single-source-of-truth spec generation behind it: TS
 checks in `ts/stock.generated.ts`, Python builds the helper bodies at import
 and checks in only the names. Each constructed helper keeps the spec's
 `__name__`, `__doc__`, and `__signature__`, so introspection and keyword calls
@@ -309,7 +311,8 @@ throws `EUDSL-TARGET`, and an out-of-range index or unknown field throws
   declares one at module scope and binds it to each builder on first use.
 - **`FixedString` + `DisplayText`** — `FixedString(size)` is a STR-backed text
   buffer (`write`, `append`, `writeFrom`, `print`, `display`, and the
-  `printAt`/`displayAt` chat-line methods). `DisplayText(text)` emits the stock
+  `printAt`/`displayAt` chat-line methods, plus `snake_case` aliases
+  `write_from`, `print_at`, `display_at`). `DisplayText(text)` emits the stock
   action that shows `text` to CurrentPlayer (`0x6509B0`), not to every player;
   its second argument `always_display` defaults to `4`.
 - **`CUnit`** — a zero-storage `MemView` over a unit EPD:
@@ -327,9 +330,9 @@ throws `EUDSL-TARGET`, and an out-of-range index or unknown field throws
 
 ## See also
 
-- [Quickstart](../docs/quickstart.md)
-- [Quickstart example](../examples/quickstart/README.md)
-- [Migration examples](../examples/README.md)
+- [Quickstart](../docs/quickstart.md) ([Korean](../docs/quickstart.ko.md))
+- [Quickstart example](../examples/quickstart/README.md) ([Korean](../examples/quickstart/README.ko.md))
+- [Migration examples](../examples/README.md) ([Korean](../examples/README.ko.md))
 - [Diagnostics reference](../docs/diagnostics.md)
 - [Language server (`eudkit-lsp`)](../docs/lsp.md)
 - [Glossary](../GLOSSARY.md)

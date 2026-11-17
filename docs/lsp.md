@@ -24,9 +24,9 @@ full build/test matrix, see
 [CONTRIBUTING.md#build-and-test](../CONTRIBUTING.md#build-and-test).
 
 The CUnit/CSprite member tables and the stock vocabulary are generated at
-build time from `schema/layouts/*.json` and `schema/stock-rows.json`. If the
-schema is missing or unparseable, the build fails loudly rather than falling
-back to a stale table.
+build time from `schema/layouts/cunit.json`, `schema/layouts/csprite.json`,
+and `schema/stock-rows.json`. If the schema is missing or unparseable, the
+build fails loudly rather than falling back to a stale table.
 
 ## Run it
 
@@ -47,9 +47,9 @@ The handshake sequence is the standard one:
 5. `shutdown`
 6. `exit` (or EOF)
 
-All editor intelligence is implemented as pure functions in
-`crates/eudkit-lsp/src/lib.rs`; `src/server.rs` only frames messages and keeps
-the open-document map.
+Completion, hover, and diagnostics are pure functions in
+`crates/eudkit-lsp/src/lib.rs`; `src/server.rs` adds request dispatch, the
+open-document map, and the diagnostics-notification fan-out.
 
 ## Supported features
 
@@ -62,7 +62,8 @@ the open-document map.
 | `textDocument/didClose` | Drops the text and language, then publishes an empty diagnostic list. |
 | `textDocument/completion` | Suggests DSL vocabulary (stock/extension helpers, core identifiers, Python spellings) or receiver members after `.`. |
 | `textDocument/hover` | Returns Markdown docs for vocabulary identifiers and members. |
-| `shutdown` / `exit` | Sets the shutdown flag and exits cleanly. |
+| `shutdown` | Sets the shutdown flag and returns `null`; the server keeps reading until `exit` or EOF. |
+| `exit` | Ends the stdio loop (the server exits; EOF also ends it). |
 | `$/setTrace`, `workspace/didChangeConfiguration` | Accepted and ignored. |
 | Unknown request | JSON-RPC error `-32601` (`method not found`). Unknown notifications are ignored. |
 
@@ -90,7 +91,10 @@ They check only fixed capacities:
 - `FixedArray`, `Queue`, `Deque`, `Stack`, and `UnitGroup` capacities must be
   positive.
 - `Trigger` may have at most 16 `conds` and 64 `acts`, in both the TypeScript
-  object form and the Python `conds=[...]`/`acts=[...]` form.
+  object form and the Python `conds=[...]`/`acts=[...]` form. (Raw `Trigger`
+  calls only: structured gates such as `when()`/`once()` chunk automatically
+  past 16 conditions — see [ADR 0027](./adr/0027-condition-chunking.md) — and
+  are not flagged here.)
 
 The scanner treats string literals and comments as single tokens, so a
 capacity-looking call inside a literal or comment is never flagged. Python

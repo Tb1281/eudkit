@@ -108,6 +108,8 @@ path-complete restore), so the promotion is unblocked.
 
 ## Amendment (2026-11-10, superseded)
 
+> Superseded — see the 2026-11-11 amendment above; retained for audit trail only. Do not read the ordering below as current semantics.
+
 The unconditional-gate deviation. Decision 3 said opt expands `until` to
 exactly today's DSL shape, and a Consequences bullet claimed Phase-1 output is
 byte-identical. That is true for every real gate, but it was wrong as a

@@ -4,17 +4,21 @@
 
 eudkit이 처음이라면 [`examples/quickstart/README.ko.md`](./quickstart/README.ko.md)의 점진적인 입문
 예제와 [제로부터 플레이 가능한 맵까지의 안내](../docs/quickstart.ko.md)를 먼저
-읽고, 네 예제가 이해된 뒤에 이 문서로 돌아오세요.
+읽고, 다섯 예제가 이해된 뒤에 이 문서로 돌아오세요.
 
 같은 메모리 읽기/쓰기, 커서, 테이블, 구조체/배열, 블록 I/O 의도를
 **`eudplib`**, **`eudkit` Python**, **`eudkit` TypeScript**로 각각 어떻게
 작성하는지 나란히 보여 주는 실행 가능한 예제입니다.
 
-모든 `py/`/`ts/` 쌍은 경고 없이 합성되고 **바이트 단위로 동일한 HIR과 `.scx`
-출력**을 생성하는 것으로 검증됩니다.
+모든 `py/`/`ts/` 쌍은 경고 없이 합성되고 **바이트 단위로 동일한 compact HIR과
+`.scx` 출력**을 생성하는 것으로 검증됩니다.
+
+아래 표의 표기: `1C` = 조건 슬롯 1개, `1A` = 액션 슬롯 1개,
+`64A` = 64개 액션 `TriggerPage`.
 
 ## 먼저 볼 곳
 
+- 대부분의 예제는 의도적으로 화면 출력이 없습니다. `DisplayText`를 호출하는 것은 01, 06, 07뿐이며, 동작은 HUD 라인이 아니라 py/ts 동등성 및 시뮬레이터 불변 테스트(`py/tests/test_examples.py`)로 검증됩니다. 다른 예제의 맵이 조용해도 정상입니다.
 - 게임 안에서의 검증 절차와 예상 화면 출력은
   [`../tests/outputmap/smoke/README.md`](../tests/outputmap/smoke/README.md)를
   참고하세요.

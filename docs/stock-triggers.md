@@ -3,12 +3,14 @@
 eudkit exposes the StarCraft: Remastered stock trigger vocabulary as helper
 functions for every StarEdit row. Each helper mirrors the StarEdit/EUD
 parameter order and emits the documented CHK condition or action type.
-Parameters are constants, except for the two documented **extension target
+Parameters are build-time values (plain constants, enums, or
+`FixedString`/record objects), except for the two documented **extension target
 forms** on `Deaths` and `SetDeaths`. The single source of truth for every
 helper row is [`schema/stock-rows.json`](../schema/stock-rows.json); the
 tables below are generated from it, and
 [`tests/stock-row-goldens.json`](../tests/stock-row-goldens.json) freezes the
-emitted HIR and diagnostics for all 92 rows.
+emitted HIR and diagnostics for all 92 trigger rows (plus the `UnitProperty`
+record, frozen separately).
 
 ## Stock versus eudkit extension
 
@@ -240,9 +242,12 @@ A few stock rows use fields that are easy to misread:
   CurrentPlayer to the user player id (`0x512684`) or be emitted from a
   classic trigger owned by that player.
 - A `DisplayText` placed after `MoveLocation`/`CenterView` in the same
-  trigger can be deferred to the next trigger cycle. Put user-visible
-  markers before those slow location/camera actions when the chat order
-  must match the trigger order.
+  trigger is *reported* (unverified) to sometimes appear a cycle late; no
+  primary source in StarEdit, BWAPI, GPTP, or eudplib confirms or refutes
+  this, and nothing in this repo states it. Treat it as an unconfirmed
+  ordering heuristic, not established engine behaviour: if chat order must
+  match trigger order, put user-visible markers before those location/camera
+  actions and verify in game.
 
 ## Adding a stock row
 

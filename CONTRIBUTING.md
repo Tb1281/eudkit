@@ -15,7 +15,7 @@ repository root:
 | `make build` | `cargo build --workspace` |
 | `make release` | `cargo build --release --workspace` |
 | `make test-rust` | `cargo test --workspace`, then `cargo test -p eudkit-lower --test map_bridge` |
-| `make test-ts` | `typecheck`, then `npm test` in `ts/` |
+| `make test-ts` | `cargo build` (via `build`), `typecheck`, then `npm test` in `ts/` |
 | `make test-py` | `PYTHONPATH=. $(PYTHON) -m unittest discover -s py/tests -p 'test_*.py' -t .` |
 | `make test-quickstart` | `PYTHONPATH=. $(PYTHON) -m unittest py/tests/test_quickstart_examples.py` |
 | `make test-examples` | `PYTHONPATH=. $(PYTHON) -m unittest py/tests/test_examples.py` |
@@ -93,8 +93,9 @@ shipping a second spec copy.
 
 The compiler resolves its DSL runtime in this order:
 
-1. `EUDKIT_ROOT`, if set. A set-but-invalid value is an error and never falls
-   back to another runtime.
+1. `EUDKIT_ROOT`, if set to a non-empty value. A set-but-invalid (non-empty)
+   value is an error and never falls back to another runtime; an empty or
+   whitespace-only value counts as unset.
 2. The nearest ancestor of the current directory containing both
    `ts/index.ts` and `py/__init__.py`.
 3. The nearest ancestor of the source file containing those same trees

@@ -57,7 +57,7 @@ SINGLE_TARGETS = [
     ("classic-runner-order", BASEMAP_PLAIN),
     ("aligned-string-padding", BASEMAP_SILENT),
     ("setup-display-probe", BASEMAP_SILENT),
-    ("displayat_owning_verify", BASEMAP_SILENT),
+    ("displayat_restore_verify", BASEMAP_SILENT),
 ]
 
 
@@ -285,8 +285,8 @@ class TestDocumentedSemantics(unittest.TestCase):
         report = _sim_source(SMOKE_DIR / "classic-runner-order.ts", loops=3)
         self.assertEqual(_strings(report), ["RUNNER PAYLOAD"])
 
-    def test_displayat_owning_verify(self) -> None:
-        report = _sim_source(SMOKE_DIR / "displayat_owning_verify.ts", loops=3)
+    def test_displayat_restore_verify(self) -> None:
+        report = _sim_source(SMOKE_DIR / "displayat_restore_verify.ts", loops=3)
         strings = _strings(report)
         self.assertIn("AAA", strings)
         self.assertIn("BBB", strings)

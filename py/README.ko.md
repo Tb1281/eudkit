@@ -6,9 +6,7 @@ eudkit DSL의 Python 구현입니다. 정본 어휘 수준에서 `ts/`와 1:1로
 
 ## 설치
 
-```sh
-pip install eudkit
-```
+이 패키지는 아직 PyPI에 게시되지 않았으므로, [v0.1.1 릴리스 휠](https://github.com/Tb1281/eudkit/releases/tag/v0.1.1)(`eudkit-0.1.1-py3-none-any.whl`)이나 체크아웃에서 설치하세요(아래 개발 참고). 지금은 `pip install eudkit`으로 PyPI에서 찾을 수 없습니다.
 
 이 패키지에는 Python DSL만 포함되어 있습니다. `eudkit` 컴파일러 CLI와 `eudkit-lsp`가 필요하면 [GitHub Releases](https://github.com/Tb1281/eudkit/releases/latest)에서 플랫폼별 독립 번들을 내려받거나 저장소 루트에서 직접 빌드하세요([메인 README](../README.ko.md) 참고).
 
@@ -17,10 +15,10 @@ pip install eudkit
 `uv`(권장) 또는 `pip`으로 editable 설치를 진행합니다:
 
 ```sh
-# 소비자 프로젝트에서:
+# `eudkit` 체크아웃을 포함한 소비자 프로젝트에서:
 uv add --editable ./eudkit/py
 
-# 또는 기존 virtualenv에서:
+# 또는 저장소 루트에서, 기존 virtualenv에서:
 pip install -e ./py
 ```
 

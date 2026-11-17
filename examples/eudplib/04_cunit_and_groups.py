@@ -44,7 +44,9 @@ def onPluginStart():
     unit.sprite = sprite
     sprite.posX = 320
 
-    # CUnit[1] is marked dying (order == 0, sprite != 0) so unit.dying prunes it
+    # CUnit[1] is marked dying (order == 0, sprite != 0) so unit.dying prunes it.
+    # Note: the eudkit mirrors mark death differently (sprite == 0); the two
+    # libraries detect a dead unit by different fields.
     dead_unit.order = 0
     dead_unit.sprite = sprite
 

@@ -17,6 +17,20 @@ Migration notes (eudplib -> eudkit):
 Note on imports:
   In external packages installed via ``pip install -e ./py``, import from ``eudkit``:
   ``from eudkit import CUnit, Db, DisplayText, EPD, ...``
+
+WARNING — scratch slot 1699 is NOT established safe scratch. This example
+assumes the repo's 1699-slot CUnit model (``py/view.py: CUNIT_SLOT_COUNT =
+1699``, slots 0..1698, pool end ``0x628297``), so slot 1699 looks like free
+space past the pool. External sources contradict that model: BWAPI accepts
+unit indices ``0 <= unitIndex < 1700``
+(https://bwapi.github.io/class_b_w_a_p_i_1_1_game.html), and the euddraft wiki
+states 1700 units (0th–1699th) span ``0x59CCA8``–``0x6283E7``
+(https://github-wiki-see.page/m/phu54321/euddraft/wiki/05.-Selecting-a-pawn).
+Under those sources slot 1699 (``0x628298``–``0x6283E7``) is the last VALID
+CUnit, and the 84-dword copy below overwrites it when occupied. Do not copy
+this scratch choice into a real map until the 1699-vs-1700 pool size is
+settled at the code level; the address is kept here only so the shipped
+example still matches its eudplib baseline.
 """
 
 from py import (
@@ -42,6 +56,9 @@ CUNIT_SIZE = 336
 CUNIT_DWORDS = 84
 
 SLOT0_ADDR = CUNIT_POOL_ADDR
+# WARNING: slot 1699 is the last VALID CUnit under BWAPI (1700 slots) — see
+# the module docstring. This address is kept only to match the eudplib
+# baseline; do not treat it as safe scratch in a real map.
 SCRATCH_SLOT_ADDR = CUNIT_POOL_ADDR + 1699 * CUNIT_SIZE
 
 SRC_EPD = EPD(SLOT0_ADDR)

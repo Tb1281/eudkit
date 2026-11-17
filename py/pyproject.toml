@@ -19,6 +19,3 @@ package-dir = {"eudkit" = "."}
 
 [tool.setuptools.package-data]
 eudkit = ["schema/layouts/*.json", "schema/stock-rows.json"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]

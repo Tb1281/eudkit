@@ -17,7 +17,9 @@
  * - `FixedString.write` renders game-time values into SC:R string memory.
  *   The `\x1a` in a format spec is SC:R's zero-width alignment pad, so
  *   `COUNT=   3` appears without extra visible spaces.
- * - `status.displayAt(2)` writes the string on chat line 2. `display()`
+ * - `status.displayAt(2)` shifts the display cursor forward by 2 lines
+ *   (mod 11) from its current position and then restores it; it does not
+ *   write to absolute chat line 2. `display()`
  *   appends to the next line instead.
  *
  * Installed consumers import `from "eudkit"`; inside this repository the same

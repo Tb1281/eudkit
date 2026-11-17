@@ -247,6 +247,9 @@ TypeScript 쌍둥이 예제도 컴파일합니다.
 compiled examples/quickstart/py/01_hello_world.py -> /tmp/01_hello_world-py.scx (36T static)
 ```
 
+(프로그램 트리거 1개 + 틱 게이트 35개입니다. `dump-ir`는 조립 전 1T를 보고합니다.
+게이트 트리거는 맵 조립 단계에서 추가되기 때문입니다.)
+
 `T`는 트리거를 뜻합니다. 맵을 쓰지 않고 정적 비용만 확인하려면
 `eudkit dump-ir <source> --json --no-exec`를 사용하세요(§4 참고).
 `--check-cost`는 호환성을 위해 받아들이는 더 이상 쓰이지 않는 no-op이고,
@@ -285,10 +288,12 @@ compiled examples/quickstart/py/01_hello_world.py -> /tmp/01_hello_world-py.scx 
 디버깅할 때 유용한 첫 번째 규칙은 이것입니다. `synth`는 성공하는데 맵에 아무것도
 보이지 않는다면, 맵을 **싱글 플레이어**로 시작했는지, 그리고 `displayAt`이
 가리키는 줄을 보고 있는지 확인하세요. `DisplayText`는 줄을 덧붙이고,
-`displayAt(n)`은 채팅 줄 `n`(0–10)에 씁니다. 둘 다 `CurrentPlayer`
+`displayAt(n)`은 현재 커서에서 `n`줄 앞으로 이동(11로 나눈 나머지)한 뒤 커서를
+복원합니다. 둘 다 `CurrentPlayer`
 (`0x6509B0`)를 대상으로 하며, 일반적인 솔로 시작에서는 페이로드 러너가 이 값을
 0(P1)으로 둡니다. 반면 `displayTextAll(text)`는 `CurrentPlayer`를
-`userPlayer()`(`0x512684`, 옵저버 포함)로 잠시 바꿨다가 곧바로 복원하므로
+`dwUserPlayerId`(`0x512684`)에서 읽은 로컬 플레이어 ID(옵저버 포함)로 잠시 바꿨다가
+곧바로 복원하므로
 모든 로컬 플레이어 화면에 출력됩니다.
 
 ## 7. 다섯 단계로 언어 익히기

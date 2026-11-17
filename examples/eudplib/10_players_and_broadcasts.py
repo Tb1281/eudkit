@@ -36,7 +36,9 @@ def beforeTriggerExec():
         EUDEndIf()
     EUDEndIf()
 
-    DoActions(Once(DisplayTextAll("Active players checked!")))
+    if EUDExecuteOnce()():
+        DoActions(DisplayTextAll("Active players checked!"))
+    EUDEndExecuteOnce()
 
 
 def run():

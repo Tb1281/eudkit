@@ -9,7 +9,7 @@ and npm packages share one unified version. Rust crates inherit it with
 Run from anywhere::
 
     python3 scripts/check_versions.py
-    python3 scripts/check_versions.py --tag v0.1.0
+    python3 scripts/check_versions.py --tag v0.1.1
 
 ``--tag`` accepts the git tag form ``vMAJOR.MINOR.PATCH`` (or the bare
 ``MAJOR.MINOR.PATCH``) and must exactly match every manifest version.
@@ -44,7 +44,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--tag",
-        help="Release tag to check, e.g. v0.1.0; must equal the manifest version",
+        help="Release tag to check, e.g. v0.1.1; must equal the manifest version",
     )
     return parser.parse_args(argv)
 

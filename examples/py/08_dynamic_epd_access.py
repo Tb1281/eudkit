@@ -54,7 +54,7 @@ from py import (
     TriggerFieldReloc,
     Var,
     arrayDword,
-    buildModule,
+    build_module,
     defineMemView,
     emitVarStore,
     memcpyEPD,
@@ -135,4 +135,4 @@ def prog() -> None:
     once(run_once)
 
 
-module = buildModule(prog)
+module = build_module(prog)

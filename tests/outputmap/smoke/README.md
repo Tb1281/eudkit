@@ -21,7 +21,7 @@ Silent basemap = `tests/outputmap/basemap/basemap_silent.scx`; plain basemap =
 | `UnitGroup` auto-prune | `unitgroup-cunit.py` / `unitgroup-cunit.ts` | silent | `unitgroup-cunit.scx`, 51,967 bytes |
 | Camera follow | `camera-follow.py` / `camera-follow.ts` | silent | `camera-follow.scx`, 130,180 bytes |
 | Containers and math | `hud-containers-math.py` / `hud-containers-math.ts` | silent | `hud-containers-math.scx`, 102,743 bytes |
-| `displayAt` ownership | `displayat_owning_verify.ts` | silent | source-only |
+| `displayAt` restore | `displayat_restore_verify.ts` | silent | source-only |
 
 ## Stock trigger catalog
 
@@ -233,21 +233,23 @@ Expected HUD lines (`displayAt(1..4)`):
 | 3 | `LIVE TICK=...... P1_MINERALS=...` | Updates live as game ticks and minerals change |
 | 4 | `STATUS: PASS` | All self-checks hold |
 
-## `displayAt` ownership (`displayat_owning_verify.ts`)
+## `displayAt` restore (`displayat_restore_verify.ts`)
 
-`displayat_owning_verify.ts` verifies which string owns a `displayAt` line.
+`displayat_restore_verify.ts` checks that the display cursor is restored
+after `displayAt(1)`: `AAA` lands on line 1 (relative offset 1 from the
+cursor), and a following plain `display()` appends `BBB` on the next line.
 
 | Line | Expected text | Meaning |
 | ---- | ------------- | ------- |
-| 1 | `AAA` | `FixedString.displayAt(1)` owns chat line 1 |
+| 1 | `AAA` | `FixedString.displayAt(1)` writes one line ahead of the cursor |
 | 2 | `BBB` | `FixedString.display()` appends to the next line |
 
 Compile it to `/tmp`; the map is source-only and not committed:
 
 ```sh
-eudkit compile tests/outputmap/smoke/displayat_owning_verify.ts \
+eudkit compile tests/outputmap/smoke/displayat_restore_verify.ts \
   --basemap tests/outputmap/basemap/basemap_silent.scx \
-  -o /tmp/displayat-owning.scx
+  -o /tmp/displayat-restore.scx
 ```
 
 ## Regenerating
@@ -261,6 +263,6 @@ eudkit compile tests/outputmap/smoke/<name>.ts \
 ```
 
 Use `basemap.scx` for `classic-runner-order`, and compile the source-only
-`sample.*` and `displayat_owning_verify.ts` maps to `/tmp` with the commands in
+`sample.*` and `displayat_restore_verify.ts` maps to `/tmp` with the commands in
 their sections above. `--plan` reports the aligned-padding layout without
 touching the basemap.

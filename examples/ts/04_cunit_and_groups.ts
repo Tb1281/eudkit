@@ -79,7 +79,9 @@ export const module = buildModule(() => {
     unit.sprite.set(0x629d98);
     sprite.posX.set(320);
 
-    // Dead unit (sprite == 0): autoPrune clears this slot on the next tick
+    // Dead unit (sprite == 0): autoPrune clears this slot on the next tick.
+    // Note: the eudplib baseline marks death differently (order == 0); the
+    // two libraries detect a dead unit by different fields.
     deadUnit.sprite.set(0);
 
     group.add(FIRST_UNIT_EPD);

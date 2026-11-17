@@ -8,9 +8,10 @@ with `py/`; a small number of builder-seam behaviours differ by design. See
 
 ## Install
 
-```sh
-npm install eudkit
-```
+The package is not published to npm yet, so install it from the
+[v0.1.1 release tarball](https://github.com/Tb1281/eudkit/releases/tag/v0.1.1)
+(`eudkit-0.1.1.tgz`) or from a checkout (see below);
+`npm install eudkit` will not find it on npm today.
 
 The package contains the compiled TypeScript DSL (`dist/`), its layout schemas,
 and the MIT license. For the `eudkit` compiler CLI and `eudkit-lsp`, download a
@@ -32,7 +33,7 @@ cargo build --workspace
 
 # Then from ts/:
 npm install        # dev tools only (typescript, @types/node); never shipped
-npm run typecheck  # tsc --noEmit over sources + tests
+npm run typecheck  # tsc --noEmit over sources + tests, plus the truthiness check
 npm run dev        # tsc --watch for continuous rebuild during local development
 npm test           # node --test tests/test_*.ts
 ```
@@ -251,9 +252,9 @@ editing a `schema/layouts/dat-*.json` field, run `npm run generate:dat`.
 
 ## See also
 
-- [Quickstart](../docs/quickstart.md)
-- [Quickstart example](../examples/quickstart/README.md)
-- [Migration examples](../examples/README.md)
+- [Quickstart](../docs/quickstart.md) ([Korean](../docs/quickstart.ko.md))
+- [Quickstart example](../examples/quickstart/README.md) ([Korean](../examples/quickstart/README.ko.md))
+- [Migration examples](../examples/README.md) ([Korean](../examples/README.ko.md))
 - [Diagnostics reference](../docs/diagnostics.md)
 - [Language server (`eudkit-lsp`)](../docs/lsp.md)
 - [Glossary](../GLOSSARY.md)

@@ -23,7 +23,7 @@ from py import (
     UpgradeType,
     Var,
     WeaponType,
-    buildModule,
+    build_module,
     once,
     techDat,
     unitsDat,
@@ -64,4 +64,4 @@ def prog() -> None:
     once(initDat)
 
 
-module = buildModule(prog)
+module = build_module(prog)

@@ -6,9 +6,7 @@ eudkit DSL의 TypeScript 구현입니다. `py/`와 정본 어휘를 공유하며
 
 ## 설치
 
-```sh
-npm install eudkit
-```
+이 패키지는 아직 npm에 게시되지 않았으므로, [v0.1.1 릴리스 타볼](https://github.com/Tb1281/eudkit/releases/tag/v0.1.1)(`eudkit-0.1.1.tgz`)이나 체크아웃에서 설치하세요(아래 참고). 지금은 `npm install eudkit`으로 npm에서 찾을 수 없습니다.
 
 이 패키지에는 컴파일된 TypeScript DSL(`dist/`), 레이아웃 스키마, MIT 라이선스만 포함되어 있습니다. `eudkit` 컴파일러 CLI와 `eudkit-lsp`가 필요하면 [GitHub Releases](https://github.com/Tb1281/eudkit/releases/latest)에서 플랫폼별 독립 번들을 내려받거나 저장소 루트에서 직접 빌드하세요([메인 README](../README.ko.md) 참고). 체크아웃에서 이 패키지를 빌드하려면 아래 `npm run build`가 필요합니다.
 

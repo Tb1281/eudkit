@@ -16,8 +16,9 @@ time, before a game exists, so they cannot branch on it; eudkit rejects the
 attempt with ``EUDSL-COND-TRUTHIFY`` (ADR 0020). Use the temporal forms:
 
 * ``when(conds, then, otherwise)`` — every loop while ``conds`` hold; the third
-  argument (``when(...).otherwise(...)`` in context-manager style) is the
-  runtime else arm.
+  argument is the runtime else arm (``otherwise``). (In context-manager style,
+  ``with when(conds):`` returns an object with a separate ``.otherwise()``
+  method; that is a different mechanism from the third positional argument.)
 * ``once(conds, body)`` — the first loop ``conds`` hold, then self-disable.
 * ``every(n, body)`` — every ``n`` trigger loops.
 * ``after(n, body)`` — arm an ``n``-loop countdown, then fire once.

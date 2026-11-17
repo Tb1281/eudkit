@@ -89,8 +89,8 @@ Stages in pipeline order (`synth.hir` is on the `synth` path; a map build uses
 | `lower.basemap-info` | Open the basemap, read/tokenize `scenario.chk`, and extract template strings and MapInfo — the one template string-table parse per compile (map assembly reuses it). |
 | `lower.str-offsets` | Run the control-flow pre-pass once, walk its triggers for the final ordered string list, and build the STR offsets from the shared basemap parse. |
 | `lower.final` | Final lowering to LIR, from the same pre-pass (no second flatten, no probe lowering). |
-| `map.template` | Take the tokenized template CHK from the lowering context (a ~0.003 ms clone; no MPQ re-read), or open/read/tokenize it when assembly has no context. |
-| `map.lir` | Parse the LIR JSON and validate the program entry. |
+| `map.template` | Take the tokenized template CHK from the lowering context (a cheap clone; no MPQ re-read), or open/read/tokenize it when assembly has no context. |
+| `map.lir` | Clone the typed LIR document and validate the program entry. |
 | `map.gate` | Append the optional once-per-tick gate. |
 | `map.uprp` | Allocate UPRP/UPUS slots and patch property indices. |
 | `map.payload` | LIR → payload plus relocation fixups. |
@@ -104,12 +104,6 @@ Stages in pipeline order (`synth.hir` is on the `synth` path; a map build uses
 | `mpq.add-chk` | Add the rebuilt `scenario.chk` (and the clone-path placeholder) to the archive. |
 | `mpq.update` | Add queued auxiliary files. |
 | `mpq.compact` | Compact the output archive. |
-
-The `lower.str-offsets` stage runs the HIR control-flow pre-pass once; the
-final string list is walked from that pre-pass and the final lowering emits
-items from the same triggers, so there is no second lowering pass. Map
-assembly (`map.strings`) reuses the template table parsed in
-`lower.basemap-info` rather than parsing it again.
 
 ## Reference baseline
 

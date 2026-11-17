@@ -40,7 +40,7 @@ The preserved reset trigger plus clause/set `when`s emitted immediately before t
 _Avoid_: hoisted gate, flag setup (when naming the whole ordered prelude).
 
 **trigger loop / frame**:
-One pass of the game engine over the active trigger list, evaluating every non-disabled trigger once; the fundamental time unit of all temporal constructs. A frame is one rendered game frame, which coincides with a trigger loop only when EUD turbo is active.
+One pass of the game engine over the active trigger list, evaluating every non-disabled trigger once; the fundamental time unit of all temporal constructs. A frame is one rendered game frame, which coincides with a trigger loop only when EUD turbo is active: the trigger-execution timer at `0x6509A0` counts down once per frame and triggers run when it reaches 0, so writing 0 there (`turbo()`) makes the loop run once per frame, while 1 gives the traditional hyper rate of once per two frames ([EUD Book: TriggerExecutionTimer](https://armoha.github.io/eud-book/offsets/TriggerExecutionTimer(Hypertriggers).html), [StarEdit: hyper triggers](http://staredit.net/topic/17533/1/)).
 _Avoid_: `frame` (when referring to trigger evaluation cadence), `tick`.
 
 **trigger (T)**:
@@ -180,7 +180,7 @@ An imperative method (`v.set`, `v.iadd`, `v.isub`, `v.imul`, `v.idiv`, `v.imod`)
 _Avoid_: chaining on imperative mutations.
 
 **payload**:
-The read-only backing that stores constant tables (`FixedArray.const`) as packed data rather than in `TriggerPage` action slots; `lir2payload` starts each item on a dword boundary (`align4`), and the 0–3 byte inter-item pad counts toward `total_bytes` but not `blob_bytes` (`StaticCost` in `eudkit-lir`; [ADR 0019](./docs/adr/0019-operand-domain-validation.md) §1).
+The read-only backing that stores constant tables (`FixedArray.const`) as packed data rather than in `TriggerPage` action slots; `lir2payload` starts each item on a dword boundary (`align4`), and the 0–3 byte inter-item pad counts toward `total_bytes` but not `blob_bytes` (`StaticCost` in `crates/eudkit-lir/src/lib.rs`).
 _Avoid_: legacy writable `EUDArray`, `Db`.
 
 **UTF-8 string bytes**:
@@ -354,7 +354,7 @@ A capacity signal that answers exactly the question it reads and no more: `free_
 _Avoid_: capacity guarantee, authoritative free count.
 
 **CUnit pool / shifted pointer space `S`**:
-The CUnit pool is the game's fixed array of 1699 CUnit slots starting at `0x59CCA8`, 336 bytes (84 dwords) apart, with slot starts in `S` over `[0x16732A, 0x18A052]` and EPDs over `[19025, 161657]`. The shifted pointer space `S = A >> 2` divides the dword-aligned byte address by four; for a slot start, bits 0 and 1 are invariant and bit 20 is always 1, so bits 2–19 recover the slot index ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) §9).
+The CUnit pool is the game's fixed array of 1699 CUnit slots starting at `0x59CCA8`, 336 bytes (84 dwords) apart, with slot starts in `S` over `[0x16732A, 0x18A052]` and EPDs over `[19025, 161657]`. The shifted pointer space `S = A >> 2` divides the dword-aligned byte address by four; for a slot start, bits 0 and 1 are invariant and bit 20 is always 1, so bits 2–19 recover the slot index ([ADR 0015](./docs/adr/0015-unit-iteration-strategies.md) §9). Note: this 1699-slot count is the repo's model (`py/view.py`, `ts/view.ts`); BWAPI accepts unit indices `0 <= unitIndex < 1700` ([BWAPI `Game`](https://bwapi.github.io/class_b_w_a_p_i_1_1_game.html)) and the euddraft wiki states 1700 units spanning `0x59CCA8`–`0x6283E7` ([euddraft wiki](https://github-wiki-see.page/m/phu54321/euddraft/wiki/05.-Selecting-a-pawn)), so slot 1699 must not be treated as free scratch (see `examples/py/07_block_io_and_data.py`).
 _Avoid_: unit array, CUnit heap, slot table, byte address, EPD for `S`, unqualified pointer space.
 
 **CP-relative read**:

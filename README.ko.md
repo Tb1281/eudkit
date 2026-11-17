@@ -44,12 +44,7 @@ StarCraft: Remastered는 빌드나 컴파일에는 필요하지 않으며, 컴�
 
 ## 설치
 
-사용할 언어 프론트엔드에 맞는 패키지를 설치하세요:
-
-```sh
-pip install eudkit      # Python DSL
-npm install eudkit      # TypeScript DSL
-```
+사용할 언어 프론트엔드에 맞는 패키지를 설치하세요. 두 패키지 모두 아직 PyPI/npm에 게시되지 않았으므로, [v0.1.1 릴리스](https://github.com/Tb1281/eudkit/releases/tag/v0.1.1)(Python은 `eudkit-0.1.1-py3-none-any.whl`, TypeScript는 `eudkit-0.1.1.tgz`)나 체크아웃에서 설치하세요([py/README.ko.md](py/README.ko.md), [ts/README.ko.md](ts/README.ko.md) 참고). 지금은 `pip install eudkit` / `npm install eudkit`으로 레지스트리에서 찾을 수 없습니다.
 
 `eudkit` CLI와 에디터 언어 서버(`eudkit-lsp`)는 위 언어 패키지에 포함되어 있지 않습니다. [GitHub Releases](https://github.com/Tb1281/eudkit/releases/latest)에서 플랫폼에 맞는 독립 번들(`eudkit-<ver>-<target>.tar.gz`, Windows는 `.zip`)을 내려받아 압축을 풀면 `bin/eudkit`이 인접한 `share/eudkit/` 디렉터리에서 번들 DSL 런타임을 자동으로 찾습니다. 해당 플랫폼용 번들이 없다면 아래 안내에 따라 소스에서 직접 빌드하세요.
 
@@ -86,7 +81,7 @@ eudkit init hello-ts --ts
 
 프론트엔드별로 디렉터리를 분리하세요 (`eudkit init`은 기존 스타터 파일을 덮어쓰지 않습니다). `eudkit init [<dir>]`은 `<dir>`(기본값: 현재 디렉터리)에 파일을 생성하며 `--ts` 또는 `--py`로 프론트엔드를 지정합니다.
 
-## 60초 Hello World
+## Hello World
 
 저장소 루트에서 아래 명령을 실행하세요. 두 스니펫 모두 체크아웃 내부 임포트 형태를 사용하며, 패키지로 설치해 사용할 때는 `eudkit`으로 임포트합니다([py/README.ko.md](py/README.ko.md), [ts/README.ko.md](ts/README.ko.md) 참고).
 
@@ -95,11 +90,11 @@ eudkit init hello-ts --ts
 `hello.py` 생성:
 
 ```python
-from py import DisplayText, build_module
+from py import DisplayText, build_module, once
 
 
 def prog() -> None:
-    DisplayText("Hello")
+    once([], lambda: DisplayText("Hello"))
 
 
 module = build_module(prog)
@@ -118,10 +113,12 @@ module = build_module(prog)
 `hello.ts` 생성:
 
 ```ts
-import { DisplayText, buildModule } from "./ts/index.ts";
+import { DisplayText, buildModule, once } from "./ts/index.ts";
 
 export const module = buildModule(() => {
-  DisplayText("Hello");
+  once([], () => {
+    DisplayText("Hello");
+  });
 });
 ```
 
@@ -133,7 +130,7 @@ export const module = buildModule(() => {
   -o hello.scx
 ```
 
-StarCraft: Remastered에서 `hello.scx`를 열어 생성된 트리거를 확인할 수 있습니다. 맵을 쓰지 않고 HIR만 확인하려면 `./target/release/eudkit synth hello.py`(또는 `hello.ts`)를 실행하고, 비용 데이터까지 읽기 쉽게 보려면 `dump-ir`을 실행하세요. `--explain-folds`를 추가하면 옵티마이저의 조건/게이트 폴딩 로그가 뒤에 붙습니다.
+StarCraft: Remastered에서 `hello.scx`를 열어 생성된 트리거를 확인할 수 있습니다. 맵을 쓰지 않고 HIR만 확인하려면 `./target/release/eudkit synth hello.py`(또는 `hello.ts`)를 실행하고, 비용 데이터까지 읽기 쉽게 보려면 `dump-ir`을 실행하세요. `dump-ir --explain-folds`를 추가하면 옵티마이저의 조건/게이트 폴딩 로그가 뒤에 붙습니다. (`--explain-folds`는 `dump-ir` 전용 플래그이며 `synth`에는 없습니다.) `once([], ...)`로 감싸지 않으면 `DisplayText`는 한 번이 아니라 매 트리거 루프마다 같은 줄을 추가합니다.
 
 베이스맵 선택부터 게임 내 검증까지 전체 첫 실행 흐름은 [docs/quickstart.ko.md](docs/quickstart.ko.md)와 [examples/quickstart/README.ko.md](examples/quickstart/README.ko.md)를 참고하세요.
 
@@ -162,7 +159,7 @@ StarCraft: Remastered에서 `hello.scx`를 열어 생성된 트리거를 확인�
 | --- | --- |
 | [README.md](README.md) | 영문 메인 README (SSOT) |
 | [docs/quickstart.ko.md](docs/quickstart.ko.md) | 처음부터 플레이 가능한 맵까지 단계별 가이드 ([영문 정본](docs/quickstart.md)) |
-| [examples/quickstart/README.ko.md](examples/quickstart/README.ko.md) | 실행 가능한 Hello World 4단계 예제 ([영문 정본](examples/quickstart/README.md)) |
+| [examples/quickstart/README.ko.md](examples/quickstart/README.ko.md) | 실행 가능한 Hello World 5단계 예제 ([영문 정본](examples/quickstart/README.md)) |
 | [examples/README.ko.md](examples/README.ko.md) | `eudplib` → `eudkit` 마이그레이션 예제 및 Py/TS 동등성 ([영문 정본](examples/README.md)) |
 | [docs/eudplib-comparison.ko.md](docs/eudplib-comparison.ko.md) | `eudplib` 대비 비교, 장단점 및 전체 스펙 카탈로그 |
 | [py/README.ko.md](py/README.ko.md) | Python DSL 진입점, 카탈로그, DAT 테이블 ([영문 정본](py/README.md)) |
@@ -185,7 +182,7 @@ StarCraft: Remastered에서 `hello.scx`를 열어 생성된 트리거를 확인�
 
 ## 버전
 
-모든 릴리스 산출물은 하나의 통합 버전(`0.1.0`)을 공유합니다: `eudkit` CLI와 Rust 워크스페이스, LSP 에디터 확장, Python 및 npm 패키지가 모두 같습니다. 매니페스트 표, 태그 규칙, 릴리스 규약은 [docs/release.md#version-conventions](docs/release.md#version-conventions)를 참고하세요.
+모든 릴리스 산출물은 하나의 통합 버전(`0.1.1`)을 공유합니다: `eudkit` CLI와 Rust 워크스페이스, LSP 에디터 확장, Python 및 npm 패키지가 모두 같습니다. 매니페스트 표, 태그 규칙, 릴리스 규약은 [docs/release.md#version-conventions](docs/release.md#version-conventions)를 참고하세요.
 
 ## 현재 상태 및 제한 사항
 

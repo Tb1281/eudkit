@@ -57,12 +57,13 @@ compile.
 
 ## Install
 
-Use the language package that matches your frontend:
-
-```sh
-pip install eudkit      # Python DSL
-npm install eudkit      # TypeScript DSL
-```
+Use the language package that matches your frontend. Neither package is
+published to PyPI/npm yet, so install from the
+[v0.1.1 release](https://github.com/Tb1281/eudkit/releases/tag/v0.1.1)
+(`eudkit-0.1.1-py3-none-any.whl` for Python, `eudkit-0.1.1.tgz` for
+TypeScript) or from a checkout (see [py/README.md](py/README.md) and
+[ts/README.md](ts/README.md)); `pip install eudkit` / `npm install eudkit`
+will not find them on the registries today.
 
 The `eudkit` CLI and the editor language server are not part of those packages.
 Download a prebuilt standalone bundle (`eudkit-<ver>-<target>.tar.gz`, or
@@ -116,7 +117,7 @@ Use a separate directory per frontend: `eudkit init` refuses to overwrite an
 existing starter. `eudkit init [<dir>]` writes into `<dir>` (default: the
 current directory); select the frontend with `--ts` or `--py`.
 
-## 60-second Hello World
+## Hello World
 
 Run these commands from the repository root. Both snippets use the in-repo
 import form, so they work against a checkout. Installed consumers import the
@@ -128,11 +129,11 @@ package as `eudkit`; see [py/README.md](py/README.md) and
 Create `hello.py`:
 
 ```python
-from py import DisplayText, build_module
+from py import DisplayText, build_module, once
 
 
 def prog() -> None:
-    DisplayText("Hello")
+    once([], lambda: DisplayText("Hello"))
 
 
 module = build_module(prog)
@@ -151,10 +152,12 @@ Compile it:
 Create `hello.ts`:
 
 ```ts
-import { DisplayText, buildModule } from "./ts/index.ts";
+import { DisplayText, buildModule, once } from "./ts/index.ts";
 
 export const module = buildModule(() => {
-  DisplayText("Hello");
+  once([], () => {
+    DisplayText("Hello");
+  });
 });
 ```
 
@@ -169,7 +172,10 @@ Compile it with the same command shape:
 Open `hello.scx` in StarCraft: Remastered to see the generated trigger. To
 inspect the HIR without writing a map, run `./target/release/eudkit synth
 hello.py` (or `hello.ts`); `dump-ir` prints a readable form with cost data.
-Add `--explain-folds` to append the optimizer's condition/gate fold log.
+`dump-ir --explain-folds` appends the optimizer's condition/gate fold log.
+(`--explain-folds` is a `dump-ir` flag, not a `synth` flag.) Without the
+`once([], ...)` wrapper, `DisplayText` would append the same line on every
+trigger loop instead of once.
 
 For the full first-run path, including basemap choice and in-game checks, see
 [docs/quickstart.md](docs/quickstart.md) and
@@ -205,6 +211,7 @@ For the full first-run path, including basemap choice and in-game checks, see
 | [examples/quickstart/README.ko.md](examples/quickstart/README.ko.md) | Korean quickstart examples guide (English document is the SSOT) |
 | [examples/README.md](examples/README.md) | Migration examples and Py/TS parity |
 | [examples/README.ko.md](examples/README.ko.md) | Korean migration examples and Py/TS parity guide |
+| [docs/eudplib-comparison.ko.md](docs/eudplib-comparison.ko.md) | `eudplib` comparison, trade-offs, and full spec catalog (Korean only; no English counterpart) |
 | [docs/diagnostics.md](docs/diagnostics.md) | `EUDSL-*` diagnostic codes and fixes |
 | [docs/lsp.md](docs/lsp.md) | Building and wiring `eudkit-lsp` |
 | [docs/release.md](docs/release.md) | Release deliverables, registry secrets, and bundle packaging |
@@ -229,7 +236,7 @@ prerequisite are in
 
 ## Versions
 
-All release deliverables share one unified version (`0.1.0`): the `eudkit` CLI
+All release deliverables share one unified version (`0.1.1`): the `eudkit` CLI
 and Rust workspace, the LSP editor extensions, and the Python and npm packages.
 The manifest table, tag rules, and release conventions are in
 [docs/release.md#version-conventions](docs/release.md#version-conventions).

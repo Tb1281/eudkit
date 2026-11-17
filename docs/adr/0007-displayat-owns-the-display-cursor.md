@@ -24,6 +24,8 @@ Status: accepted (2026-11-05; supersedes the owning-cursor experiment)
    $$\text{Screen Row} = ((P + \text{line}) - P) \pmod{11} = \text{line}$$
    Row 0 is the top line of the chat box, and Row 10 is the bottom line.
    Subsequent plain `display()` calls write to $P$ and increment $P$, allowing new messages to scroll naturally from the bottom (Row 10) up, while `displayAt(line)` stays pinned at Row `line`.
+   Sources for the eudplib mechanism: `0x640B58` is the next-chat-line cursor
+   ([StarEdit](http://staredit.net/topic/14226/last/), [EUD Book: NextDisplayTextLine](https://armoha.github.io/eud-book/offsets/NextDisplayTextLine.html)); `FixedText` in `eudplib/string/cpprint.py` saves `0x640B58` on enter and restores it on exit, and `DisplayTextAt` in `eudplib/string/strbuffer.py` adds `line` and subtracts 11 when `>= 11` inside `FixedText`. The exact screen-row formula above is implied by that code plus the next-line semantics, not quoted verbatim from any single source.
 
 2. **The eudkit mistake**:
    Early `eudkit` ports mistakenly changed `Add, line` to `SetTo, line`.
@@ -45,10 +47,16 @@ Status: accepted (2026-11-05; supersedes the owning-cursor experiment)
    - Emit `DisplayText`.
    - Restore `0x640B58 = saved` (`SetTo, saved`).
 
-2. **In-game Verification**:
-   Verified in StarCraft: Remastered with `tests/outputmap/smoke/displayat_owning_verify.ts`:
-   - `AAA` is pinned rock-solid at Line 1 (one line below the top).
-   - `BBB` scrolls up smoothly from the bottom line (Row 10).
+2. **In-game expectation (not a recorded verification)**:
+   No in-game run is recorded in this repo for the restore semantics, so no
+   screen-position claim is asserted here. What is evidenced: the sim
+   contract in Decision 3 (the pointer after `displayAt` equals the saved
+   pointer), the `test_display_restore` suites in both mirrors, and the
+   smoke-map expectation in `tests/outputmap/smoke/README.md`
+   (`displayat_restore_verify.ts`: `AAA` on line 1, `BBB` appended on the
+   next line). A Remastered run of that smoke map would confirm the
+   expectation; until one is recorded, treat the row positions as expected,
+   not verified.
 
 3. **Sim Contract**:
    The sim models trigger execution without StarCraft's internal synchronous `DisplayText` cursor increment.
@@ -57,4 +65,4 @@ Status: accepted (2026-11-05; supersedes the owning-cursor experiment)
 ## Consequences
 
 - `ts/string.ts` and `py/string.py` emit the save bit-tests, relative `Add`, modulo-11 `Subtract`, `DisplayText`, and the `saved` restore.
-- `ts/test_display_restore.ts`, `py/test_display_restore.py`, and the `FixedString` restore test assert transparency / restore-saved semantics.
+- `ts/tests/test_display_restore.ts`, `py/tests/test_display_restore.py`, and the `FixedString` restore test assert transparency / restore-saved semantics.

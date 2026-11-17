@@ -15,6 +15,8 @@ eudplib Pattern Notes:
       ``(left, top)`` despite its historical docstring.
     - Tech and upgrade tables use ``P1.tech[...]`` / ``P1.upgrade[...]`` (or
       byte reads/writes at ``0x58CF44`` / ``0x58D2B0``).
+    - ``EUDBinaryMin`` takes ``(predicate, lo, hi)``; eudkit ``binary_min``
+      flips the order to ``(lo, hi, predicate)``.
 """
 
 from eudplib import *
@@ -52,7 +54,9 @@ def onPluginStart():
     f_setloc(0, 64, 64, 192, 192)
     lx, ly = f_getlocTL(0)
     if EUDIf()(found >= 10):
-        dx += lx - lx + ly - ly
+        # Loc TL is (64, 64), so this adds 0 here — but it consumes the
+        # f_getlocTL values in a real computation instead of discarding them.
+        dx += (lx - 64) + (ly - 64)
     EUDEndIf()
 
     P1.upgrade[EncodeUpgrade("Terran Infantry Weapons")] = 2

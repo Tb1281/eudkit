@@ -14,7 +14,8 @@ Migration Guide (eudplib -> eudkit):
     - ``turbo()`` writes ``0x6509A0`` (`eudTurbo`), and ``free_list_empty()``
       is a 1-condition CUnit-pool exhaustion check (`0x628438 == 0`).
     - Heavyweight init-loop helpers ``no_air_collision()`` and
-      ``unlimiter()`` follow the exact same zero-plugin pattern (note: arming
+      ``unlimiter()`` are available as ordinary DSL calls in the same
+      zero-plugin style, but are not demonstrated here (note: arming
       ``unlimiter()`` allocates ~8.4 MiB and runs 679k init steps, so pass
       ``eudkit dump-ir --no-exec`` when inspecting it).
 
@@ -28,7 +29,7 @@ Migration Guide (eudplib -> eudkit):
     - ``camera_follow(...)``: euddraft ``cammove`` 플러그인 대체.
     - ``turbo()`` (``eudTurbo``), ``free_list_empty()`` (CUnit 여유 슬롯
       고갈 검사), 그리고 대용량 초기화 패치인 ``no_air_collision()`` /
-      ``unlimiter()``도 동일하게 모듈 안에서 직접 호출합니다.
+      ``unlimiter()``도 동일하게 모듈 안에서 직접 호출할 수 있습니다(여기서는 시연하지 않음).
 
 External package note: when installed via ``pip install -e ./py``, import
 symbols from ``eudkit`` instead of ``py`` (``from eudkit import ...``).

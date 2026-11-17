@@ -41,7 +41,7 @@ from py import (
     FixedString,
     SetDeaths,
     SetTo,
-    buildModule,
+    build_module,
     when,
     withCP,
 )
@@ -87,7 +87,7 @@ def prog() -> None:
 
     hud = FixedString(48)
     hud.write("HP={:\x1a>5d} TYPE={:\x1a>3d}", hp_from_at, unit_type)
-    hud.displayAt(1)
+    hud.display_at(1)
 
     # 3. Zero-CP direct CUnit(EPD(0x59CCA8)) alternative (never touches 0x6509B0)
     direct = CUnit(CUNIT0_EPD)
@@ -98,4 +98,4 @@ def prog() -> None:
     _ = (direct_hp, direct_type)
 
 
-module = buildModule(prog)
+module = build_module(prog)

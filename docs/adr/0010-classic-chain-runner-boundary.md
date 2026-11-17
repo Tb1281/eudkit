@@ -41,7 +41,9 @@ chain on-demand would break the native per-chain cadence.
    payload. The first-loop behavior is part of the contract, not a
    divergence: an authored trigger that displays text or waits runs before
    the payload on loop 1 and on every later loop. The payload gate still
-   makes the compiled program execute once per game tick.
+   makes the compiled program execute once per game tick. (Gated builds
+   only; ungated single-chain builds per ADR 0013 run once per trigger
+   loop instead.)
 
 2. **The runner pair brackets the authored chain.** `TrigTriggerBegin` is a
    synthetic classic trigger placed immediately after the stage-1 setup and
@@ -60,7 +62,9 @@ chain on-demand would break the native per-chain cadence.
 4. **The chain link is unchanged.** Stage 1 still writes
    `payload_offset + gate_entry_bytes` into `lasttrigger->next`, where
    `lasttrigger` is the synthetic blank after the runner end. The runner pair
-   does not move the payload link or change the gate.
+   does not move the payload link or change the gate. (Gated builds only; on
+   ungated single-chain builds per ADR 0013, stage 1 links directly to the
+   program entry instead.)
 
 ## Considered options
 

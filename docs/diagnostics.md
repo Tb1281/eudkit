@@ -5,9 +5,10 @@ the opt-in TypeScript truthiness linter (`EUDSL-TS-TRUTHIFY`), and the CLI plan
 loader (`EUDSL-PLAN`). Fourteen are errors and two are warnings
 (`EUDSL-WARN-*`). Three are frontend-specific (`EUDSL-COND-TRUTHIFY` and
 `EUDSL-READONLY` are Python-only; `EUDSL-TS-TRUTHIFY` is an opt-in TypeScript
-lint); the rest are shared. The warnings are printed as `warning: EUDSL-…` on
-stderr and do not fail a build; pass `--no-warnings` to `synth`, `dump-ir`, or
-`compile` to silence them.
+lint); the rest are shared across the frontends, except `EUDSL-PLAN`, which is
+CLI-only (emitted by the plan loader, not by either frontend). The warnings
+are printed as `warning: EUDSL-…` on stderr and do not fail a build; pass
+`--no-warnings` to `synth`, `dump-ir`, or `compile` to silence them.
 
 The codes are emitted by the DSL frontends (`py/`, `ts/`) and by the CLI's
 plan loader (`crates/eudkit-cli/src/plan.rs`). Every code below was checked
@@ -18,14 +19,14 @@ the ADR is linked; where no ADR exists, the owning source file is named.
 |---|---|---|---|
 | `EUDSL-ASCII` | error | Non-ASCII fill byte in a format spec | [ADR 0014](./adr/0014-decimal-format-default-and-fill-alignment-syntax.md) |
 | `EUDSL-BOUNDS` | error | Index, capacity, or trigger slot count out of range | [ADR 0003](./adr/0003-capacity-aware-aligned-string-writes.md), [0009](./adr/0009-typed-dat-accessors.md), [0019](./adr/0019-operand-domain-validation.md) |
-| `EUDSL-CMP` | error | Unknown `MemCond` comparison name | [ADR 0019](./adr/0019-operand-domain-validation.md) §6 |
+| `EUDSL-CMP` | error | Unknown `MemCond` comparison name | [ADR 0019](./adr/0019-operand-domain-validation.md) §1 |
 | `EUDSL-COND-TRUTHIFY` | error | Python `if`/`while`/`assert`/`and`/`or`/`not` on a runtime condition | [ADR 0020](./adr/0020-build-time-vs-runtime-conditions.md) |
 | `EUDSL-DIV-ZERO` | error | Constant division or modulo by zero | `py/var.py`, `ts/var.ts` |
 | `EUDSL-FORMAT` | error | Malformed `FixedString` format string | [ADR 0014](./adr/0014-decimal-format-default-and-fill-alignment-syntax.md) |
 | `EUDSL-PLAN` | error | Frozen-plan JSON version is not supported | [ADR 0013](./adr/0013-optional-tick-gate-for-single-chain-maps.md), `crates/eudkit-cli/src/plan.rs` |
 | `EUDSL-RANGE` | error | Numeric value outside a documented range | [ADR 0019](./adr/0019-operand-domain-validation.md) |
 | `EUDSL-READONLY` | error | Mutation through a Python `ReadonlyVar` | [ADR 0005](./adr/0005-lazy-global-declarations.md) |
-| `EUDSL-SCOPE` | error | Declaration or DSL call outside `buildModule`, or an unresolvable lazy handle | [ADR 0005](./adr/0005-lazy-global-declarations.md), [0012](./adr/0012-explicit-entry-module-export.md) |
+| `EUDSL-SCOPE` | error | Declaration or DSL call outside `buildModule`, or an unresolvable lazy handle | [ADR 0005](./adr/0005-lazy-global-declarations.md), [0012](./adr/0012-explicit-entry-module-export.md), [0021](./adr/0021-mpq-embedded-file-surface.md) |
 | `EUDSL-TARGET` | error | A target that must be a constant is dynamic | [ADR 0009](./adr/0009-typed-dat-accessors.md), [0004](./adr/0004-triggerpage-transfer-parking-and-curpl-reset.md) |
 | `EUDSL-TS-TRUTHIFY` | error (opt-in lint) | TypeScript runtime condition used as a JS boolean | [ADR 0020](./adr/0020-build-time-vs-runtime-conditions.md) |
 | `EUDSL-TYPE` | error | Operand outside its accepted domain | [ADR 0019](./adr/0019-operand-domain-validation.md) |
@@ -126,7 +127,7 @@ MemCond(EPD(0x57F0F0), ">", 100)
 MemCond(EPD(0x57F0F0), ">=", 100)   # or use AtLeast directly
 ```
 
-**ADR.** [ADR 0019](./adr/0019-operand-domain-validation.md) §6.
+**ADR.** [ADR 0019](./adr/0019-operand-domain-validation.md) §1.
 
 ## `EUDSL-COND-TRUTHIFY`
 
@@ -191,8 +192,10 @@ q = v.div(2)
 
 **Meaning.** A `FixedString` format string is malformed. The parser supports
 `[[fill]align]width[type]` only: `>` alignment, decimal `d`, and 8-digit hex
-`x`. Left/centre alignment, missing widths, widths outside `1..10`, lone
-braces, and unknown types are errors.
+`x`. Left/centre alignment, a missing width *after an align/fill*, widths
+outside `1..10`, lone braces, and unknown types are errors. A bare type with
+no width is valid: `{:d}` defaults to variable-width decimal and `{:x}` to
+8-digit hex. Only a hex width other than 8 (for example `{:4x}`) is an error.
 
 **Trigger.** `s.write("{:d", v)`, `s.write("{:<4d}", v)`,
 `s.write("{:>d}", v)`, `s.write("{:4x}", v)`, `s.write("bad }")`.

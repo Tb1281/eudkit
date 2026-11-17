@@ -15,17 +15,26 @@ eudplib / euddraft 패턴 요약:
     ``f_repmovsd_epd`` 로 복사.
   * ``"unpatchable"`` 플래그: ``f_dwpatch_epd`` 로 패치 스택(``dwstack`` /
     ``patchstack``)에 이전 값을 기록해, 종료 시 ``f_unpatchall()`` 로 복원 가능.
+
+WARNING — 스크래치 슬롯 1699는 안전한 스크래치가 아닙니다. 이 예제는 저장소의
+1699슬롯 CUnit 모델(슬롯 0..1698)을 전제하지만, BWAPI는 유닛 인덱스
+``0 <= unitIndex < 1700``을 허용하고 euddraft 위키는 1700개 유닛(0~1699번)이
+``0x59CCA8``–``0x6283E7``을 차지한다고 합니다. 그 기준에서는 슬롯 1699가 마지막
+유효 CUnit이므로, 아래 84-dword 복사는 해당 슬롯이 사용 중일 때 유닛 데이터를
+덮어씁니다. 1699-vs-1700이 코드 차원에서 정리될 때까지 실제 맵에 이 스크래치
+선택을 복사하지 마세요.
 """
 
 from eudplib import *
 from eudplib.eudlib.utilf.datadumper import _add_datadumper, _f_datadumper
-from eudplib.eudlib.utilf.mempatch import f_dwpatch_epd, f_unpatchall
 
 CUNIT_POOL_ADDR = 0x59CCA8
 CUNIT_SIZE = 336
 CUNIT_DWORDS = 84
 
 SLOT0_ADDR = CUNIT_POOL_ADDR
+# WARNING: slot 1699 is the last VALID CUnit under BWAPI (1700 slots) — see
+# the module docstring. Kept only as the baseline address; not safe scratch.
 SCRATCH_SLOT_ADDR = CUNIT_POOL_ADDR + 1699 * CUNIT_SIZE
 
 SRC_EPD = EPD(SLOT0_ADDR)
@@ -78,6 +87,8 @@ def run():
     #    - f_memcpy 는 바이트 주소/바이트 길이를 받으며, Db 소스는 바이트 루프로 폴백된다.
     blob = Db(b"EUDKITV3DATA")
     f_repmovsd_epd(BLOB_DST_EPD, EPD(blob), 3)
+    # Deliberate second copy as an `f_memcpy` demo: the blob's first 12 bytes
+    # again at offset +12, so 24 bytes are written in total.
     f_memcpy(BLOB_DST_ADDR + 12, blob, 12)
 
     # 6. dataDumper("copy") 가 읽을 포인터를 시드한 뒤, 등록된 dataDumper 를 실행한다.
@@ -94,9 +105,3 @@ def run():
 
 def onPluginStart():
     run()
-
-
-def afterTriggerExec():
-    # unpatchable 패치를 썼을 때 언로드 직전 f_unpatchall() 로 원상복구하는 패턴.
-    _ = (f_dwpatch_epd, f_unpatchall)
-    EUDOnStart(lambda: None)

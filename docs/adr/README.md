@@ -26,7 +26,7 @@ decision and its trade-off; read the linked file for the argument.
 | [0004](./0004-triggerpage-transfer-parking-and-curpl-reset.md) | TriggerPage transfers, parking, and `curpl` reset | accepted (2026-11-04) | Transfer-run parking and the per-loop CurrentPlayer reset. |
 | [0005](./0005-lazy-global-declarations.md) | Lazy global declarations | accepted (2026-11-04) | Lazy handles, per-builder binding, first-use order, and owner-file views. |
 | [0006](./0006-hir-nodes-for-until-edge-and-counted-forms.md) | HIR nodes for `until`, `edge`, and counted forms | accepted (2026-11-04; amended 2026-11-10, 2026-11-11) | Temporal HIR promotion and opt desugaring, including unconditional-`until` semantics. |
-| [0007](./0007-displayat-owns-the-display-cursor.md) | `displayAt` relative offset and cursor restore | accepted (2026-11-05; supersedes the owning-cursor experiment) | Display-line cursor ownership and restore. |
+| [0007](./0007-displayat-owns-the-display-cursor.md) | `displayAt` relative offset and cursor restore | accepted (2026-11-05; supersedes the owning-cursor experiment) | Display-line cursor restore (relative offset). |
 | [0008](./0008-preserve-authored-classic-trigger-flags.md) | Preserve authored classic-trigger flags | accepted (2026-11-05) | Basemap trigger flags survive compilation. |
 | [0009](./0009-typed-dat-accessors.md) | Typed DAT table accessors | accepted (2026-11-05) | Schema-derived typed DAT entries and field handles. |
 | [0010](./0010-classic-chain-runner-boundary.md) | Classic-chain runner boundary and ordering | accepted (2026-11-05; amended by [ADR 0013](./0013-optional-tick-gate-for-single-chain-maps.md) for single-chain maps) | Begin/End runner pair and classic-first ordering. |

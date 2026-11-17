@@ -5,17 +5,24 @@
 > New to eudkit? Start with the progressive beginner examples in
 > [`quickstart/`](./quickstart/README.md) and the
 > [zero-to-playable-map walkthrough](../docs/quickstart.md), then come back here
-> once those four examples make sense.
+> once those five examples make sense.
 
 Side-by-side runnable examples showing how the same memory read/write, cursor,
 table, struct/array, and block-I/O intent is written in **`eudplib`**,
 **`eudkit` Python**, and **`eudkit` TypeScript**.
 
 Every `py/` and `ts/` pair is verified to synthesize with zero warnings and
-produce **byte-identical HIR and `.scx` output**.
+produce **byte-identical compact HIR and `.scx` output**.
+
+Notation in the table below: `1C` = one condition slot, `1A` = one action slot,
+`64A` = a 64-action `TriggerPage`.
 
 ## Start here
 
+- Most examples produce no on-screen output by design: only 01, 06, and 07
+  ever call `DisplayText`. Behaviour is verified by the py/ts parity and
+  simulator-invariant tests (`py/tests/test_examples.py`), not by HUD lines,
+  so a silent map is expected for the other examples.
 - For the in-game verification workflow and expected screen output, see
   [`../tests/outputmap/smoke/README.md`](../tests/outputmap/smoke/README.md).
 - These are migration examples, not a tutorial. Run them through

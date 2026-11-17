@@ -49,8 +49,9 @@ those three points.
 4. **Cadence without the gate.** On a single-chain map the payload runs
    once per trigger loop on that chain — native per-chain cadence — rather
    than being deduplicated to once per game tick. The gate only removes
-   duplicate executions across multiple chains in the same loop; it does
-   not otherwise slow the single chain.
+   duplicate executions across multiple chains in the same loop; no
+   measurement is cited for whether it otherwise slows the single chain, so
+   no such claim is made here.
 
 5. **The option reaches every entry point.** The CLI single-source build,
    frozen-plan builds, `eudkit-lower::compile_hir_to_map_with_options`

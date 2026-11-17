@@ -10,7 +10,9 @@
  *   - eudkit: unified core exports:
  *     - `divFloor` (plus `divTowardsZero`/`divEuclid`), `isqrt`, `pow`,
  *       `atan2`/`lengthdir` (backed by lazy shared trig tables per builder),
- *       and `binaryMin`/`binaryMax`.
+ *       and `binaryMin`/`binaryMax`. Note the argument order flips from
+ *       eudplib: `binaryMin(lo, hi, predicate)`, not
+ *       `EUDBinaryMin(predicate, lo, hi)`.
  *     - `srand`, `randomize`, `rand`, `dwrand`, `randRange` with builder-local
  *       LCG state (no global seed collisions across modules).
  *     - `Location(0)` OOP wrapper (`setRect`, `move`, `center`, `topLeft`),
@@ -90,11 +92,13 @@ export const module = buildModule(() => {
     out.set(q.add(root).add(p).add(dx).add(dy).add(roll).add(lx).add(ly)),
   );
 
-  // Tech / upgrade state (0 = Stim Packs, 0 = upgrade slot 0).
+  // Tech / upgrade state (tech=0 Stim Packs, player=0; upgrade=7 Terran
+  // Infantry Weapons, player=0, level 2) — matches the eudplib baseline,
+  // which uses EncodeUpgrade("Terran Infantry Weapons") (id 7).
   once(() => {
-    setUpgradeLevel(0, 0, 2);
+    setUpgradeLevel(7, 0, 2);
     setTechResearched(0, 0, true);
   });
-  const upLvl = upgradeLevel(0, 0);
+  const upLvl = upgradeLevel(7, 0);
   when([techResearched(0, 0), upLvl.ge(2)], () => out.iadd(1));
 });
